@@ -9,13 +9,13 @@ compile:
 	cd priv && make
 
 static:
-	dialyzer --build_plt --output_plt sqlite.plt -r ebin $(PLT_SRC)
+	dialyzer --build_plt --output_plt sqlite3.plt -r ebin $(PLT_SRC)
 
 clean:
-	- rm -rf ebin/*.beam doc/* sqlite.plt src/test/*.beam
+	- rm -rf ebin/*.beam doc/* sqlite3.plt src/test/*.beam
 	- rm -rf ct_run* all_runs.html variables* index.html
 	find . -name "*~" | xargs rm
 	cd priv && make clean
 
 docs:
-	$(ERL) -noshell -run edoc_run application "'sqlite'" '"."' '[{title,"Welcome to sqlite"},{hidden,false},{private,false}]' -s erlang halt
+	$(ERL) -noshell -run edoc_run application "'sqlite3'" '"."' '[{title,"Welcome to sqlite3"},{hidden,false},{private,false}]' -s erlang halt

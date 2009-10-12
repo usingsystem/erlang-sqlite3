@@ -1,12 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% File    : sqlite_lib.erl
+%%% File    : sqlite3_lib.erl
 %%% @author Tee Teoh
 %%% @copyright 21 Jun 2008 by Tee Teoh 
 %%% @version 1.0.0
-%%% @doc Library module for sqlite
+%%% @doc Library module for sqlite3
 %%% @end
 %%%-------------------------------------------------------------------
--module(sqlite_lib).
+-module(sqlite3_lib).
 
 %% API
 -export([col_type/1]).
@@ -18,7 +18,7 @@
 %%====================================================================
 %%--------------------------------------------------------------------
 %% @spec col_type(Type :: term()) -> term()
-%% @doc Maps sqlite column type.
+%% @doc Maps sqlite3 column type.
 %%--------------------------------------------------------------------
 -spec(col_type/1::(atom() | string()) -> atom() | string()).
 col_type(integer) ->
@@ -77,10 +77,10 @@ write_col_sql(Cols) ->
 -spec(create_table_sql/2::(atom(), [{atom(), string()}]) -> string()).
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
     CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
-    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [ColName, sqlite_lib:col_type(Type)]),
+    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [ColName, sqlite3_lib:col_type(Type)]),
     End = string:join(
 	    lists:map(fun({Name0, Type0}) ->
-			      io_lib:format("~p ~s", [Name0, sqlite_lib:col_type(Type0)])
+			      io_lib:format("~p ~s", [Name0, sqlite3_lib:col_type(Type0)])
 		      end, Tl), ", ") ++ ");",
     lists:flatten(CT ++ Start ++ End).
 
@@ -99,8 +99,8 @@ write_sql(Tbl, Data) ->
     lists:flatten(
       io_lib:format("INSERT INTO ~p (~s) values (~s);", 
 		    [Tbl, 
-		     sqlite_lib:write_col_sql(Cols), 
-		     sqlite_lib:write_value_sql(Values)])).
+		     sqlite3_lib:write_col_sql(Cols), 
+		     sqlite3_lib:write_value_sql(Values)])).
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value) -> string()

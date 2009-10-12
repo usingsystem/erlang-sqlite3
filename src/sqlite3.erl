@@ -1,12 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% File    : sqlite.erl
+%%% File    : sqlite3.erl
 %%% @author Tee Teoh
 %%% @copyright 21 Jun 2008 by Tee Teoh 
 %%% @version 1.0.0
-%%% @doc Library module for sqlite
+%%% @doc Library module for sqlite3
 %%% @end
 %%%-------------------------------------------------------------------
--module(sqlite).
+-module(sqlite3).
 
 -behaviour(gen_server).
 
@@ -37,7 +37,7 @@
 %% @spec start_link(Db) -> {ok,Pid} | ignore | {error,Error}
 %%      Db = atom()
 %% @doc 
-%%   Opens a sqlite dbase creating one if necessary. The dbase must 
+%%   Opens a sqlite3 dbase creating one if necessary. The dbase must 
 %%   be called Db.db in the current path. start_link/1 can be use 
 %%   with stop/0, sql_exec/1, create_table/2, list_tables/0, 
 %%   table_info/1, write/2, read/2, delete/2 and drop_table/1. 
@@ -56,10 +56,10 @@ start_link(Db) ->
 %% @spec start_link(Db, Options) -> {ok,Pid} | ignore | {error,Error}
 %%      Db = atom()
 %% @doc 
-%%   Opens a sqlite dbase creating one if necessary. By default the 
+%%   Opens a sqlite3 dbase creating one if necessary. By default the 
 %%   dbase will be called Db.db in the current path. This can be changed 
 %%   by passing the option {db, DbFile :: String()}. DbFile must be the 
-%%   full path to the sqlite db file. start_link/1 can be use with stop/0, 
+%%   full path to the sqlite3 db file. start_link/1 can be use with stop/0, 
 %%   sql_exec/1, create_table/2, list_tables/0, table_info/1, write/2, 
 %%   read/2, delete/2 and drop_table/1. There can be only one start_link 
 %%   call per node.
@@ -78,8 +78,8 @@ start_link(Db, Options) ->
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid::pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite dbase creating one if necessary. The dbase must be 
-%%   called Db.db in the current path. Can be use to open multiple sqlite 
+%%   Opens a sqlite3 dbase creating one if necessary. The dbase must be 
+%%   called Db.db in the current path. Can be use to open multiple sqlite3 
 %%   dbases per node. Must be use in conjunction with stop/1, sql_exec/2,
 %%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
 %%   and drop_table/2.
@@ -92,10 +92,10 @@ open(Db) ->
 %%--------------------------------------------------------------------
 %% @spec open(Db::atom(), Options::[tuple()]) -> {ok, Pid::pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite dbase creating one if necessary. By default the dbase 
+%%   Opens a sqlite3 dbase creating one if necessary. By default the dbase 
 %%   will be called Db.db in the current path. This can be changed by 
 %%   passing the option {db, DbFile :: String()}. DbFile must be the full 
-%%   path to the sqlite db file. Can be use to open multiple sqlite dbases 
+%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 dbases 
 %%   per node. Must be use in conjunction with stop/1, sql_exec/2, 
 %%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
 %%   and drop_table/2. 
@@ -108,7 +108,7 @@ open(Db, Options) ->
 %%--------------------------------------------------------------------
 %% @spec close(Db::atom()) -> ok
 %% @doc
-%%   Closes the Db sqlite dbase. 
+%%   Closes the Db sqlite3 dbase. 
 %% @end
 %%--------------------------------------------------------------------
 -spec(close/1::(atom()) -> 'ok').
@@ -118,7 +118,7 @@ close(Db) ->
 %%--------------------------------------------------------------------
 %% @spec stop() -> ok
 %% @doc
-%%   Closes the sqlite dbase.
+%%   Closes the sqlite3 dbase.
 %% @end
 %%--------------------------------------------------------------------
 -spec(stop/0::() -> 'ok').
@@ -365,29 +365,29 @@ handle_call(list_tables, _From, #state{port = Port} = State) ->
 handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     % make sure we only get table info.
     % SQL Injection warning
-    SQL = io_lib:format("select sql from sqlite_master where tbl_name = '~p' and type='table';", [Tbl]),
+    SQL = io_lib:format("select sql from sqlite3_master where tbl_name = '~p' and type='table';", [Tbl]),
     [{Info}] = exec(Port, {sql_exec, SQL}),
     Reply = parse_table_info(Info),
     {reply, Reply, State};
 handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
-    SQL = sqlite_lib:create_table_sql(Tbl, Options),
+    SQL = sqlite3_lib:create_table_sql(Tbl, Options),
     Cmd = {sql_exec, SQL},
     Reply = exec(Port, Cmd),
     {reply, Reply, State};
 handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
-    Reply = exec(Port, {sql_exec, sqlite_lib:write_sql(Tbl, Data)}),
+    Reply = exec(Port, {sql_exec, sqlite3_lib:write_sql(Tbl, Data)}),
     {reply, Reply, State};
 handle_call({read, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     % select * from  Tbl where Key = Value;
-    Reply = exec(Port, {sql_exec, sqlite_lib:read_sql(Tbl, Key, Value)}),
+    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value)}),
     {reply, Reply, State};
 handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     % delete from Tbl where Key = Value;
-    Reply = exec(Port, {sql_exec, sqlite_lib:delete_sql(Tbl, Key, Value)}),
+    Reply = exec(Port, {sql_exec, sqlite3_lib:delete_sql(Tbl, Key, Value)}),
     {reply, Reply, State};
 handle_call({drop_table, Tbl}, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, sqlite_lib:drop_table(Tbl)}),
+    Reply = exec(Port, {sql_exec, sqlite3_lib:drop_table(Tbl)}),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -450,7 +450,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 
 create_cmd(Dbase) ->
-    "sqlite_port " ++ Dbase.
+    "sqlite3_port " ++ Dbase.
 
 exec(Port, Cmd) ->
     port_command(Port, term_to_binary(Cmd)),
@@ -476,7 +476,7 @@ parse_table_info(Info) ->
 build_table_info([], Acc) -> 
     lists:reverse(Acc);
 build_table_info([[ColName, ColType] | Tl], Acc) -> 
-    build_table_info(Tl, [{list_to_atom(ColName), sqlite_lib:col_type(ColType)}| Acc]); 
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]); 
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
-    build_table_info(Tl, [{list_to_atom(ColName), sqlite_lib:col_type(ColType)}| Acc]).
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]).
     

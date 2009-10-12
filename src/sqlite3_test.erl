@@ -1,11 +1,11 @@
 %%%-------------------------------------------------------------------
-%%% File    : sqlite_test.erl
+%%% File    : sqlite3_test.erl
 %%% Author  : Tee Teoh <tteoh@teemac.ott.cti.com>
 %%% Description : 
 %%%
 %%% Created : 10 Jun 2008 by Tee Teoh <tteoh@teemac.ott.cti.com>
 %%%-------------------------------------------------------------------
--module(sqlite_test).
+-module(sqlite3_test).
 
 %% API
 -export([create_table_test/0]).
@@ -20,18 +20,18 @@
 %% Description:
 %%--------------------------------------------------------------------
 create_table_test() ->
-    sqlite:open(ct),
-    sqlite:create_table(ct, user, [{name, text}, {age, integer}, {wage, integer}]),
-    [user] = sqlite:list_tables(ct),
-    [{name, text}, {age, integer}, {wage, integer}] = sqlite:table_info(ct, user),
-    sqlite:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
-    sqlite:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
-    sqlite:sql_exec(ct, "select * from user;"),
-    sqlite:read(ct, user, {name, "abby"}),
-    sqlite:delete(ct, user, {name, "abby"}),
-    sqlite:drop_table(ct, user),
-%sqlite:delete_db(ct)
-    sqlite:close(ct).
+    sqlite3:open(ct),
+    sqlite3:create_table(ct, user, [{name, text}, {age, integer}, {wage, integer}]),
+    [user] = sqlite3:list_tables(ct),
+    [{name, text}, {age, integer}, {wage, integer}] = sqlite3:table_info(ct, user),
+    sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
+    sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
+    sqlite3:sql_exec(ct, "select * from user;"),
+    sqlite3:read(ct, user, {name, "abby"}),
+    sqlite3:delete(ct, user, {name, "abby"}),
+    sqlite3:drop_table(ct, user),
+%sqlite3:delete_db(ct)
+    sqlite3:close(ct).
 % create, read, update, delete
 %%====================================================================
 %% Internal functions

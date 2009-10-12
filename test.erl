@@ -1,5 +1,5 @@
 #!/usr/bin/env escript
-%%! -smp enable -pa ebin
+%%! -smp enable -pa ebin -name testsqlite3
 main(_) ->
-  sqlite3_store:start_link().
+  ct:run("src").
 
