@@ -328,14 +328,14 @@ drop_table(Db, Tbl) ->
 -spec(init/1::([any()]) -> init_return()).
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
-    SearchDir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv"]),
+    SearchDir = filename:join([filename:dirname(code:which(?MODULE)), "..", "ebin"]),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
       ok -> 
         Port = open_port({spawn, ?DRIVER_NAME}, [{packet, 2}, binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
-        error_logger:error_msg("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
-        {error}
+        io:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
+        {stop, failed}
     end.
 		     
 %%--------------------------------------------------------------------
