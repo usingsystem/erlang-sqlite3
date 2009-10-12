@@ -1,14 +1,14 @@
-OTP_DIR=/opt/local/lib/erlang/lib/erl_interface-3.5.5.3
-LIB=-lsqlite3 -lerl_interface -lei
-FLAGS=-I$(OTP_DIR)/include -L$(OTP_DIR)/lib
-GCC=/usr/bin/gcc
+GCC=gcc
+LDFLAGS=-shared -lsqlite3 -bundle -flat_namespace -undefined suppress -fPIC
+SRCS=sqlite3_drv.c sqlite3_drv.h
+OUTPUT=sqlite3_drv.so
+CFLAGS=-o ../ebin/${OUTPUT} -I/usr/local/lib/erlang/usr/include/ -I/usr/local/lib/erlang/lib/erl_interface-3.6.1/include/ -arch i386 -arch x86_64
 
-all: obj
-	$(GCC) -Wall erl_comm.o sqlite_port.o $(FLAGS) $(LIB) -o sqlite_port
+all: ../ebin/${OUTPUT}
 
-obj: erl_comm.c sqlite_port.c
-	$(GCC) -Wall -c $(FLAGS) erl_comm.c sqlite_port.c 
+
+../ebin/${OUTPUT}: sqlite3_drv.c sqlite3_drv.h
+	${GCC} sqlite3_drv.c ${LDFLAGS} ${CFLAGS}
 
 clean:
-	- rm -f *.o sqlite_port
-
+	rm -rf ${OUTPUT}

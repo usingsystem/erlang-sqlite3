@@ -27,6 +27,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
+-define('DRIVER_NAME', 'sqlite3_drv').
 -record(state, {port, ops = []}).
 
 %%====================================================================
@@ -327,8 +328,15 @@ drop_table(Db, Tbl) ->
 -spec(init/1::([any()]) -> init_return()).
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
-    Port = open_port({spawn, create_cmd(Dbase)}, [{packet, 2}, binary]),
-    {ok, #state{port = Port, ops = Options}}.
+    SearchDir = filename:join([filename:dirname(code:which(?MODULE)), "..", "priv"]),
+    case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
+      ok -> 
+        Port = open_port({spawn, ?DRIVER_NAME}, [{packet, 2}, binary]),
+        {ok, #state{port = Port, ops = Options}};
+      {error, Error} ->
+        error_logger:error_msg("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
+        {error}
+    end.
 		     
 %%--------------------------------------------------------------------
 %% @spec handle_call(Request, From, State) -> {reply, Reply, State} |
