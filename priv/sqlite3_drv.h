@@ -18,19 +18,30 @@
 #define KEY_SIZE 20
 
 // Define struct to hold state across calls
-typedef struct _bdb_drv_t {
+typedef struct sqlite3_drv_t {
   ErlDrvPort port;
- 
+  unsigned int key;
   struct sqlite3 *db;
 } sqlite3_drv_t;
+
+typedef struct async_sqlite3_command {
+  sqlite3_drv_t *driver_data;
+  sqlite3_stmt *statement;
+  ErlDrvTermData *dataset;
+  int term_count;
+  int row_count;
+  double *floats;
+  int binaries_count;
+  ErlDrvBinary **binaries;
+} async_sqlite3_command;
 
 
 static ErlDrvData start(ErlDrvPort port, char* cmd);
 static void stop(ErlDrvData handle);
 static int control(ErlDrvData drv_data, unsigned int command, char *buf, 
                    int len, char **rbuf, int rlen);
-static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);
 static int sql_exec(sqlite3_drv_t *drv, char *buf, int len);
-// static void get(bdb_drv_t *bdb_drv, ErlIOVec *ev);
-// static void del(bdb_drv_t *bdb_drv, ErlIOVec *ev);
+static void sql_exec_async(void *async_command);
+static void sql_free_async(void *async_command);
+static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);
 static int unknown(sqlite3_drv_t *bdb_drv, char *buf, int len);
