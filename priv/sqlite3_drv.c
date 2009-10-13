@@ -11,10 +11,10 @@ static ErlDrvEntry basic_driver_entry = {
     "sqlite3_drv",                    /* the name of the driver */
     NULL,                             /* finish */
     NULL,                             /* handle */
-    NULL,                             /* control */
+    control,                          /* control */
     NULL,                             /* timeout */
-    outputv,                          /* outputv (defined below) */
-    ready_async,                             /* ready_async */
+    NULL,                             /* outputv (defined below) */
+    NULL,                             /* ready_async */
     NULL,                             /* flush */
     NULL,                             /* call */
     NULL,                             /* event */
@@ -60,29 +60,18 @@ static void stop(ErlDrvData handle) {
 }
 
 // Handle input from Erlang VM
-static void outputv(ErlDrvData handle, ErlIOVec *ev) {
-  sqlite3_drv_t* driver_data = (sqlite3_drv_t*) handle;
-  ErlDrvBinary* data = ev->binv[1];
-  
-  int command = data->orig_bytes[0];
-  
+static int control(ErlDrvData drv_data, unsigned int command, char *buf, 
+                   int len, char **rbuf, int rlen) {
+  sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
   
   switch(command) {
     case CMD_SQL_EXEC:
-      sql_exec(driver_data, ev);
+      sql_exec(driver_data, buf, len);
       break;
-  // 
-  //   // case CMD_GET:
-  //   //   get(driver_data, ev);
-  //   //   break;
-  //   //   
-  //   // case CMD_DEL:
-  //   //   del(driver_data, ev);
-  //   //   break;
-  // 
     default:
-      unkown(driver_data, ev);
+      unknown(driver_data, buf, len);
   }
+  return 0;
 }
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
@@ -90,202 +79,143 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
   
 }
 
-static int callback(void *data, int argc, char **argv, char **azColName) 
-{
-  sqlite3_drv_t *drv = (sqlite3_drv_t *)data;
-  int i;
+static inline int return_error(sqlite3_drv_t *drv, const char *error) {
+  ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
+		     ERL_DRV_STRING, (ErlDrvTermData)error, strlen(error),
+		     ERL_DRV_TUPLE, 2};
 
-  // ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-  //         ERL_DRV_STRING, error_reason, strlen(error_reason),
-  //         ERL_DRV_TUPLE, 2};
-  // 
-  // driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-
-
-
-  // record_list = malloc(argc * sizeof(ETERM *));
-  
-  fprintf(stderr, "runs %d\n", argc);
-  for (i = 0; i < argc; i++) {
-    fprintf(stderr, "%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-  }
-  fprintf(stderr, "\n");
-  fflush(stderr);
-
-  // result = erl_cons(erl_mk_tuple(record_list, argc), result);
-
-  // free(record_list);
-  return 0;
-}
-
-
-static void sql_exec(sqlite3_drv_t *drv, ErlIOVec *ev) {
-
-  ErlDrvBinary* input = ev->binv[1];
-  char *command = input->orig_bytes + 1;
-  int command_size = input->orig_size - 1;
-  int status; 
-  char *error = NULL;
-
-  fprintf(stderr, "Exec: %*s\n", command_size, command);
-
-  status = sqlite3_exec(drv->db, command, callback, drv, &error);
-
-  if(status != SQLITE_OK) {
-    ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-			     ERL_DRV_STRING, error, strlen(error),
-			     ERL_DRV_TUPLE, 2};
-
-    driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-  }
+  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
   if (error) {
-    sqlite3_free(error);
+    // sqlite3_free((char *)error);
   }
 }
 
-#if 0
+static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 
-// Retrieve a record from the database, if it exists
-static void get(sqlite3_drv_t *bdb_drv, ErlIOVec *ev) {
-  ErlDrvBinary* input = ev->binv[1];
-  ErlDrvBinary *output_bytes;
-  char *bytes = input->orig_bytes;
-  char *key_bytes = bytes+1;
-  
-  DB *db = bdb_drv->db;
-  DBT key;
-  DBT value;
-  int status;
-  
-  bzero(&key, sizeof(DBT));
-  bzero(&value, sizeof(DBT));
-    
-  key.data = key_bytes;
-  key.size = KEY_SIZE;
-  
-  // Have BerkeleyDB allocate memory big enough to store the value
-  value.flags = DB_DBT_MALLOC; // Don't forget to free it later
-  
-  // Retrieve the record
-  status = db->get(db, NULL, &key, &value, 0);
+  ErlDrvTermData *dataset;
 
-  if(status == 0) {
-  	// Get went OK
-  	
-  	// Copy the record value to an output structure to return to Erlang VM
-    output_bytes = driver_alloc_binary(value.size);
-    output_bytes->orig_size = value.size;
-    memcpy(output_bytes->orig_bytes, value.data, value.size);
-    free(value.data);
-    
-    // TODO:Figure out if we can somehow use this original memory without recopying a la:
-    //binary->orig_bytes = (char *)&data.data;
-    
-    // Returns tuple {ok, Data}
-    ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok"),
-			     ERL_DRV_BINARY, (ErlDrvTermData) output_bytes, output_bytes->orig_size, 0,
-			     ERL_DRV_TUPLE, 2};
-    
-    driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-    driver_free_binary(output_bytes);
-  } else {
-  	// there was an error
-    char *error_reason;
+  int result, next_row, column_count, row_count = 0, term_count = 0;
+  char *error = NULL;
+  char *rest = NULL;
+  sqlite3_stmt *statement;
+  
+  double *floats = NULL;
+  int float_count = 0;
+  
+  ErlDrvBinary **binaries = NULL;
+  int binaries_count = 0;
+  int i;
+  
 
-    switch(status) {
-    case DB_LOCK_DEADLOCK:
-      error_reason = "deadlock";
-      break;
-    case DB_SECONDARY_BAD:
-      error_reason = "bad_secondary_index";
-      break;
-    case ENOMEM:
-      error_reason = "insufficient_memory";
-      break;
-    case EINVAL:
-      error_reason = "bad_flag";
-      break;
-    case DB_RUNRECOVERY:
-      error_reason = "run_recovery";
-      break;
-    default:
-      error_reason = "unknown";
+  fprintf(stderr, "Exec: %.*s\n", command_size, command);
+
+  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
+  if(result != SQLITE_OK) { 
+    return return_error(drv, sqlite3_errmsg(drv->db)); 
+  }
+  
+  column_count = sqlite3_column_count(statement);
+  dataset = NULL;
+  
+  fprintf(stderr, "Going to read some rows with %d columns\n", column_count);
+  while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
+    if (row_count == 0) {
+      term_count = 2 + column_count*2 + 2 + 2;
+      dataset = realloc(dataset, sizeof(*dataset) * term_count);
+      dataset[0] = ERL_DRV_ATOM;
+      dataset[1] = driver_mk_atom("columns");
+      for (i = 0; i < column_count; i++) {
+        dataset[2 + (i*2)] = ERL_DRV_ATOM;
+        fprintf(stderr, "Column: %s\n", sqlite3_column_name(statement, i));
+        dataset[2 + (i*2) + 1] = driver_mk_atom((char *)sqlite3_column_name(statement, i));
+      }
+      dataset[2 + column_count*2] = ERL_DRV_LIST;
+      dataset[2 + column_count*2 + 1] = column_count;
+      dataset[2 + column_count*2 + 2] = ERL_DRV_TUPLE;
+      dataset[2 + column_count*2 + 3] = 2;
     }
     
-    // Return tuple {error, Reason}
-    ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-			     ERL_DRV_ATOM, driver_mk_atom(error_reason),
-			     ERL_DRV_TUPLE, 2};
-    driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-  }
-}
-
-// Delete a record from the database
-static void del(sqlite3_drv_t *bdb_drv, ErlIOVec *ev) {
-  ErlDrvBinary* data = ev->binv[1];
-  char *bytes = data->orig_bytes;
-  char *key_bytes = bytes+1;
-  
-  DB *db = bdb_drv->db;
-  DBT key;
-  int status;
-  
-  bzero(&key, sizeof(DBT));
-    
-  key.data = key_bytes;
-  key.size = KEY_SIZE;
-  
-  status = db->del(db, NULL, &key, 0);
-  db->sync(db, 0);
-  
-  if(status == 0) {
-  	// Delete went OK, return atom 'ok'
-    ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok")};
-    
-    driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-    
-  } else {
-  	// There was an error
-    char *error_reason;
-
-    switch(status) {
-    case DB_NOTFOUND:
-      error_reason = "not_found";
-      break;
-    case DB_LOCK_DEADLOCK:
-      error_reason = "deadlock";
-      break;
-    case DB_SECONDARY_BAD:
-      error_reason = "bad_secondary_index";
-      break;
-    case EINVAL:
-      error_reason = "bad_flag";
-      break;
-    case EACCES:
-      error_reason = "readonly";
-      break;
-    case DB_RUNRECOVERY:
-      error_reason = "run_recovery";
-      break;
-    default:
-      error_reason = "unknown";
+    for (i = 0; i < column_count; i++) {
+      fprintf(stderr, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
+      switch (sqlite3_column_type(statement, i)) {
+        case SQLITE_INTEGER: {
+          term_count += 2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_count);
+          dataset[term_count - 2] = ERL_DRV_INT;
+          dataset[term_count - 1] = sqlite3_column_int(statement, i);
+          break;
+        }
+        // case SQLITE_FLOAT: {
+        //   float_count++;
+        //   floats = realloc(floats, sizeof(double) * float_count);
+        //   floats[float_count - 1] = sqlite3_column_double(statement, i);
+        //   
+        //   term_count += 2;
+        //   dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        //   dataset[term_count - 2] = ERL_DRV_FLOAT;
+        //   dataset[term_count - 1] = (ErlDrvTermData)&floats[float_count - 1];
+        //   break;
+        // }
+        case SQLITE_BLOB: 
+        case SQLITE_TEXT: {
+          int bytes = sqlite3_column_bytes(statement, i);
+          binaries_count++;
+          binaries = realloc(binaries, sizeof(*binaries) * binaries_count);
+          binaries[binaries_count - 1] = driver_alloc_binary(bytes);
+          binaries[binaries_count - 1]->orig_size = bytes;
+          memcpy(binaries[binaries_count - 1]->orig_bytes, sqlite3_column_blob(statement, i), bytes);
+        
+          term_count += 2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_count);
+          dataset[term_count - 2] = ERL_DRV_FLOAT;
+          dataset[term_count - 1] = (ErlDrvTermData)&floats[float_count - 1];
+          break;
+        }
+        case SQLITE_NULL: {
+          break;
+        }
+      }
     }
+    term_count += 2;
+    dataset = realloc(dataset, sizeof(*dataset) * term_count);
+    dataset[term_count - 2] = ERL_DRV_TUPLE;
+    dataset[term_count - 1] = column_count;
     
-    // Return tuple {error, Reason}
-    ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-			     ERL_DRV_ATOM, driver_mk_atom(error_reason),
-			     ERL_DRV_TUPLE, 2};
-
-    driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+    row_count++;
   }
+  
+  if (next_row == SQLITE_BUSY) {
+    sqlite3_finalize(statement);
+    return return_error(drv, "SQLite3 database is busy"); 
+  }
+
+  term_count += 2;
+  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  dataset[term_count - 2] = ERL_DRV_LIST;
+  dataset[term_count - 1] = 2;
+  
+  
+  int res = driver_output_term(drv->port, dataset, term_count);
+  fprintf(stderr, "Total term count: %d, rows count: %d (%d)\n", term_count, row_count, res);
+  // free(dataset);
+  
+  // if (floats) {
+  //   free(floats);
+  // }
+  // for (i = 0; i < binaries_count; i++) {
+  //   driver_free_binary(binaries[i]);
+  // }
+  // if(binaries) {
+  //   free(binaries);
+  // }
+  // sqlite3_finalize(statement);
 }
-#endif
 
 // Unkown Command
-static void unkown(sqlite3_drv_t *bdb_drv, ErlIOVec *ev) {
+static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   // Return {error, unkown_command}
   ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
 			   ERL_DRV_ATOM, driver_mk_atom("uknown_command"),
 			   ERL_DRV_TUPLE, 2};
-  driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }

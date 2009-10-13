@@ -27,9 +27,10 @@ typedef struct _bdb_drv_t {
 
 static ErlDrvData start(ErlDrvPort port, char* cmd);
 static void stop(ErlDrvData handle);
-static void outputv(ErlDrvData handle, ErlIOVec *ev);
+static int control(ErlDrvData drv_data, unsigned int command, char *buf, 
+                   int len, char **rbuf, int rlen);
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);
-static void sql_exec(sqlite3_drv_t *drv, ErlIOVec *ev);
+static int sql_exec(sqlite3_drv_t *drv, char *buf, int len);
 // static void get(bdb_drv_t *bdb_drv, ErlIOVec *ev);
 // static void del(bdb_drv_t *bdb_drv, ErlIOVec *ev);
-static void unkown(sqlite3_drv_t *bdb_drv, ErlIOVec *ev);
+static int unknown(sqlite3_drv_t *bdb_drv, char *buf, int len);

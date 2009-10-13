@@ -331,7 +331,7 @@ init(Options) ->
     SearchDir = filename:join([filename:dirname(code:which(?MODULE)), "..", "ebin"]),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
       ok -> 
-        Port = open_port({spawn, ?DRIVER_NAME}, [{packet, 2}, binary]),
+        Port = open_port({spawn, ?DRIVER_NAME}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         io:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
@@ -455,19 +455,26 @@ create_cmd(Dbase) ->
     "sqlite3_port " ++ Dbase.
 
 wait_result(Port) ->
-  receive 
-	  {Port, {data, Data}} when is_binary(Data) ->
-	    List = binary_to_term(Data),
-	    if is_list(List) ->
-		    lists:reverse(List);
-	       true -> List
-	    end;
-	_ ->
-	    ok
+  receive
+	  {Port, Reply} ->
+	    io:format("Reply: ~p~n", [Reply]),
+	    Reply;
+      % List = binary_to_term(Data),
+      % if is_list(List) ->
+      %         lists:reverse(List);
+      %    true -> List
+      % end;
+  {error, Reason} ->
+    io:format("Error: ~p~n", [Reason]),
+    {error, Reason};
+	_Else ->
+    io:format("Else: ~p~n", [_Else]),
+	  _Else
   end.
 
 exec(Port, {sql_exec, Cmd}) ->
-  port_command(Port, <<?SQL_EXEC_COMMAND, (list_to_binary(Cmd))/binary>>),
+  port_control(Port, ?SQL_EXEC_COMMAND, list_to_binary(Cmd)),
+  io:format("Returned from driver, waiting for reply~n"),
   wait_result(Port).
  
 
