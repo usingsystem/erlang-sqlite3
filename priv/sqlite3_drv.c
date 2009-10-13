@@ -116,27 +116,32 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   
   column_count = sqlite3_column_count(statement);
   dataset = NULL;
+
   
-  fprintf(stderr, "Going to read some rows with %d columns\n", column_count);
+  
   while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
     if (row_count == 0) {
-      term_count = 2 + column_count*2 + 2 + 2;
+      int base = term_count;
+      term_count += 2 + column_count*2 + 2 + 2 + 2;
       dataset = realloc(dataset, sizeof(*dataset) * term_count);
-      dataset[0] = ERL_DRV_ATOM;
-      dataset[1] = driver_mk_atom("columns");
+      dataset[base] = ERL_DRV_ATOM;
+      dataset[base + 1] = driver_mk_atom("columns");
       for (i = 0; i < column_count; i++) {
-        dataset[2 + (i*2)] = ERL_DRV_ATOM;
+        dataset[base + 2 + (i*2)] = ERL_DRV_ATOM;
         fprintf(stderr, "Column: %s\n", sqlite3_column_name(statement, i));
-        dataset[2 + (i*2) + 1] = driver_mk_atom((char *)sqlite3_column_name(statement, i));
+        dataset[base + 2 + (i*2) + 1] = driver_mk_atom((char *)sqlite3_column_name(statement, i));
       }
-      dataset[2 + column_count*2] = ERL_DRV_LIST;
-      dataset[2 + column_count*2 + 1] = column_count;
-      dataset[2 + column_count*2 + 2] = ERL_DRV_TUPLE;
-      dataset[2 + column_count*2 + 3] = 2;
+      dataset[base + 2 + column_count*2] = ERL_DRV_LIST;
+      dataset[base + 2 + column_count*2 + 1] = column_count;
+      dataset[base + 2 + column_count*2 + 2] = ERL_DRV_TUPLE;
+      dataset[base + 2 + column_count*2 + 3] = 2;
+
+      dataset[base + 2 + column_count*2 + 4] = ERL_DRV_ATOM;
+      dataset[base + 2 + column_count*2 + 5] = driver_mk_atom("rows");
     }
     
     for (i = 0; i < column_count; i++) {
-      fprintf(stderr, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
+      // fprintf(stderr, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
       switch (sqlite3_column_type(statement, i)) {
         case SQLITE_INTEGER: {
           term_count += 2;
@@ -165,10 +170,12 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
           binaries[binaries_count - 1]->orig_size = bytes;
           memcpy(binaries[binaries_count - 1]->orig_bytes, sqlite3_column_blob(statement, i), bytes);
         
-          term_count += 2;
+          term_count += 4;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
-          dataset[term_count - 2] = ERL_DRV_FLOAT;
-          dataset[term_count - 1] = (ErlDrvTermData)&floats[float_count - 1];
+          dataset[term_count - 4] = ERL_DRV_BINARY;
+          dataset[term_count - 3] = binaries[binaries_count - 1];
+          dataset[term_count - 2] = bytes;
+          dataset[term_count - 1] = 0;
           break;
         }
         case SQLITE_NULL: {
@@ -192,23 +199,34 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   term_count += 2;
   dataset = realloc(dataset, sizeof(*dataset) * term_count);
   dataset[term_count - 2] = ERL_DRV_LIST;
+  dataset[term_count - 1] = row_count;
+
+  term_count += 2;
+  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  dataset[term_count - 2] = ERL_DRV_TUPLE;
+  dataset[term_count - 1] = 2;
+
+
+  term_count += 2;
+  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  dataset[term_count - 2] = ERL_DRV_LIST;
   dataset[term_count - 1] = 2;
   
   
   int res = driver_output_term(drv->port, dataset, term_count);
-  fprintf(stderr, "Total term count: %d, rows count: %d (%d)\n", term_count, row_count, res);
-  // free(dataset);
+  // fprintf(stderr, "Total term count: %d, rows count: %d (%d)\n", term_count, row_count, res);
+  free(dataset);
   
-  // if (floats) {
-  //   free(floats);
-  // }
-  // for (i = 0; i < binaries_count; i++) {
-  //   driver_free_binary(binaries[i]);
-  // }
-  // if(binaries) {
-  //   free(binaries);
-  // }
-  // sqlite3_finalize(statement);
+  if (floats) {
+    free(floats);
+  }
+  for (i = 0; i < binaries_count; i++) {
+    driver_free_binary(binaries[i]);
+  }
+  if(binaries) {
+    free(binaries);
+  }
+  sqlite3_finalize(statement);
 }
 
 // Unkown Command

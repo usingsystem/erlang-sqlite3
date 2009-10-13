@@ -469,12 +469,11 @@ wait_result(Port) ->
     {error, Reason};
 	_Else ->
     io:format("Else: ~p~n", [_Else]),
-	  _Else
+	  ok
   end.
 
 exec(Port, {sql_exec, Cmd}) ->
   port_control(Port, ?SQL_EXEC_COMMAND, list_to_binary(Cmd)),
-  io:format("Returned from driver, waiting for reply~n"),
   wait_result(Port).
  
 
