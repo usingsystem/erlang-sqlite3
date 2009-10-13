@@ -63,23 +63,27 @@ static void stop(ErlDrvData handle) {
 static void outputv(ErlDrvData handle, ErlIOVec *ev) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) handle;
   ErlDrvBinary* data = ev->binv[1];
-  int command = data->orig_bytes[0]; // First byte is the command
   
-  fprintf(stderr, "Command: %s\n", data->orig_bytes);
+  int command = data->orig_bytes[1];
+  fprintf(stderr, "Command: %d\n", command);
+  
   
   switch(command) {
     case CMD_LIST_TABLES:
       list_tables(driver_data, ev);
       break;
-  
-    // case CMD_GET:
-    //   get(driver_data, ev);
-    //   break;
-    //   
-    // case CMD_DEL:
-    //   del(driver_data, ev);
-    //   break;
-  
+
+    case CMD_SQL_EXEC:
+      sql_exec(driver_data, ev);
+  // 
+  //   // case CMD_GET:
+  //   //   get(driver_data, ev);
+  //   //   break;
+  //   //   
+  //   // case CMD_DEL:
+  //   //   del(driver_data, ev);
+  //   //   break;
+  // 
     default:
       unkown(driver_data, ev);
   }
@@ -93,33 +97,16 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
 static void list_tables(sqlite3_drv_t *drv, ErlIOVec *ev) {
 }
 
-#if 0
-// Insert or replace record in the database
-static void put(sqlite3_drv_t *bdb_drv, ErlIOVec *ev) {
-  ErlDrvBinary* input = ev->binv[1];
-  char *bytes = input->orig_bytes;
-  char *key_bytes = bytes+1;
-  char *value_bytes = bytes+1+KEY_SIZE;
-  int value_size = input->orig_size - 1 - KEY_SIZE;
-  
-  DB *db = bdb_drv->db;
-  DBT key;
-  DBT value;
-  int status;
+static void sql_exec(sqlite3_drv_t *drv, ErlIOVec *ev) {
 
-  // Erase bytes to get rid of residual data
-  bzero(&key, sizeof(DBT));
-  bzero(&value, sizeof(DBT));
-  
-  key.data = key_bytes;
-  key.size = KEY_SIZE;
-  
-  value.data = value_bytes;
-  value.size = value_size;
-  
-  // Insert the record and then write it to disk
-  status = db->put(db, NULL, &key, &value, 0);
-  db->sync(db, 0);
+  ErlDrvBinary* input = ev->binv[1];
+  char *command = input->orig_bytes + 1;
+  int command_size = input->orig_size - 1;
+  int status;  
+
+  fprintf(stderr, "Exec: %s\n", command);
+
+  //int status = sqlite3_exec(drv->db, command
 
   if(status == 0) {
   	// Insert went OK
@@ -127,39 +114,23 @@ static void put(sqlite3_drv_t *bdb_drv, ErlIOVec *ev) {
     ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok")};
 
 	// Return the value to the Erlang VM
-    driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+    driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
   } else {
   	// There was an error return {error, Reason}
     char * error_reason;
 
-    switch(status) {
-    case DB_LOCK_DEADLOCK:
-      error_reason = "deadlock";
-      break;
-    case EACCES:
-      error_reason = "readonly";
-      break;
-    case EINVAL:
-      error_reason = "badflag";
-      break;
-    case ENOSPC:
-      error_reason = "btree_max";
-      break;
-    case DB_RUNRECOVERY:
-      error_reason = "run_recovery";
-      break;
-    default:
-      error_reason = "unkown";
-    }
+    error_reason = "unkown";
     
     // Returns tuple {error, Reason}
     ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
 			     ERL_DRV_ATOM, driver_mk_atom(error_reason),
 			     ERL_DRV_TUPLE, 2};
 
-    driver_output_term(bdb_drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+    driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
   }
 }
+
+#if 0
 
 // Retrieve a record from the database, if it exists
 static void get(sqlite3_drv_t *bdb_drv, ErlIOVec *ev) {

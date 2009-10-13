@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sqlite3.h>
+#include <erl_interface.h>
 
 // Path to file where data will be stored. 
 // It will be created if it doesn't exist
@@ -30,6 +31,7 @@ static void stop(ErlDrvData handle);
 static void outputv(ErlDrvData handle, ErlIOVec *ev);
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);
 static void list_tables(sqlite3_drv_t *drv, ErlIOVec *ev);
+static void sql_exec(sqlite3_drv_t *drv, ErlIOVec *ev);
 // static void get(bdb_drv_t *bdb_drv, ErlIOVec *ev);
 // static void del(bdb_drv_t *bdb_drv, ErlIOVec *ev);
 static void unkown(sqlite3_drv_t *bdb_drv, ErlIOVec *ev);

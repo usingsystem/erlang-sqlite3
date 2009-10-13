@@ -452,6 +452,19 @@ code_change(_OldVsn, State, _Extra) ->
 create_cmd(Dbase) ->
     "sqlite3_port " ++ Dbase.
 
+exec(Port, {sql_exec, Cmd}) ->
+  port_command(Port, <<2, (list_to_binary(Cmd))/binary>>),
+    receive 
+	{Port, {data, Data}} when is_binary(Data) ->
+	    List = binary_to_term(Data),
+	    if is_list(List) ->
+		    lists:reverse(List);
+	       true -> List
+	    end;
+	_ ->
+	    ok
+    end;
+ 
 exec(Port, Cmd) ->
     port_command(Port, term_to_binary(Cmd)),
     receive 
