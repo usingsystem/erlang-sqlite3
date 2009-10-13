@@ -360,7 +360,7 @@ handle_call({sql_exec, SQL}, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, SQL}),
     {reply, Reply, State};
 handle_call(list_tables, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {list_tables, none}),
+    Reply = exec(Port, {sql_exec, "select * from sqlite_master where type='table';"}),
     {reply, Reply, State};
 handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     % make sure we only get table info.
@@ -449,13 +449,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
+-define(SQL_EXEC_COMMAND, 2).
+
 create_cmd(Dbase) ->
     "sqlite3_port " ++ Dbase.
 
-exec(Port, {sql_exec, Cmd}) ->
-  port_command(Port, <<2, (list_to_binary(Cmd))/binary>>),
-    receive 
-	{Port, {data, Data}} when is_binary(Data) ->
+wait_result(Port) ->
+  receive 
+	  {Port, {data, Data}} when is_binary(Data) ->
 	    List = binary_to_term(Data),
 	    if is_list(List) ->
 		    lists:reverse(List);
@@ -463,21 +464,12 @@ exec(Port, {sql_exec, Cmd}) ->
 	    end;
 	_ ->
 	    ok
-    end;
- 
-exec(Port, Cmd) ->
-    port_command(Port, term_to_binary(Cmd)),
-    receive 
-	{Port, {data, Data}} when is_binary(Data) ->
-	    List = binary_to_term(Data),
-	    if is_list(List) ->
-		    lists:reverse(List);
-	       true -> List
-	    end;
-	_ ->
-	    ok
-    end.
+  end.
 
+exec(Port, {sql_exec, Cmd}) ->
+  port_command(Port, <<?SQL_EXEC_COMMAND, (list_to_binary(Cmd))/binary>>),
+  wait_result(Port).
+ 
 
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),

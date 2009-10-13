@@ -64,17 +64,13 @@ static void outputv(ErlDrvData handle, ErlIOVec *ev) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) handle;
   ErlDrvBinary* data = ev->binv[1];
   
-  int command = data->orig_bytes[1];
-  fprintf(stderr, "Command: %d\n", command);
+  int command = data->orig_bytes[0];
   
   
   switch(command) {
-    case CMD_LIST_TABLES:
-      list_tables(driver_data, ev);
-      break;
-
     case CMD_SQL_EXEC:
       sql_exec(driver_data, ev);
+      break;
   // 
   //   // case CMD_GET:
   //   //   get(driver_data, ev);
@@ -94,39 +90,56 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
   
 }
 
-static void list_tables(sqlite3_drv_t *drv, ErlIOVec *ev) {
+static int callback(void *data, int argc, char **argv, char **azColName) 
+{
+  sqlite3_drv_t *drv = (sqlite3_drv_t *)data;
+  int i;
+
+  // ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
+  //         ERL_DRV_STRING, error_reason, strlen(error_reason),
+  //         ERL_DRV_TUPLE, 2};
+  // 
+  // driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+
+
+
+  // record_list = malloc(argc * sizeof(ETERM *));
+  
+  fprintf(stderr, "runs %d\n", argc);
+  for (i = 0; i < argc; i++) {
+    fprintf(stderr, "%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+  }
+  fprintf(stderr, "\n");
+  fflush(stderr);
+
+  // result = erl_cons(erl_mk_tuple(record_list, argc), result);
+
+  // free(record_list);
+  return 0;
 }
+
 
 static void sql_exec(sqlite3_drv_t *drv, ErlIOVec *ev) {
 
   ErlDrvBinary* input = ev->binv[1];
   char *command = input->orig_bytes + 1;
   int command_size = input->orig_size - 1;
-  int status;  
+  int status; 
+  char *error = NULL;
 
-  fprintf(stderr, "Exec: %s\n", command);
+  fprintf(stderr, "Exec: %*s\n", command_size, command);
 
-  //int status = sqlite3_exec(drv->db, command
+  status = sqlite3_exec(drv->db, command, callback, drv, &error);
 
-  if(status == 0) {
-  	// Insert went OK
-  	// Prepare return value to Erlang VM, returns atom 'ok'
-    ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("ok")};
-
-	// Return the value to the Erlang VM
-    driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-  } else {
-  	// There was an error return {error, Reason}
-    char * error_reason;
-
-    error_reason = "unkown";
-    
-    // Returns tuple {error, Reason}
+  if(status != SQLITE_OK) {
     ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-			     ERL_DRV_ATOM, driver_mk_atom(error_reason),
+			     ERL_DRV_STRING, error, strlen(error),
 			     ERL_DRV_TUPLE, 2};
 
     driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+  }
+  if (error) {
+    sqlite3_free(error);
   }
 }
 

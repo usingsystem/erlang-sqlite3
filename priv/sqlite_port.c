@@ -39,10 +39,6 @@ static int callback(void *notUsed, int argc, char **argv, char **azColName)
   ETERM **record_list;
   int i;
 
-  if (result == 0) {
-    result = erl_mk_empty_list();
-  }
-
   record_list = malloc(argc * sizeof(ETERM *));
   
   fprintf(log, "runs %d\n", argc);
