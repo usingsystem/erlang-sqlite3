@@ -107,7 +107,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   int i;
   
 
-  fprintf(stderr, "Exec: %.*s\n", command_size, command);
+  // fprintf(stderr, "Exec: %.*s\n", command_size, command);
 
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
   if(result != SQLITE_OK) { 
@@ -117,27 +117,32 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   column_count = sqlite3_column_count(statement);
   dataset = NULL;
 
+  term_count += 2;
+  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  dataset[term_count - 2] = ERL_DRV_PORT;
+  dataset[term_count - 1] = driver_mk_port(drv->port);
   
   
   while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
     if (row_count == 0) {
       int base = term_count;
-      term_count += 2 + column_count*2 + 2 + 2 + 2;
+      term_count += 2 + column_count*2 + 1 + 2 + 2 + 2;
       dataset = realloc(dataset, sizeof(*dataset) * term_count);
       dataset[base] = ERL_DRV_ATOM;
       dataset[base + 1] = driver_mk_atom("columns");
       for (i = 0; i < column_count; i++) {
         dataset[base + 2 + (i*2)] = ERL_DRV_ATOM;
-        fprintf(stderr, "Column: %s\n", sqlite3_column_name(statement, i));
+        // fprintf(stderr, "Column: %s\n", sqlite3_column_name(statement, i));
         dataset[base + 2 + (i*2) + 1] = driver_mk_atom((char *)sqlite3_column_name(statement, i));
       }
-      dataset[base + 2 + column_count*2] = ERL_DRV_LIST;
-      dataset[base + 2 + column_count*2 + 1] = column_count;
-      dataset[base + 2 + column_count*2 + 2] = ERL_DRV_TUPLE;
-      dataset[base + 2 + column_count*2 + 3] = 2;
+      dataset[base + 2 + column_count*2 + 0] = ERL_DRV_NIL;
+      dataset[base + 2 + column_count*2 + 1] = ERL_DRV_LIST;
+      dataset[base + 2 + column_count*2 + 2] = column_count + 1;
+      dataset[base + 2 + column_count*2 + 3] = ERL_DRV_TUPLE;
+      dataset[base + 2 + column_count*2 + 4] = 2;
 
-      dataset[base + 2 + column_count*2 + 4] = ERL_DRV_ATOM;
-      dataset[base + 2 + column_count*2 + 5] = driver_mk_atom("rows");
+      dataset[base + 2 + column_count*2 + 5] = ERL_DRV_ATOM;
+      dataset[base + 2 + column_count*2 + 6] = driver_mk_atom("rows");
     }
     
     for (i = 0; i < column_count; i++) {
@@ -173,7 +178,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
           term_count += 4;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
           dataset[term_count - 4] = ERL_DRV_BINARY;
-          dataset[term_count - 3] = binaries[binaries_count - 1];
+          dataset[term_count - 3] = (ErlDrvTermData)binaries[binaries_count - 1];
           dataset[term_count - 2] = bytes;
           dataset[term_count - 1] = 0;
           break;
@@ -196,10 +201,11 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
     return return_error(drv, "SQLite3 database is busy"); 
   }
 
-  term_count += 2;
+  term_count += 3;
   dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  dataset[term_count - 3] = ERL_DRV_NIL;
   dataset[term_count - 2] = ERL_DRV_LIST;
-  dataset[term_count - 1] = row_count;
+  dataset[term_count - 1] = row_count + 1;
 
   term_count += 2;
   dataset = realloc(dataset, sizeof(*dataset) * term_count);
@@ -207,9 +213,15 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   dataset[term_count - 1] = 2;
 
 
+  term_count += 3;
+  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  dataset[term_count - 3] = ERL_DRV_NIL;
+  dataset[term_count - 2] = ERL_DRV_LIST;
+  dataset[term_count - 1] = 3;
+
   term_count += 2;
   dataset = realloc(dataset, sizeof(*dataset) * term_count);
-  dataset[term_count - 2] = ERL_DRV_LIST;
+  dataset[term_count - 2] = ERL_DRV_TUPLE;
   dataset[term_count - 1] = 2;
   
   

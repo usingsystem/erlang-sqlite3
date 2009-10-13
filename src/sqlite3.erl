@@ -360,15 +360,19 @@ handle_call({sql_exec, SQL}, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, SQL}),
     {reply, Reply, State};
 handle_call(list_tables, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, "select * from sqlite_master where type='table';"}),
-    {reply, Reply, State};
+    Reply = exec(Port, {sql_exec, "select name from sqlite_master where type='table';"}),
+    TableList = proplists:get_value(rows, Reply),
+    TableNames = [binary_to_atom(Name, utf8) || {Name} <- TableList],
+    {reply, TableNames, State};
 handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     % make sure we only get table info.
     % SQL Injection warning
-    SQL = io_lib:format("select sql from sqlite3_master where tbl_name = '~p' and type='table';", [Tbl]),
-    [{Info}] = exec(Port, {sql_exec, SQL}),
-    Reply = parse_table_info(Info),
-    {reply, Reply, State};
+    SQL = io_lib:format("select sql from sqlite_master where tbl_name = '~p' and type='table';", [Tbl]),
+    Data = exec(Port, {sql_exec, SQL}),
+    TableSql = proplists:get_value(rows, Data),
+    [{Info}] = TableSql,
+    ColumnList = parse_table_info(binary_to_list(Info)),
+    {reply, ColumnList, State};
 handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Options),
     Cmd = {sql_exec, SQL},
@@ -459,17 +463,12 @@ wait_result(Port) ->
 	  {Port, Reply} ->
 	    io:format("Reply: ~p~n", [Reply]),
 	    Reply;
-      % List = binary_to_term(Data),
-      % if is_list(List) ->
-      %         lists:reverse(List);
-      %    true -> List
-      % end;
   {error, Reason} ->
     io:format("Error: ~p~n", [Reason]),
     {error, Reason};
 	_Else ->
     io:format("Else: ~p~n", [_Else]),
-	  ok
+	  _Else
   end.
 
 exec(Port, {sql_exec, Cmd}) ->

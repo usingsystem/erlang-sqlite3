@@ -3,7 +3,7 @@
 
 -record(user, {name, age, wage}).
 
-main(_) ->
+test() ->
     sqlite3:open(ct),
     sqlite3:create_table(ct, user, [{name, text}, {age, integer}, {wage, integer}]),
     [user] = sqlite3:list_tables(ct),
@@ -17,3 +17,10 @@ main(_) ->
 %sqlite3:delete_db(ct)
     sqlite3:close(ct).
 
+main(_) ->
+  try test() of
+    _ -> ok
+  catch
+    Class:Error ->
+      io:format("~p:~p:~p~n", [Class, Error, erlang:get_stacktrace()])
+  end.
