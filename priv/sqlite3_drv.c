@@ -65,27 +65,32 @@ static void outputv(ErlDrvData handle, ErlIOVec *ev) {
   ErlDrvBinary* data = ev->binv[1];
   int command = data->orig_bytes[0]; // First byte is the command
   
-  // switch(command) {
-  // case CMD_PUT:
-  //   put(driver_data, ev);
-  //   break;
-  // 
-  // case CMD_GET:
-  //   get(driver_data, ev);
-  //   break;
-  // 
-  // case CMD_DEL:
-  //   del(driver_data, ev);
-  //   break;
-  // 
-  // default:
-  //   unkown(driver_data, ev);
-  // }
+  fprintf(stderr, "Command: %s\n", data->orig_bytes);
+  
+  switch(command) {
+    case CMD_LIST_TABLES:
+      list_tables(driver_data, ev);
+      break;
+  
+    // case CMD_GET:
+    //   get(driver_data, ev);
+    //   break;
+    //   
+    // case CMD_DEL:
+    //   del(driver_data, ev);
+    //   break;
+  
+    default:
+      unkown(driver_data, ev);
+  }
 }
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
 {
   
+}
+
+static void list_tables(sqlite3_drv_t *drv, ErlIOVec *ev) {
 }
 
 #if 0
