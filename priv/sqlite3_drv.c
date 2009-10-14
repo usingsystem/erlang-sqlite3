@@ -76,15 +76,17 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 }
 
 
-static inline int return_error(sqlite3_drv_t *drv, const char *error) {
-  ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-		     ERL_DRV_STRING, (ErlDrvTermData)error, strlen(error),
-		     ERL_DRV_TUPLE, 2};
-
-  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-  if (error) {
-    // sqlite3_free((char *)error);
-  }
+static inline int return_error(sqlite3_drv_t *drv, const char *error, ErlDrvTermData **spec, int *terms_count) {
+  *spec = (ErlDrvTermData *)calloc(7, sizeof(ErlDrvTermData));
+  (*spec)[0] = ERL_DRV_ATOM;
+  (*spec)[1] = driver_mk_atom("error");
+  (*spec)[2] = ERL_DRV_STRING;
+  (*spec)[3] = (ErlDrvTermData)error;
+  (*spec)[4] = strlen(error);
+  (*spec)[5] = ERL_DRV_TUPLE;
+  (*spec)[6] = 2;
+  *terms_count = 7;
+  return 0;
 }
 
 static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
@@ -95,17 +97,22 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
   if(result != SQLITE_OK) { 
-    return return_error(drv, sqlite3_errmsg(drv->db)); 
+    ErlDrvTermData *dataset;
+    int term_count;
+    return_error(drv, sqlite3_errmsg(drv->db), &dataset, &term_count); 
+    driver_output_term(drv->port, dataset, term_count);
+    return 0;
   }
   
   async_sqlite3_command *async_command = (async_sqlite3_command *)calloc(1, sizeof(async_sqlite3_command));
   async_command->driver_data = drv;
   async_command->statement = statement;
 
-  fprintf(stderr, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
+  // fprintf(stderr, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
 
   if (1) {
     sql_exec_async(async_command);
+    ready_async((ErlDrvData)drv, (ErlDrvThreadData)async_command);
   } else {
     drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
   }
@@ -129,7 +136,9 @@ static void sql_free_async(void *_async_command)
   if(async_command->binaries) {
     free(async_command->binaries);
   }
-  sqlite3_finalize(async_command->statement);
+  if (async_command->statement) {
+    sqlite3_finalize(async_command->statement);
+  }
   free(async_command);
 }
 
@@ -183,10 +192,10 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 2 + column_count*2 + 6] = driver_mk_atom("rows");
   }
 
-  
   fprintf(stderr, "Exec: %s\n", sqlite3_sql(statement));
-  while (column_count > 0 && (next_row = sqlite3_step(statement)) == SQLITE_ROW) {
-    
+  
+  while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
+
     for (i = 0; i < column_count; i++) {
       // fprintf(stderr, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
       switch (sqlite3_column_type(statement, i)) {
@@ -201,7 +210,7 @@ static void sql_exec_async(void *_async_command) {
           float_count++;
           floats = realloc(floats, sizeof(double) * float_count);
           floats[float_count - 1] = sqlite3_column_double(statement, i);
-          
+
           term_count += 2;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
           dataset[term_count - 2] = ERL_DRV_FLOAT;
@@ -216,7 +225,7 @@ static void sql_exec_async(void *_async_command) {
           binaries[binaries_count - 1] = driver_alloc_binary(bytes);
           binaries[binaries_count - 1]->orig_size = bytes;
           memcpy(binaries[binaries_count - 1]->orig_bytes, sqlite3_column_blob(statement, i), bytes);
-        
+
           term_count += 4;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
           dataset[term_count - 4] = ERL_DRV_BINARY;
@@ -234,14 +243,24 @@ static void sql_exec_async(void *_async_command) {
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[term_count - 2] = ERL_DRV_TUPLE;
     dataset[term_count - 1] = column_count;
-    
+
     row_count++;
   }
+  async_command->row_count = row_count;
+  async_command->floats = floats;
+  async_command->binaries = binaries;
+  async_command->binaries_count = binaries_count;
+  
   
   if (next_row == SQLITE_BUSY) {
-    sqlite3_finalize(statement);
-    return_error(drv, "SQLite3 database is busy"); 
+    return_error(drv, "SQLite3 database is busy", &async_command->dataset, &async_command->term_count);
+    return;
   }
+  if (next_row != SQLITE_DONE) {
+    return_error(drv, sqlite3_errmsg(drv->db), &async_command->dataset, &async_command->term_count);
+    return;
+  }
+  
 
   if (column_count > 0) {
     term_count += 3;
@@ -262,15 +281,26 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 2] = ERL_DRV_LIST;
     dataset[term_count - 1] = 3;
 
-  } else {
+  } else if (strcasestr(sqlite3_sql(statement), "INSERT"))  {
     
-    sqlite3_last_insert_rowid(drv->db);
-    term_count += 4;
+    long long rowid = sqlite3_last_insert_rowid(drv->db);
+    term_count += 6;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
-    dataset[term_count - 4] = ERL_DRV_ATOM;
-    dataset[term_count - 3] = driver_mk_atom("ok");
+    dataset[term_count - 6] = ERL_DRV_ATOM;
+    dataset[term_count - 5] = driver_mk_atom("id");
+    dataset[term_count - 4] = ERL_DRV_INT;
+    dataset[term_count - 3] = rowid;
     dataset[term_count - 2] = ERL_DRV_TUPLE;
-    dataset[term_count - 1] = 1;
+    dataset[term_count - 1] = 2;
+  } else {
+    term_count += 6;
+    dataset = realloc(dataset, sizeof(*dataset) * term_count);
+    dataset[term_count - 6] = ERL_DRV_ATOM;
+    dataset[term_count - 5] = driver_mk_atom("ok");
+    dataset[term_count - 4] = ERL_DRV_INT;
+    dataset[term_count - 3] = next_row;
+    dataset[term_count - 2] = ERL_DRV_TUPLE;
+    dataset[term_count - 1] = 2;
   }
   
   term_count += 2;
@@ -283,10 +313,6 @@ static void sql_exec_async(void *_async_command) {
   
   async_command->dataset = dataset;
   async_command->term_count = term_count;
-  async_command->row_count = row_count;
-  async_command->floats = floats;
-  async_command->binaries = binaries;
-  async_command->binaries_count = binaries_count;
   fprintf(stderr, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
 }
 

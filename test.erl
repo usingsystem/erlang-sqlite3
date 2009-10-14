@@ -4,13 +4,14 @@
 -record(user, {name, age, wage}).
 
 test() ->
+    file:delete("store.db"),
     sqlite3:open(ct),
     sqlite3:create_table(ct, user, [{name, text}, {age, integer}, {wage, integer}]),
     [user] = sqlite3:list_tables(ct),
     [{name, text}, {age, integer}, {wage, integer}] = sqlite3:table_info(ct, user),
-    sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
-    sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
-    sqlite3:sql_exec(ct, "select * from user;"),
+    {id, Id1} = sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
+    {id, Id2} = sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
+    [{columns, [name, age, wage]}, {rows, [{<<"abby">>, 20, 2000}, {<<"marge">>, 30, 3000}]}] = sqlite3:sql_exec(ct, "select * from user;"),
     sqlite3:read(ct, user, {name, "abby"}),
     sqlite3:delete(ct, user, {name, "abby"}),
     sqlite3:drop_table(ct, user),
