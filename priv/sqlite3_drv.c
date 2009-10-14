@@ -93,7 +93,6 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   char *rest = NULL;
   sqlite3_stmt *statement;
   
-  fprintf(stderr, "Exec: %.*s\n", command_size, command);
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
   if(result != SQLITE_OK) { 
     return return_error(drv, sqlite3_errmsg(drv->db)); 
@@ -103,9 +102,13 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   async_command->driver_data = drv;
   async_command->statement = statement;
 
-  // fprintf(stderr, "Driver async: %p\n", async_command->statement);
+  fprintf(stderr, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
 
-  result = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
+  if (1) {
+    sql_exec_async(async_command);
+  } else {
+    drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
+  }
   return 0;
 }
 
@@ -114,6 +117,8 @@ static void sql_free_async(void *_async_command)
   int i;
   async_sqlite3_command *async_command = (async_sqlite3_command *)_async_command;
   free(async_command->dataset);
+  
+  async_command->driver_data->async_handle = 0;
   
   if (async_command->floats) {
     free(async_command->floats);
@@ -179,6 +184,7 @@ static void sql_exec_async(void *_async_command) {
   }
 
   
+  fprintf(stderr, "Exec: %s\n", sqlite3_sql(statement));
   while (column_count > 0 && (next_row = sqlite3_step(statement)) == SQLITE_ROW) {
     
     for (i = 0; i < column_count; i++) {

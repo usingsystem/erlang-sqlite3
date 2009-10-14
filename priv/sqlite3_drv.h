@@ -5,6 +5,12 @@
 #include <sqlite3.h>
 #include <erl_interface.h>
 
+#if SQLITE_VERSION_NUMBER < 3006001
+#error "SQLite3 of version 3.6.1 minumum required"
+#endif
+
+
+
 // Path to file where data will be stored. 
 // It will be created if it doesn't exist
 #define DB_PATH "./store.db"
@@ -22,6 +28,7 @@ typedef struct sqlite3_drv_t {
   ErlDrvPort port;
   unsigned int key;
   struct sqlite3 *db;
+  long async_handle;
 } sqlite3_drv_t;
 
 typedef struct async_sqlite3_command {
