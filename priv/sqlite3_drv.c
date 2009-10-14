@@ -95,6 +95,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   char *rest = NULL;
   sqlite3_stmt *statement;
   
+  // fprintf(stderr, "Preexec: %.*s\n", command_size, command);
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
   if(result != SQLITE_OK) { 
     ErlDrvTermData *dataset;
@@ -192,7 +193,7 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 2 + column_count*2 + 6] = driver_mk_atom("rows");
   }
 
-  fprintf(stderr, "Exec: %s\n", sqlite3_sql(statement));
+  // fprintf(stderr, "Exec: %s\n", sqlite3_sql(statement));
   
   while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
 
@@ -313,7 +314,7 @@ static void sql_exec_async(void *_async_command) {
   
   async_command->dataset = dataset;
   async_command->term_count = term_count;
-  fprintf(stderr, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
+  // fprintf(stderr, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
 }
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
@@ -322,7 +323,7 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
   sqlite3_drv_t *drv = async_command->driver_data;
   
   int res = driver_output_term(drv->port, async_command->dataset, async_command->term_count);
-  fprintf(stderr, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
+  // fprintf(stderr, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
   sql_free_async(async_command);
 }
 

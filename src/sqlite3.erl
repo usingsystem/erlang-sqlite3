@@ -461,7 +461,7 @@ create_cmd(Dbase) ->
 wait_result(Port) ->
   receive
 	  {Port, Reply} ->
-	    io:format("Reply: ~p~n", [Reply]),
+      % io:format("Reply: ~p~n", [Reply]),
 	    Reply;
   {error, Reason} ->
     io:format("Error: ~p~n", [Reason]),
@@ -488,5 +488,5 @@ build_table_info([], Acc) ->
 build_table_info([[ColName, ColType] | Tl], Acc) -> 
     build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]); 
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
-    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]).
+    build_table_info(Tl, [{list_to_atom(ColName), primary_key}| Acc]).
     
