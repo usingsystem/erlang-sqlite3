@@ -23,6 +23,8 @@
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
 
+-export([create_function/3]).
+
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
@@ -311,6 +313,18 @@ drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
 
+%%--------------------------------------------------------------------
+%% @spec create_function(Db::atom(), FunctionName::atom(), Function::function()) -> term()
+%% @doc
+%%   Creates function under name FunctionName.
+%%
+%% @end
+%%--------------------------------------------------------------------
+-spec(create_function/3::(atom(), atom(), function()) -> any()).
+create_function(Db, FunctionName, Function) ->
+    gen_server:call(Db, {create_function, FunctionName, Function}).
+
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -373,6 +387,11 @@ handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     [{Info}] = TableSql,
     ColumnList = parse_table_info(binary_to_list(Info)),
     {reply, ColumnList, State};
+handle_call({create_function, FunctionName, Function}, _From, #state{port = Port} = State) ->
+    % make sure we only get table info.
+    % SQL Injection warning
+    Reply = exec(Port, {create_function, FunctionName, Function}),
+    {reply, Reply, State};
 handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Options),
     Cmd = {sql_exec, SQL},
@@ -454,6 +473,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 
 -define(SQL_EXEC_COMMAND, 2).
+-define(SQL_CREATE_FUNCTION, 3).
 
 create_cmd(Dbase) ->
     "sqlite3_port " ++ Dbase.
@@ -470,6 +490,11 @@ wait_result(Port) ->
     io:format("Else: ~p~n", [_Else]),
 	  _Else
   end.
+
+exec(Port, {create_function, FunctionName, Function}) ->
+  port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
+  wait_result(Port);
+
 
 exec(Port, {sql_exec, Cmd}) ->
   port_control(Port, ?SQL_EXEC_COMMAND, list_to_binary(Cmd)),
