@@ -111,11 +111,11 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 
   // fprintf(stderr, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
 
-  if (1) {
+  if (sqlite3_threadsafe()) {
+    drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
+  } else {
     sql_exec_async(async_command);
     ready_async((ErlDrvData)drv, (ErlDrvThreadData)async_command);
-  } else {
-    drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
   }
   return 0;
 }

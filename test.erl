@@ -18,7 +18,8 @@ test() ->
     sqlite3:delete(ct, user, {name, "abby"}),
     sqlite3:drop_table(ct, user),
 %sqlite3:delete_db(ct)
-    sqlite3:close(ct).
+    sqlite3:close(ct),
+    io:format("Tests passed~n").
 
 main(_) ->
   try test() of
