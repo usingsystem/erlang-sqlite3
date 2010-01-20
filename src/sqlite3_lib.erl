@@ -13,6 +13,7 @@
 -export([write_value_sql/1, write_col_sql/1]).
 -export([create_table_sql/2, write_sql/2, read_sql/3, delete_sql/3, drop_table/1]). 
 -export ([update_sql/4, update_set_sql/1, replace/1]).
+-export ([read_sql/4, read_cols_sql/1]).
 
 %%====================================================================
 %% API
@@ -116,6 +117,17 @@ update_set_sql (Data) ->
   string:join (Set, ", ").
 
 %%--------------------------------------------------------------------
+%% @spec read_cols_sql (Columns::[atom ()]) -> string ()
+%% @doc
+%%    Creates list of columns for select stmt.
+%% @end
+%%--------------------------------------------------------------------
+-spec (read_cols_sql/1::([atom ()]) -> string ()).
+read_cols_sql (Columns) ->
+  string:join (
+    lists:map (fun (A) -> atom_to_list (A) end, Columns), ", ").
+
+%%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl, [{ColName, Type}]) -> string()
 %%       Tbl = atom()
 %%       ColName = atom()
@@ -186,6 +198,27 @@ write_sql(Tbl, Data) ->
 read_sql(Tbl, Key, Value) ->
     lists:flatten(
       io_lib:format("SELECT * FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value])).
+
+%%--------------------------------------------------------------------
+%% @spec read_sql (Tbl, Key, Value, Columns) -> string ()
+%%        Tbl = atom ()
+%%        Key = atom ()
+%%        Value = string () | integer () | float ()
+%%        Columns = [atom ()]
+%% @doc
+%%    Using Key as the column name searhces for the record with
+%%    matching Value and returns only specified columns Columns.
+%% @end
+%%--------------------------------------------------------------------
+-spec (read_sql/4::(atom (), atom (), sql_value (), [atom ()]) -> string ()).
+read_sql (Tbl, Key, Value, Columns) ->
+  lists:flatten (
+    io_lib:format ("SELECT ~p FROM ~p WHERE ~p = ~p;",
+      [sqlite3_lib:read_cols_sql (Columns),
+       Tbl,
+       Key,
+       Value
+     ])).
 
 %%--------------------------------------------------------------------
 %% @spec delete_sql(Tbl, Key, Value) -> string()

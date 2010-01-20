@@ -20,6 +20,7 @@
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3]).
 -export([update/4, update/5]).
+-export([read/4]).
 -export([read/2, read/3]).
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
@@ -298,6 +299,22 @@ read(Db, Tbl, Key) ->
     gen_server:call(Db, {read, Tbl, Key}).
 
 %%--------------------------------------------------------------------
+%% @spec read (Db, Tbl, Key, Columns) -> [term ()]
+%%        Db = atom ()
+%%        Tbl = atom ()
+%%        Key = {Column::atom (), Value::term ()}
+%%        Columns = [atom ()]
+%% @doc
+%%    Reads a row from Tbl table in Db dbase such that the Value
+%%    matches the value in Column. Returns columns Columns only for
+%%    the first match. Value must have the same type as determined
+%%    from table_info/3.
+%% @end
+%%--------------------------------------------------------------------
+read (Db, Tbl, Key, Columns) ->
+  gen_server:call (Db, {read, Tbl, Key, Columns}).
+
+%%--------------------------------------------------------------------
 %% @spec delete(Tbl::atom(), Key) -> term()
 %%         Key = {ColName::atom(), ColValue::term()}
 %% @doc
@@ -438,6 +455,9 @@ handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
 handle_call({read, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     % select * from  Tbl where Key = Value;
     Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value)}),
+    {reply, Reply, State};
+handle_call ({read, Tbl, {Key, Value}, Columns}, _From, #state{port = Port} = State) ->
+    Reply = exec (Port, {sql_exec, sqlite3_lib:read_sql (Tbl, Key, Value, Columns)}),
     {reply, Reply, State};
 handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     % delete from Tbl where Key = Value;
