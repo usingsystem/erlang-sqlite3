@@ -29,6 +29,7 @@ typedef struct sqlite3_drv_t {
   unsigned int key;
   struct sqlite3 *db;
   long async_handle;
+  FILE *log;
 } sqlite3_drv_t;
 
 typedef struct async_sqlite3_command {

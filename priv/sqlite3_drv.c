@@ -34,9 +34,17 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   struct sqlite3 *db = 0;
   int status = 0;
 
+  retval->log = fopen ("/tmp/erlang-sqlite3-drv.log", "a+");
+  if (!retval->log) {
+    fprintf (stderr, "Can't create log file\n");
+  }
+
+  fprintf (retval->log, "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
+
+
   const char *db_name = strstr (cmd, " ");
   if (!db_name) {
-    fprintf (stderr, "DB name should be passed at command line (cmd: %s)\n", cmd);
+    fprintf (retval->log, "ERROR: DB name should be passed at command line\n");
     db_name = DB_PATH;
   } else {
     ++db_name;
@@ -47,9 +55,9 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   status = sqlite3_errcode(db);
 
   if(status != SQLITE_OK) {
-    fprintf(stderr, "Unabled to open file: %s because %s\n\n", DB_PATH, sqlite3_errmsg(db));
+    fprintf(retval->log, "ERROR: Unabled to open file: %s because %s\n\n", DB_PATH, sqlite3_errmsg(db));
   } else {
-    fprintf(stderr, "Opened file %s\n", db_name);
+    fprintf(retval->log, "Opened file %s\n", db_name);
   }
 
   // Set the state for the driver
@@ -57,6 +65,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->db = db;
   retval->key = 42; //FIXME: Just a magic number, make real key
   
+  fflush (retval->log);
   return (ErlDrvData) retval;
 }
 
@@ -66,6 +75,9 @@ static void stop(ErlDrvData handle) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) handle;
 
   sqlite3_close(driver_data->db);
+  fclose (driver_data->log);
+  driver_data->log = 0;
+
   driver_free(driver_data);
 }
 
@@ -104,7 +116,8 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   char *rest = NULL;
   sqlite3_stmt *statement;
   
-  // fprintf(stderr, "Preexec: %.*s\n", command_size, command);
+  // fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
+  // fflush (drv->log);
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
   if(result != SQLITE_OK) { 
     ErlDrvTermData *dataset;
@@ -118,7 +131,8 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   async_command->driver_data = drv;
   async_command->statement = statement;
 
-  // fprintf(stderr, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
+  // fprintf(drv->log, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
+  // fflush (drv->log);
 
   if (sqlite3_threadsafe()) {
     drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
@@ -189,7 +203,8 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 1] = driver_mk_atom("columns");
     for (i = 0; i < column_count; i++) {
       dataset[base + 2 + (i*2)] = ERL_DRV_ATOM;
-      // fprintf(stderr, "Column: %s\n", sqlite3_column_name(statement, i));
+      // fprintf(drv->log, "Column: %s\n", sqlite3_column_name(statement, i));
+      // fflush (drv->log);
       dataset[base + 2 + (i*2) + 1] = driver_mk_atom((char *)sqlite3_column_name(statement, i));
     }
     dataset[base + 2 + column_count*2 + 0] = ERL_DRV_NIL;
@@ -202,12 +217,14 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 2 + column_count*2 + 6] = driver_mk_atom("rows");
   }
 
-  // fprintf(stderr, "Exec: %s\n", sqlite3_sql(statement));
+  // fprintf(drv->log, "Exec: %s\n", sqlite3_sql(statement));
+  // fflush (drv->log);
   
   while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
 
     for (i = 0; i < column_count; i++) {
-      // fprintf(stderr, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
+      // fprintf(drv->log, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
+      // fflush (drv->log);
       switch (sqlite3_column_type(statement, i)) {
         case SQLITE_INTEGER: {
           term_count += 2;
@@ -323,7 +340,8 @@ static void sql_exec_async(void *_async_command) {
   
   async_command->dataset = dataset;
   async_command->term_count = term_count;
-  // fprintf(stderr, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
+  // fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
+  // fflush (drv->log);
 }
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
@@ -332,7 +350,8 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
   sqlite3_drv_t *drv = async_command->driver_data;
   
   int res = driver_output_term(drv->port, async_command->dataset, async_command->term_count);
-  // fprintf(stderr, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
+  // fprintf(drv->log, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
+  // fflush (drv->log);
   sql_free_async(async_command);
 }
 
