@@ -31,17 +31,26 @@ DRIVER_INIT(basic_driver) {
 // Driver Start
 static ErlDrvData start(ErlDrvPort port, char* cmd) {
   sqlite3_drv_t* retval = (sqlite3_drv_t*) driver_alloc(sizeof(sqlite3_drv_t));
-  struct sqlite3 *db;
-  int status;
-  
+  struct sqlite3 *db = 0;
+  int status = 0;
+
+  const char *db_name = strstr (cmd, " ");
+  if (!db_name) {
+    fprintf (stderr, "DB name should be passed at command line (cmd: %s)\n", cmd);
+    db_name = DB_PATH;
+  } else {
+    ++db_name;
+  }
+
   // Create and open the database
-  sqlite3_open(DB_PATH, &db);
+  sqlite3_open(db_name, &db);
   status = sqlite3_errcode(db);
 
   if(status != SQLITE_OK) {
     fprintf(stderr, "Unabled to open file: %s because %s\n\n", DB_PATH, sqlite3_errmsg(db));
+  } else {
+    fprintf(stderr, "Opened file %s\n", db_name);
   }
-  fprintf(stderr, "Opened file %s\n", DB_PATH);
 
   // Set the state for the driver
   retval->port = port;

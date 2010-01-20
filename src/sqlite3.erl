@@ -345,7 +345,7 @@ init(Options) ->
     SearchDir = filename:join([filename:dirname(code:which(?MODULE)), "..", "ebin"]),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
       ok -> 
-        Port = open_port({spawn, ?DRIVER_NAME}, [binary]),
+        Port = open_port({spawn, string:join ([atom_to_list (?DRIVER_NAME), Dbase], " ")}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         io:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
