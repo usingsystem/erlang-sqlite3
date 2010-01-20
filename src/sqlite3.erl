@@ -19,6 +19,7 @@
 -export([create_table/2, create_table/3]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3]).
+-export([update/4, update/5]).
 -export([read/2, read/3]).
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
@@ -241,6 +242,36 @@ write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
 %%--------------------------------------------------------------------
+%% @spec update (Tbl::atom (), Key::atom (), Value, Data) -> Result
+%%        Value = any ()
+%%        Data = [{Column::atom (), Value::string () | integer () | float ()}]
+%%        Result = {ok, ID} | Unknown
+%%        Unknown = term ()
+%% @doc
+%%    Updates rows into Tbl table such that the Value matches the 
+%%    value in Key with Data. Returns ID of the first updated 
+%%    record.
+%% @end
+%%--------------------------------------------------------------------
+update (Tbl, Key, Value, Data) ->
+  ?MODULE:update (?MODULE, Tbl, Key, Value, Data).
+
+%%--------------------------------------------------------------------
+%% @spec update (Db::atom (), Tbl::atom (), Key::atom (), Value, Data) -> Result
+%%        Value = any ()
+%%        Data = [{Column::atom (), Value::string () | integer () | float ()}]
+%%        Result = {ok, ID} | Unknown
+%%        Unknown = term ()
+%% @doc
+%%    Updates rows into Tbl table in Db dbase such that the Value 
+%%    matches the value in Key with Data. Returns ID of the first 
+%%    updated record.
+%% @end
+%%--------------------------------------------------------------------
+update (Db, Tbl, Key, Value, Data) ->
+  gen_server:call (Db, {update, Tbl, Key, Value, Data}).
+
+%%--------------------------------------------------------------------
 %% @spec read(Tbl::atom(), Key) -> [term()]
 %%         Key = {ColName::atom(), ColValue::term()}
 %% @doc
@@ -396,6 +427,9 @@ handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Options),
     Cmd = {sql_exec, SQL},
     Reply = exec(Port, Cmd),
+    {reply, Reply, State};
+handle_call ({update, Tbl, Key, Value, Data}, _From, #state{port = Port} = State)->
+    Reply = exec (Port, {sql_exec, sqlite3_lib:update_sql (Tbl, Key, Value, Data)}),
     {reply, Reply, State};
 handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
