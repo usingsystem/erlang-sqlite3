@@ -1,0 +1,16 @@
+ERL_INTERFACE=@ERLANG_LIB_DIR_erl_interface@
+ERL_ROOT=@ERLANG_ROOT_DIR@
+GCC=gcc
+LDFLAGS=-shared -L/usr/lib -lsqlite3 -undefined -fPIC -lerl_interface -L$(ERL_INTERFACE)/lib -lei
+SRCS=sqlite3_drv.c sqlite3_drv.h
+OUTPUT=sqlite3_drv.so
+CFLAGS=-o ../ebin/${OUTPUT} -I$(ERL_ROOT)/usr/include/ -I$(ERL_INTERFACE)/include/ 
+
+all: ../ebin/${OUTPUT}
+
+
+../ebin/${OUTPUT}: sqlite3_drv.c sqlite3_drv.h
+	${GCC} sqlite3_drv.c ${LDFLAGS} ${CFLAGS}
+
+clean:
+	rm -rf ../ebin/${OUTPUT}

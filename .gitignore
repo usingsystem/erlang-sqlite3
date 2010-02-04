@@ -1,2 +1,7 @@
 doc
+config.log
+config.status
+autom4te.cache
+Makefile
+priv/Makefile
 
