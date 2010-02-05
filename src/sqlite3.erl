@@ -545,9 +545,10 @@ wait_result(Port) ->
 	  _Else
   end.
 
-exec(Port, {create_function, FunctionName, Function}) ->
-  port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
-  wait_result(Port);
+exec(_Port, {create_function, _FunctionName, _Function}) ->
+  error_logger:error_report ([{application, sqlite3}, "NOT IMPL YET"]);
+  %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
+  %wait_result(Port);
 
 
 exec(Port, {sql_exec, Cmd}) ->
