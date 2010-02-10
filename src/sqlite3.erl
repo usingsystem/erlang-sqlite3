@@ -424,7 +424,7 @@ handle_call({sql_exec, SQL}, _From, #state{port = Port} = State) ->
 handle_call(list_tables, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, "select name from sqlite_master where type='table';"}),
     TableList = proplists:get_value(rows, Reply),
-    TableNames = [binary_to_atom(Name, utf8) || {Name} <- TableList],
+    TableNames = [erlang:list_to_atom (erlang:binary_to_list (Name)) || {Name} <- TableList],
     {reply, TableNames, State};
 handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     % make sure we only get table info.
