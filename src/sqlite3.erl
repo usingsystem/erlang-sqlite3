@@ -396,8 +396,8 @@ init(Options) ->
         Port = open_port({spawn, string:join ([atom_to_list (?DRIVER_NAME), Dbase], " ")}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
-        io:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
-        {stop, failed}
+        Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
+        {stop, lists:flatten (Msg)}
     end.
 		     
 %%--------------------------------------------------------------------

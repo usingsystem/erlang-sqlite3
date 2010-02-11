@@ -1,5 +1,5 @@
 #!/usr/bin/env escript
-%%! -smp enable -pa ebin -name testsqlite3
+%%! -smp enable -pa ebin -sname testsqlite3
 
 -record(user, {name, age, wage}).
 
