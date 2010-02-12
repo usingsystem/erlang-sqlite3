@@ -64,6 +64,14 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->port = port;
   retval->db = db;
   retval->key = 42; //FIXME: Just a magic number, make real key
+
+  retval->atom_error = driver_mk_atom ("error");
+  retval->atom_columns = driver_mk_atom ("columns");
+  retval->atom_rows = driver_mk_atom ("rows");
+  retval->atom_null = driver_mk_atom ("null");
+  retval->atom_id = driver_mk_atom ("id");
+  retval->atom_ok = driver_mk_atom ("ok");
+  retval->atom_unknown_cmd = driver_mk_atom ("uknown_command");
   
   fflush (retval->log);
   return (ErlDrvData) retval;
@@ -100,7 +108,7 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 static inline int return_error(sqlite3_drv_t *drv, const char *error, ErlDrvTermData **spec, int *terms_count) {
   *spec = (ErlDrvTermData *)calloc(7, sizeof(ErlDrvTermData));
   (*spec)[0] = ERL_DRV_ATOM;
-  (*spec)[1] = driver_mk_atom("error");
+  (*spec)[1] = drv->atom_error;
   (*spec)[2] = ERL_DRV_STRING;
   (*spec)[3] = (ErlDrvTermData)error;
   (*spec)[4] = strlen(error);
@@ -200,7 +208,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 2 + column_count*2 + 1 + 2 + 2 + 2;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[base] = ERL_DRV_ATOM;
-    dataset[base + 1] = driver_mk_atom("columns");
+    dataset[base + 1] = drv->atom_columns;
     for (i = 0; i < column_count; i++) {
       dataset[base + 2 + (i*2)] = ERL_DRV_ATOM;
       // fprintf(drv->log, "Column: %s\n", sqlite3_column_name(statement, i));
@@ -214,7 +222,7 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 2 + column_count*2 + 4] = 2;
 
     dataset[base + 2 + column_count*2 + 5] = ERL_DRV_ATOM;
-    dataset[base + 2 + column_count*2 + 6] = driver_mk_atom("rows");
+    dataset[base + 2 + column_count*2 + 6] = drv->atom_rows;
   }
 
   // fprintf(drv->log, "Exec: %s\n", sqlite3_sql(statement));
@@ -265,7 +273,7 @@ static void sql_exec_async(void *_async_command) {
           term_count += 2;
           dataset = realloc (dataset, sizeof (*dataset) * term_count);
           dataset[term_count - 2] = ERL_DRV_ATOM;
-          dataset[term_count - 1] = driver_mk_atom ("null");
+          dataset[term_count - 1] = drv->atom_null;
           break;
         }
       }
@@ -318,7 +326,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 6;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[term_count - 6] = ERL_DRV_ATOM;
-    dataset[term_count - 5] = driver_mk_atom("id");
+    dataset[term_count - 5] = drv->atom_id;
     dataset[term_count - 4] = ERL_DRV_INT;
     dataset[term_count - 3] = rowid;
     dataset[term_count - 2] = ERL_DRV_TUPLE;
@@ -327,7 +335,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 6;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[term_count - 6] = ERL_DRV_ATOM;
-    dataset[term_count - 5] = driver_mk_atom("ok");
+    dataset[term_count - 5] = drv->atom_ok;
     dataset[term_count - 4] = ERL_DRV_INT;
     dataset[term_count - 3] = next_row;
     dataset[term_count - 2] = ERL_DRV_TUPLE;
@@ -363,8 +371,8 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
 // Unkown Command
 static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   // Return {error, unkown_command}
-  ErlDrvTermData spec[] = {ERL_DRV_ATOM, driver_mk_atom("error"),
-			   ERL_DRV_ATOM, driver_mk_atom("uknown_command"),
+  ErlDrvTermData spec[] = {ERL_DRV_ATOM, drv->atom_error,
+			   ERL_DRV_ATOM, drv->atom_unknown_cmd,
 			   ERL_DRV_TUPLE, 2};
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
