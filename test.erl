@@ -13,7 +13,7 @@ test() ->
     Id1 = 1,
     {id, Id2} = sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
     Id2 = 2,
-    [{columns, [id, name, age, wage]}, {rows, [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 3000}]}] = sqlite3:sql_exec(ct, "select * from user;"),
+    [{columns, ["id", "name", "age", "wage"]}, {rows, [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 3000}]}] = sqlite3:sql_exec(ct, "select * from user;"),
     sqlite3:read(ct, user, {name, "abby"}),
     sqlite3:delete(ct, user, {name, "abby"}),
     sqlite3:drop_table(ct, user),

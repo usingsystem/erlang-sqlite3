@@ -205,24 +205,27 @@ static void sql_exec_async(void *_async_command) {
   
   if (column_count > 0) {
     int base = term_count;
-    term_count += 2 + column_count*2 + 1 + 2 + 2 + 2;
+    term_count += 2 + column_count*3 + 1 + 2 + 2 + 2;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[base] = ERL_DRV_ATOM;
     dataset[base + 1] = drv->atom_columns;
     for (i = 0; i < column_count; i++) {
-      dataset[base + 2 + (i*2)] = ERL_DRV_ATOM;
-      // fprintf(drv->log, "Column: %s\n", sqlite3_column_name(statement, i));
+      char *column_name = (char *)sqlite3_column_name(statement, i);
+      // fprintf(drv->log, "Column: %s\n", column_name);
       // fflush (drv->log);
-      dataset[base + 2 + (i*2) + 1] = driver_mk_atom((char *)sqlite3_column_name(statement, i));
-    }
-    dataset[base + 2 + column_count*2 + 0] = ERL_DRV_NIL;
-    dataset[base + 2 + column_count*2 + 1] = ERL_DRV_LIST;
-    dataset[base + 2 + column_count*2 + 2] = column_count + 1;
-    dataset[base + 2 + column_count*2 + 3] = ERL_DRV_TUPLE;
-    dataset[base + 2 + column_count*2 + 4] = 2;
 
-    dataset[base + 2 + column_count*2 + 5] = ERL_DRV_ATOM;
-    dataset[base + 2 + column_count*2 + 6] = drv->atom_rows;
+      dataset[base + 2 + (i*3)] = ERL_DRV_STRING;
+      dataset[base + 2 + (i*3) + 1] = (ErlDrvTermData) column_name;
+      dataset[base + 2 + (i*3) + 2] = strlen (column_name);
+    }
+    dataset[base + 2 + column_count*3 + 0] = ERL_DRV_NIL;
+    dataset[base + 2 + column_count*3 + 1] = ERL_DRV_LIST;
+    dataset[base + 2 + column_count*3 + 2] = column_count + 1;
+    dataset[base + 2 + column_count*3 + 3] = ERL_DRV_TUPLE;
+    dataset[base + 2 + column_count*3 + 4] = 2;
+
+    dataset[base + 2 + column_count*3 + 5] = ERL_DRV_ATOM;
+    dataset[base + 2 + column_count*3 + 6] = drv->atom_rows;
   }
 
   // fprintf(drv->log, "Exec: %s\n", sqlite3_sql(statement));
