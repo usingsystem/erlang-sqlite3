@@ -262,6 +262,10 @@ static void sql_exec_async(void *_async_command) {
           break;
         }
         case SQLITE_NULL: {
+          term_count += 2;
+          dataset = realloc (dataset, sizeof (*dataset) * term_count);
+          dataset[term_count - 2] = ERL_DRV_ATOM;
+          dataset[term_count - 1] = driver_mk_atom ("null");
           break;
         }
       }
