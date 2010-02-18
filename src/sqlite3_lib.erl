@@ -213,7 +213,7 @@ read_sql(Tbl, Key, Value) ->
 -spec (read_sql/4::(atom (), atom (), sql_value (), [atom ()]) -> string ()).
 read_sql (Tbl, Key, Value, Columns) ->
   lists:flatten (
-    io_lib:format ("SELECT ~p FROM ~p WHERE ~p = ~p;",
+    io_lib:format ("SELECT ~s FROM ~p WHERE ~p = ~p;",
       [sqlite3_lib:read_cols_sql (Columns),
        Tbl,
        Key,
