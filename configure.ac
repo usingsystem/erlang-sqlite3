@@ -41,6 +41,15 @@ AC_ERLANG_CHECK_LIB(compiler)
 AC_ERLANG_CHECK_LIB(hipe)
 AC_ERLANG_CHECK_LIB(syntax_tools)
 
+AC_ARG_ENABLE([null-atom], 
+              [AC_HELP_STRING([--enable-null-atom=atom],
+                              [Set to configure null-atom, default 'null'])],
+              [ ac_null_atom=$enableval ],
+              [ ac_null_atom=null ])
+
+NULL_ATOM="$ac_null_atom"
+AC_SUBST([NULL_ATOM])
 AC_CONFIG_FILES([Makefile
+                 Emakefile
                  priv/Makefile])
 AC_OUTPUT

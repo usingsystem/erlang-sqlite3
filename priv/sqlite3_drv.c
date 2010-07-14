@@ -65,10 +65,12 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->db = db;
   retval->key = 42; //FIXME: Just a magic number, make real key
 
+#define STR_(ARG) #ARG
+#define STR(ARG) STR_(ARG)
   retval->atom_error = driver_mk_atom ("error");
   retval->atom_columns = driver_mk_atom ("columns");
   retval->atom_rows = driver_mk_atom ("rows");
-  retval->atom_null = driver_mk_atom ("null");
+  retval->atom_null = driver_mk_atom (STR (NULL_ATOM));
   retval->atom_id = driver_mk_atom ("id");
   retval->atom_ok = driver_mk_atom ("ok");
   retval->atom_unknown_cmd = driver_mk_atom ("uknown_command");
