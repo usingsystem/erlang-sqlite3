@@ -53,7 +53,7 @@ write_value_sql(Values) ->
     StrValues = lists:map(fun
           (X) when is_integer(X) -> integer_to_list(X);
           (X) when is_float(X)   -> float_to_list(X);
-          (?NULL_ATOM)           -> 'null';
+          (?NULL_ATOM)           -> "null";
           (X)                    -> io_lib:format("'~s'", [X])
 			  end, Values),
     string:join(StrValues, ",").
