@@ -77,7 +77,7 @@ end_per_suite(Config) ->
 %% variable, but should NOT alter/remove any existing entries.
 %%--------------------------------------------------------------------
 init_per_testcase(TestCase, Config) ->
-    sqlite:open(TestCase),
+    sqlite3:open(TestCase),
     [{dbase, TestCase} | Config].
 
 %%--------------------------------------------------------------------
@@ -92,7 +92,7 @@ init_per_testcase(TestCase, Config) ->
 %% Description: Cleanup after each test case.
 %%--------------------------------------------------------------------
 end_per_testcase(TestCase, _Config) ->
-    sqlite:close(TestCase),
+    sqlite3:close(TestCase),
     ok.
 
 %%--------------------------------------------------------------------
@@ -162,13 +162,16 @@ create_table() ->
 %%--------------------------------------------------------------------
 create_table(Config) -> 
     Dbase = proplists:get_value(dbase, Config),
-    sqlite:create_table(Dbase, user, [{name, text}, {age, integer}, {wage, integer}]),
-    [user] = sqlite:list_tables(Dbase),
-    [{name, text}, {age, integer}, {wage, integer}] = sqlite:table_info(Dbase, user),
-    sqlite:write(Dbase, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
-    sqlite:write(Dbase, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
-    [{"abby","20","2000"},{"marge","30","3000"}] = sqlite:sql_exec(Dbase, "select * from user;"),
-    [{"abby","20","2000"}] = sqlite:read(Dbase, user, {name, "abby"}),
-    sqlite:delete(Dbase, user, {name, "abby"}),
-    sqlite:drop_table(Dbase, user),
+    sqlite3:create_table(Dbase, user, [{name, text}, {age, integer}, {wage, integer}]),
+    [user] = sqlite3:list_tables(Dbase),
+    [{name, primary_key}, {age, integer}, {wage, integer}] = sqlite3:table_info(Dbase, user),
+    sqlite3:write(Dbase, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
+    sqlite3:write(Dbase, user, [{name, "marge"}, {age, 30}, {wage, 3000}]),
+    [{columns, Columns}, {rows, Rows}] = sqlite3:sql_exec(Dbase, "select * from user;"),
+    Columns = ["name","age","wage"],
+    Rows = [{<<"abby">>,20,2000}, {<<"marge">>,30,3000}],
+    [{columns, Columns}, {rows, RowsAbby}] = sqlite3:read(Dbase, user, {name, "abby"}),
+    RowsAbby = [{<<"abby">>,20,2000}],
+    sqlite3:delete(Dbase, user, {name, "abby"}),
+    sqlite3:drop_table(Dbase, user),
     ok.
