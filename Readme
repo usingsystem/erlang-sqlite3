@@ -1,7 +1,7 @@
 Compiling
 ---------
 
-1. Modify Makefile as needed. 
+1. Run './configure'
 
 2. Run 'make'
 
@@ -11,20 +11,23 @@ Compiling
 Running Test Suite
 ------------------
 
-$ROOT refers to the parent directory for sqlite-1.0.0
+Either 
 
-1. Add $ROOT/sqlite-1.0.0/priv in your path.
+1. Run ./test.erl 
 
-2. erl -pa $ROOT/sqlite-1.0.0/ebin
+or 
 
-3. ct:run("src").
+2. $ROOT refers to the parent directory for erlang-sqlite3.
+
+3. Run erl -pa $ROOT/priv -pa $ROOT/ebin.
+
+4. ct:run("src").
 
 
 Example Usage
 -------------
 
-Use sqlite-1.0.0/src/test/sqlite_test_SUITE.erl as an example for your own usage. Look at both 
-init_per_testcase and create_table.
+Use src/test/sqlite_test_SUITE.erl as an example for your own usage. Look at both init_per_testcase and create_table.
 
 
 Author: tty.erlang@gmail.com
