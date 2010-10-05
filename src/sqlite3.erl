@@ -54,7 +54,7 @@
 -spec(start_link/1::(atom()) -> result()).
 
 start_link(Db) ->
-    ?MODULE:open(?MODULE, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
+    ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
 %%--------------------------------------------------------------------
 %% @spec start_link(Db, Options) -> {ok,Pid} | ignore | {error,Error}
@@ -77,7 +77,7 @@ start_link(Db, Options) ->
 	       undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
 	       _ -> Options
 	   end,
-    ?MODULE:open(?MODULE, Opts).
+    ?MODULE:open(Db, Opts).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid::pid()} | ignore | {error, Error}
