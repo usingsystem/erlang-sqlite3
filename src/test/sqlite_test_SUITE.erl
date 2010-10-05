@@ -78,7 +78,7 @@ end_per_suite(Config) ->
 %%--------------------------------------------------------------------
 init_per_testcase(TestCase, Config) ->
     sqlite3:open(TestCase),
-    [{dbase, TestCase} | Config].
+    [{db, TestCase} | Config].
 
 %%--------------------------------------------------------------------
 %% Function: end_per_testcase(TestCase, Config0) ->
@@ -161,7 +161,8 @@ create_table() ->
 %%              the all/0 list for the test case to be executed).
 %%--------------------------------------------------------------------
 create_table(Config) -> 
-    Dbase = proplists:get_value(dbase, Config),
+    Dbase = proplists:get_value(db, Config),
+	sqlite3:open(Dbase),
     sqlite3:create_table(Dbase, user, [{name, text}, {age, integer}, {wage, integer}]),
     [user] = sqlite3:list_tables(Dbase),
     [{name, primary_key}, {age, integer}, {wage, integer}] = sqlite3:table_info(Dbase, user),
