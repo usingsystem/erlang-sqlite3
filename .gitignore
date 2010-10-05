@@ -4,4 +4,10 @@ config.status
 autom4te.cache
 Makefile
 priv/Makefile
+Emakefile
+.svn
+*/.svn
+*.db
+*.swp
+*~
 
