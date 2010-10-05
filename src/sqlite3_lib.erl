@@ -56,7 +56,7 @@ write_value_sql(Values) ->
           (?NULL_ATOM)           -> "null";
           (X)                    -> io_lib:format("'~s'", [X])
 			  end, Values),
-    string:join(StrValues, ",").
+    intersperse(StrValues, ",").
 
 %%--------------------------------------------------------------------
 %% @spec write_col_sql([atom()]) -> string()
@@ -68,7 +68,7 @@ write_col_sql(Cols) ->
     StrCols = lists:map(fun(X) ->
 				atom_to_list(X)
 			end, Cols),
-    string:join(StrCols, ",").
+    intersperse(StrCols, ",").
 
 %%--------------------------------------------------------------------
 %% @spec replace (String) -> string ()
@@ -102,18 +102,15 @@ replace ([H | T], L) ->
 update_set_sql (Data) ->
   Set = lists:map (fun 
       ({Col, Value}) when is_integer (Value) -> 
-        string:join (
-          [atom_to_list (Col), integer_to_list (Value)], " = ");
+        [atom_to_list (Col), " = ", integer_to_list (Value)];
       ({Col, Value}) when is_float (Value) -> 
-        string:join (
-          [atom_to_list (Col), integer_to_list (Value)], " = ");
+        [atom_to_list (Col), " = ", float_to_list (Value)];
       ({Col, Value}) -> 
-        string:join (
-          [atom_to_list (Col), 
-            io_lib:format ("\"~s\"", [replace (Value)])], " = ") 
+        [atom_to_list (Col), " = ",
+          io_lib:format ("\"~s\"", [replace (Value)])] 
     end,
     Data),
-  string:join (Set, ", ").
+  intersperse(Set, ", ").
 
 %%--------------------------------------------------------------------
 %% @spec read_cols_sql (Columns::[atom ()]) -> string ()
@@ -123,8 +120,8 @@ update_set_sql (Data) ->
 %%--------------------------------------------------------------------
 -spec (read_cols_sql/1::([atom ()]) -> string ()).
 read_cols_sql (Columns) ->
-  string:join (
-    lists:map (fun (A) -> atom_to_list (A) end, Columns), ", ").
+  intersperse(
+    lists:map(fun atom_to_list/1, Columns), ", ").
 
 %%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl, [{ColName, Type}]) -> string()
@@ -138,11 +135,11 @@ read_cols_sql (Columns) ->
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
     CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
     Start = io_lib:format("(~p ~s PRIMARY KEY, ", [ColName, sqlite3_lib:col_type(Type)]),
-    End = string:join(
-	    lists:map(fun({Name0, Type0}) ->
-			      io_lib:format("~p ~s", [Name0, sqlite3_lib:col_type(Type0)])
-		      end, Tl), ", ") ++ ");",
-    lists:flatten(CT ++ Start ++ End).
+    End = [intersperse(
+	         lists:map(fun({Name0, Type0}) ->
+	                     io_lib:format("~p ~s", [Name0, sqlite3_lib:col_type(Type0)])
+	                   end, Tl), ", "), ");"],
+    [CT, Start, End].
 
 %%--------------------------------------------------------------------
 %% @spec update_sql (Tbl, Key, Value, Data) -> string ()
@@ -159,13 +156,12 @@ create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
 -type(sql_value() :: string() | integer() | float()).
 -spec (update_sql/4::(atom (), atom (), atom (), [{atom (), sql_value ()}]) -> string ()).
 update_sql (Tbl, Key, Value, Data) ->
-    lists:flatten (
-      io_lib:format ("UPDATE ~p SET ~s WHERE ~p = ~p;", 
-        [Tbl,
-         sqlite3_lib:update_set_sql (Data),
-         Key,
-         Value
-       ])).
+    io_lib:format("UPDATE ~p SET ~s WHERE ~p = ~p;", 
+      [Tbl,
+       sqlite3_lib:update_set_sql (Data),
+       Key,
+       Value
+      ]).
 
 %%--------------------------------------------------------------------
 %% @spec write_sql(Tbl, Data) -> string()
@@ -178,11 +174,11 @@ update_sql (Tbl, Key, Value, Data) ->
 -spec(write_sql/2::(atom(), [{atom(), sql_value()}]) -> string()).
 write_sql(Tbl, Data) ->
     {Cols, Values} = lists:unzip(Data),
-    lists:flatten(
-      io_lib:format("INSERT INTO ~p (~s) values (~s);", 
-		    [Tbl, 
-		     sqlite3_lib:write_col_sql(Cols), 
-		     sqlite3_lib:write_value_sql(Values)])).
+    io_lib:format("INSERT INTO ~p (~s) values (~s);", 
+      [Tbl, 
+	   sqlite3_lib:write_col_sql(Cols), 
+	   sqlite3_lib:write_value_sql(Values)
+	  ]).
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value) -> string()
@@ -195,8 +191,7 @@ write_sql(Tbl, Data) ->
 %%--------------------------------------------------------------------
 -spec(read_sql/3::(atom(), atom(), sql_value()) -> string()).
 read_sql(Tbl, Key, Value) ->
-    lists:flatten(
-      io_lib:format("SELECT * FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value])).
+    io_lib:format("SELECT * FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value]).
 
 %%--------------------------------------------------------------------
 %% @spec read_sql (Tbl, Key, Value, Columns) -> string ()
@@ -211,13 +206,12 @@ read_sql(Tbl, Key, Value) ->
 %%--------------------------------------------------------------------
 -spec (read_sql/4::(atom (), atom (), sql_value (), [atom ()]) -> string ()).
 read_sql (Tbl, Key, Value, Columns) ->
-  lists:flatten (
-    io_lib:format ("SELECT ~s FROM ~p WHERE ~p = ~p;",
+    io_lib:format("SELECT ~s FROM ~p WHERE ~p = ~p;",
       [sqlite3_lib:read_cols_sql (Columns),
        Tbl,
        Key,
        Value
-     ])).
+     ]).
 
 %%--------------------------------------------------------------------
 %% @spec delete_sql(Tbl, Key, Value) -> string()
@@ -230,8 +224,7 @@ read_sql (Tbl, Key, Value, Columns) ->
 %%--------------------------------------------------------------------
 -spec(delete_sql/3::(atom(), atom(), sql_value()) -> string()).
 delete_sql(Tbl, Key, Value) ->
-    lists:flatten(
-      io_lib:format("DELETE FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value])).
+    io_lib:format("DELETE FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value]).
 
 %%--------------------------------------------------------------------
 %% @spec drop_table(Tbl) -> string()
@@ -241,9 +234,14 @@ delete_sql(Tbl, Key, Value) ->
 %%--------------------------------------------------------------------
 -spec(drop_table/1::(atom()) -> string()).
 drop_table(Tbl) ->
-    lists:flatten(
-      io_lib:format("DROP TABLE ~p;", [Tbl])).
+    io_lib:format("DROP TABLE ~p;", [Tbl]).
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+%% @doc Works like string:join for iolists
+
+intersperse([], _Sep) -> [];
+intersperse([Elem], _Sep) -> [Elem];
+intersperse([Head | Tail], Sep) -> [Head, Sep | intersperse(Tail, Sep)].

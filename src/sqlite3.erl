@@ -255,7 +255,7 @@ write(Db, Tbl, Data) ->
 %% @end
 %%--------------------------------------------------------------------
 update (Tbl, Key, Value, Data) ->
-  ?MODULE:update (?MODULE, Tbl, Key, Value, Data).
+  ?MODULE:update(?MODULE, Tbl, Key, Value, Data).
 
 %%--------------------------------------------------------------------
 %% @spec update (Db::atom (), Tbl::atom (), Key::atom (), Value, Data) -> Result
@@ -270,7 +270,7 @@ update (Tbl, Key, Value, Data) ->
 %% @end
 %%--------------------------------------------------------------------
 update (Db, Tbl, Key, Value, Data) ->
-  gen_server:call (Db, {update, Tbl, Key, Value, Data}).
+  gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------
 %% @spec read(Tbl::atom(), Key) -> [term()]
@@ -312,7 +312,7 @@ read(Db, Tbl, Key) ->
 %% @end
 %%--------------------------------------------------------------------
 read (Db, Tbl, Key, Columns) ->
-  gen_server:call (Db, {read, Tbl, Key, Columns}).
+  gen_server:call(Db, {read, Tbl, Key, Columns}).
 
 %%--------------------------------------------------------------------
 %% @spec delete(Tbl::atom(), Key) -> term()
@@ -553,9 +553,9 @@ exec(_Port, {create_function, _FunctionName, _Function}) ->
 
 
 exec(Port, {sql_exec, Cmd}) ->
-  port_control(Port, ?SQL_EXEC_COMMAND, list_to_binary(Cmd)),
+  port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
   wait_result(Port).
- 
+
 
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
