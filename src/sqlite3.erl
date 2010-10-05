@@ -390,7 +390,8 @@ create_function(Db, FunctionName, Function) ->
 -spec(init/1::([any()]) -> init_return()).
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
-    SearchDir = filename:join([filename:dirname(code:which(?MODULE)), "..", "ebin"]),
+    {?MODULE, _, FileName} = code:get_object_code(?MODULE),
+    SearchDir = filename:dirname(FileName),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
       ok -> 
         Port = open_port({spawn, string:join ([atom_to_list (?DRIVER_NAME), Dbase], " ")}, [binary]),
