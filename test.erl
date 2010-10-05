@@ -4,7 +4,7 @@
 -record(user, {name, age, wage}).
 
 test() ->
-    file:delete("store.db"),
+    file:delete("ct.db"),
     sqlite3:open(ct),
     sqlite3:create_table(ct, user, [{id, integer}, {name, text}, {age, integer}, {wage, integer}]),
     [user] = sqlite3:list_tables(ct),
