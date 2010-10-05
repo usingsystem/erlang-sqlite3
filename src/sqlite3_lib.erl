@@ -77,16 +77,11 @@ write_col_sql(Cols) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec (replace/1::(string ()) -> string ()).
-replace ([34 | T]) ->
-  replace (T, ["'"]);
-replace ([H | T]) ->
-  replace (T, [binary_to_list (<<H>>)]).
-replace ([], L) ->
-  lists:flatten (lists:reverse (L));
-replace ([34 | T], L) ->
-  replace (T, ["'" | L]);
-replace ([H | T], L) ->
-  replace (T, [binary_to_list (<<H>>) | L]).
+replace([]) -> [];
+replace([$" | T]) ->
+  [$' | replace(T)];
+replace([H | T]) ->
+  [H | replace(T)].
 
 %%--------------------------------------------------------------------
 %% @spec update_set_sql ([{Col, Value}]) -> string ()
