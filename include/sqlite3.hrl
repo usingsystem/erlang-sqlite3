@@ -1,0 +1,2 @@
+-define(NULL_ATOM, null).
+-type(sql_value() :: number() | ?NULL_ATOM | iodata()).

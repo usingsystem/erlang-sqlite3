@@ -7,13 +7,15 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(sqlite3_lib).
+-include("sqlite3.hrl").
 
 %% API
 -export([col_type/1]).
+-export([value_to_sql/1, value_to_sql_unsafe/1, escape/1]).
 -export([write_value_sql/1, write_col_sql/1]).
 -export([create_table_sql/2, write_sql/2, read_sql/3, delete_sql/3, drop_table/1]). 
--export ([update_sql/4, update_set_sql/1, replace/1]).
--export ([read_sql/4, read_cols_sql/1]).
+-export([update_sql/4, update_set_sql/1, replace/1]).
+-export([read_sql/4, read_cols_sql/1]).
 
 %%====================================================================
 %% API
@@ -42,20 +44,55 @@ col_type("DATE") ->
     date.
 
 %%--------------------------------------------------------------------
+%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iodata()
+%% @doc 
+%%    Converts an Erlang term to an SQL string.
+%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    (binaries and iolists) which are treated as SQL strings.
+%%
+%%    Note that it opens opportunity for injection if an iolist includes 
+%%    single quotes! Replace all single quotes (') with '' manually, or
+%%    use value_to_sql/1 if you are not sure if your strings contain
+%%    single quotes (e.g. can be entered by users).
+%% @end
+%%--------------------------------------------------------------------
+-spec(value_to_sql_unsafe/1::(sql_value()) -> iodata()).
+value_to_sql_unsafe(X) ->
+	if
+		is_integer(X)   -> integer_to_list(X);
+		is_float(X)     -> float_to_list(X);
+		X == ?NULL_ATOM -> "NULL";
+		true            -> [$', X, $'] %% assumes no $' inside strings!
+	end.
+
+%%--------------------------------------------------------------------
+%% @spec value_to_sql(Value :: sql_value()) -> iodata()
+%% @doc 
+%%    Converts an Erlang term to an SQL string.
+%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    (binaries and iolists) which are treated as SQL strings.
+%%
+%%    All single quotes (') will be replaced with ''.
+%% @end
+%%--------------------------------------------------------------------
+-spec(value_to_sql/1::(sql_value()) -> iolist()).
+value_to_sql(X) ->
+	if
+		is_integer(X)   -> integer_to_list(X);
+		is_float(X)     -> float_to_list(X);
+		X == ?NULL_ATOM -> "NULL";
+		true            -> [$', escape(X), $']
+	end.
+
+%%--------------------------------------------------------------------
 %% @spec write_value_sql(Value :: [term()]) -> string()
 %% @doc 
 %%    Creates the values portion of the sql stmt.
-%%    Currently only support integer, double/float and strings.
 %% @end
 %%--------------------------------------------------------------------
 -spec(write_value_sql/1::(any()) -> string()).
 write_value_sql(Values) ->
-    StrValues = lists:map(fun
-          (X) when is_integer(X) -> integer_to_list(X);
-          (X) when is_float(X)   -> float_to_list(X);
-          (?NULL_ATOM)           -> "null";
-          (X)                    -> io_lib:format("'~s'", [X])
-			  end, Values),
+    StrValues = lists:map(fun value_to_sql/1, Values),
     intersperse(StrValues, ",").
 
 %%--------------------------------------------------------------------
@@ -84,25 +121,31 @@ replace([H | T]) ->
   [H | replace(T)].
 
 %%--------------------------------------------------------------------
+%% @spec escape(IoData :: iodata()) -> iodata()
+%% 
+%% @doc Returns copy of IoData with all ' replaced by ''
+%% @end
+%%--------------------------------------------------------------------
+-spec(escape/1::(iodata()) -> iodata()).
+escape(IoData) -> re:replace(IoData, "'", "''", [global]).
+
+%%--------------------------------------------------------------------
 %% @spec update_set_sql ([{Col, Value}]) -> string ()
 %%       Col = atom ()
-%%       Value = integer () | float () | string ()
+%%       Value = number () | atom () | string ()
 %% @doc 
 %%    Creates update set stmt.
-%%    Currently only supports integer, double/float and strings.
+%%    Currently supports integer, double/float and strings.
 %%    For strings \" replaced with '.
 %% @end
 %%--------------------------------------------------------------------
 -spec (update_set_sql/1::(any ()) -> string ()).
 update_set_sql (Data) ->
   Set = lists:map (fun 
-      ({Col, Value}) when is_integer (Value) -> 
-        [atom_to_list (Col), " = ", integer_to_list (Value)];
-      ({Col, Value}) when is_float (Value) -> 
-        [atom_to_list (Col), " = ", float_to_list (Value)];
-      ({Col, Value}) -> 
-        [atom_to_list (Col), " = ",
-          io_lib:format ("\"~s\"", [replace (Value)])] 
+      ({Col, Value}) when is_list(Value) -> 
+        [atom_to_list (Col), " = ", $", replace(Value), $"];
+      ({Col, Value}) ->
+		[atom_to_list (Col), " = ", value_to_sql(Value)]
     end,
     Data),
   intersperse(Set, ", ").
@@ -128,11 +171,11 @@ read_cols_sql (Columns) ->
 %%--------------------------------------------------------------------
 -spec(create_table_sql/2::(atom(), [{atom(), string()}]) -> string()).
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
-    CT = io_lib:format("CREATE TABLE ~p ", [Tbl]),
-    Start = io_lib:format("(~p ~s PRIMARY KEY, ", [ColName, sqlite3_lib:col_type(Type)]),
+    CT = ["CREATE TABLE ", atom_to_list(Tbl), " "],
+    Start = ["(", atom_to_list(ColName), " ", sqlite3_lib:col_type(Type), " PRIMARY KEY, "],
     End = [intersperse(
 	         lists:map(fun({Name0, Type0}) ->
-	                     io_lib:format("~p ~s", [Name0, sqlite3_lib:col_type(Type0)])
+	                     [atom_to_list(Name0), " ", sqlite3_lib:col_type(Type0)]
 	                   end, Tl), ", "), ");"],
     [CT, Start, End].
 
@@ -148,15 +191,10 @@ create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
 %%    record with matching Value.
 %% @end
 %%--------------------------------------------------------------------
--type(sql_value() :: string() | integer() | float()).
 -spec (update_sql/4::(atom (), atom (), atom (), [{atom (), sql_value ()}]) -> string ()).
 update_sql (Tbl, Key, Value, Data) ->
-    io_lib:format("UPDATE ~p SET ~s WHERE ~p = ~p;", 
-      [Tbl,
-       sqlite3_lib:update_set_sql (Data),
-       Key,
-       Value
-      ]).
+    ["UPDATE ", atom_to_list(Tbl), " SET ", sqlite3_lib:update_set_sql(Data), 
+	 " WHERE ", atom_to_list(Key), " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec write_sql(Tbl, Data) -> string()
@@ -169,11 +207,8 @@ update_sql (Tbl, Key, Value, Data) ->
 -spec(write_sql/2::(atom(), [{atom(), sql_value()}]) -> string()).
 write_sql(Tbl, Data) ->
     {Cols, Values} = lists:unzip(Data),
-    io_lib:format("INSERT INTO ~p (~s) values (~s);", 
-      [Tbl, 
-	   sqlite3_lib:write_col_sql(Cols), 
-	   sqlite3_lib:write_value_sql(Values)
-	  ]).
+    ["INSERT INTO ", atom_to_list(Tbl), " (", sqlite3_lib:write_col_sql(Cols), 
+	 ") values (", sqlite3_lib:write_value_sql(Values), ");"].
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value) -> string()
@@ -186,7 +221,8 @@ write_sql(Tbl, Data) ->
 %%--------------------------------------------------------------------
 -spec(read_sql/3::(atom(), atom(), sql_value()) -> string()).
 read_sql(Tbl, Key, Value) ->
-    io_lib:format("SELECT * FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value]).
+    ["SELECT * FROM ", atom_to_list(Tbl), " WHERE ", atom_to_list(Key), 
+	 " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec read_sql (Tbl, Key, Value, Columns) -> string ()
@@ -201,12 +237,9 @@ read_sql(Tbl, Key, Value) ->
 %%--------------------------------------------------------------------
 -spec (read_sql/4::(atom (), atom (), sql_value (), [atom ()]) -> string ()).
 read_sql (Tbl, Key, Value, Columns) ->
-    io_lib:format("SELECT ~s FROM ~p WHERE ~p = ~p;",
-      [sqlite3_lib:read_cols_sql (Columns),
-       Tbl,
-       Key,
-       Value
-     ]).
+    ["SELECT ", sqlite3_lib:read_cols_sql(Columns), " FROM ",
+	 atom_to_list(Tbl), " WHERE ", atom_to_list(Key), " = ", 
+	 value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec delete_sql(Tbl, Key, Value) -> string()
@@ -219,7 +252,8 @@ read_sql (Tbl, Key, Value, Columns) ->
 %%--------------------------------------------------------------------
 -spec(delete_sql/3::(atom(), atom(), sql_value()) -> string()).
 delete_sql(Tbl, Key, Value) ->
-    io_lib:format("DELETE FROM ~p WHERE ~p = ~p;", [Tbl, Key, Value]).
+    ["DELETE FROM ", atom_to_list(Tbl), " WHERE ", atom_to_list(Key), 
+	 " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec drop_table(Tbl) -> string()
@@ -229,7 +263,7 @@ delete_sql(Tbl, Key, Value) ->
 %%--------------------------------------------------------------------
 -spec(drop_table/1::(atom()) -> string()).
 drop_table(Tbl) ->
-    io_lib:format("DROP TABLE ~p;", [Tbl]).
+    ["DROP TABLE ", atom_to_list(Tbl), ";"].
 
 %%====================================================================
 %% Internal functions

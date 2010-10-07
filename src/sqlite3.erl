@@ -7,6 +7,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(sqlite3).
+-include("sqlite3.hrl").
 
 -behaviour(gen_server).
 
@@ -26,6 +27,8 @@
 -export([drop_table/1, drop_table/2]).
 
 -export([create_function/3]).
+
+-export([value_to_sql/1, value_to_sql_unsafe/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -372,6 +375,38 @@ drop_table(Db, Tbl) ->
 create_function(Db, FunctionName, Function) ->
     gen_server:call(Db, {create_function, FunctionName, Function}).
 
+%%--------------------------------------------------------------------
+%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iodata()
+%% @doc 
+%%    Converts an Erlang term to an SQL string.
+%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    (binaries and iolists) which are treated as SQL strings.
+%%
+%%    Note that it opens opportunity for injection if an iolist includes 
+%%    single quotes! Replace all single quotes (') with '' manually, or
+%%    use value_to_sql/1 if you are not sure if your strings contain
+%%    single quotes (e.g. can be entered by users).
+%%
+%%    Reexported from sqlite3_lib:value_to_sql/1 for user convenience.
+%% @end
+%%--------------------------------------------------------------------
+-spec(value_to_sql_unsafe/1::(sql_value()) -> iodata()).
+value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
+
+%%--------------------------------------------------------------------
+%% @spec value_to_sql(Value :: sql_value()) -> iodata()
+%% @doc 
+%%    Converts an Erlang term to an SQL string.
+%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    (binaries and iolists) which are treated as SQL strings.
+%%
+%%    All single quotes (') will be replaced with ''.
+%%
+%%    Reexported from sqlite3_lib:value_to_sql/1 for user convenience.
+%% @end
+%%--------------------------------------------------------------------
+-spec(value_to_sql/1::(sql_value()) -> iolist()).
+value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 
 %%====================================================================
 %% gen_server callbacks
