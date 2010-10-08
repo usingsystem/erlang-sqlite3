@@ -4,7 +4,7 @@ config.status
 autom4te.cache
 Makefile
 priv/Makefile
-Emakefile
+sqlite3.plt
 .svn
 */.svn
 *.db
