@@ -14,3 +14,9 @@ Example Usage
 -------------
 
 Use src/sqlite3_test.erl as an example.
+
+
+Authors
+-------
+
+See ./AUTHORS
