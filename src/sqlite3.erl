@@ -602,8 +602,20 @@ build_table_info([], Acc) ->
     lists:reverse(Acc);
 build_table_info([[ColName, ColType] | Tl], Acc) -> 
     build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type_to_atom(ColType)}| Acc]); 
-build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
-    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type_to_atom(ColType), primary_key} | Acc]).
+build_table_info([[ColName, ColType | Constraints] | Tl], Acc) ->
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type_to_atom(ColType), build_constraints(Constraints)} | Acc]).
+
+%% TODO conflict-clause parsing
+build_constraints([]) -> [];
+build_constraints(["PRIMARY", "KEY", "ASC" | Tail]) -> [primary_key | build_constraints(Tail)];
+build_constraints(["PRIMARY", "KEY", "DESC" | Tail]) -> [{primary_key, desc} | build_constraints(Tail)];
+build_constraints(["PRIMARY", "KEY" | Tail]) -> [primary_key | build_constraints(Tail)];
+build_constraints(["UNIQUE" | Tail]) -> [unique | build_constraints(Tail)];
+build_constraints(["NOT", "NULL" | Tail]) -> [not_null | build_constraints(Tail)];
+build_constraints(["DEFAULT", DefaultValue | Tail]) -> [{default, sqlite3_lib:sql_to_value(DefaultValue)} | build_constraints(Tail)].
+% build_constraints(["CHECK", Check | Tail]) -> ...
+% build_constraints(["REFERENCES", Check | Tail]) -> ...
+
     
 %%--------------------------------------------------------------------
 %% @type sql_value() = number() | 'null' | iodata().

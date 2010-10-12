@@ -11,7 +11,7 @@
 
 %% API
 -export([col_type_to_atom/1]).
--export([value_to_sql/1, value_to_sql_unsafe/1, escape/1]).
+-export([value_to_sql/1, value_to_sql_unsafe/1, sql_to_value/1, escape/1]).
 -export([write_value_sql/1, write_col_sql/1]).
 -export([create_table_sql/2, write_sql/2, read_sql/3, delete_sql/3, drop_table/1]). 
 -export([update_sql/4, update_set_sql/1]).
@@ -89,6 +89,30 @@ value_to_sql(X) ->
 		true            -> [$', escape(X), $']
 	end.
 
+
+%%--------------------------------------------------------------------
+%% @spec sql_to_value(String :: string()) -> sql_value()
+%% @doc 
+%%    Converts an SQL value to an Erlang term.
+%% @end
+%%--------------------------------------------------------------------
+sql_to_value(String) ->
+	case String of
+		"NULL" -> null;
+		"CURRENT_TIME" -> current_time;
+		"CURRENT_DATE" -> current_date;
+		"CURRENT_TIMESTAMP" -> current_timestamp;
+		[FirstChar | Tail] ->
+			case FirstChar of
+				$' -> sql_string(Tail);
+				$x -> sql_blob(Tail);
+				$X -> sql_blob(Tail);
+				$+ -> sql_number(Tail);
+				$- -> -sql_number(Tail);
+				Digit when $0 =< Digit, Digit =< $9 -> sql_number(Tail)
+			end
+	end.
+
 %%--------------------------------------------------------------------
 %% @spec write_value_sql(Value :: [term()]) -> iolist()
 %% @doc 
@@ -99,6 +123,7 @@ value_to_sql(X) ->
 write_value_sql(Values) ->
     map_intersperse(fun value_to_sql/1, Values, ",").
 
+	
 %%--------------------------------------------------------------------
 %% @spec write_col_sql([atom()]) -> iolist()
 %% @doc Creates the column/data stmt for SQL.
@@ -257,6 +282,27 @@ drop_table(Tbl) ->
 map_intersperse(_Fun, [], _Sep) -> [];
 map_intersperse(Fun, [Elem], _Sep) -> [Fun(Elem)];
 map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fun, Tail, Sep)].
+
+-spec sql_number(string()) -> number() | {error, not_a_number}.
+sql_number(NumberStr) ->
+	case string:to_integer(NumberStr) of
+		{Int, []} -> 
+			Int;
+		Other -> 
+			case string:to_float(NumberStr) of
+				{Float, []} ->
+					Float;
+				Other ->
+					{error, not_a_number}
+			end
+	end.
+
+-spec sql_string(string()) -> string().
+sql_string(StringWithEscapedQuotes) ->
+	re:replace(StringWithEscapedQuotes, "'(?!')", "", [global, {return, list}]).
+
+-spec sql_blob(string()) -> string().
+sql_blob(Blob) -> Blob.
 
 %%--------------------------------------------------------------------
 %% @type sql_value() = number() | 'null' | iodata().
