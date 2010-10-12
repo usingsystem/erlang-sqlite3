@@ -12,9 +12,19 @@ PLT_SRC=$(ERL_ERTS)/ebin $(ERL_KERNEL)/ebin $(ERL_STDLIB)/ebin $(ERL_CRYPTO)/ebi
 
 all: compile docs
 
-compile:
-	test -d ebin || mkdir ebin
+test: compile_test
+	$(ERL) -noshell -pa ebin \
+		-eval 'eunit:dir("ebin")' \
+		-s init stop
+
+compile: compile_c
 	$(ERL) -make
+
+compile_test: compile_c
+	erl -noshell -eval "make:all([{d, 'TEST'}])." -s init stop
+
+compile_c:
+	test -d ebin || mkdir ebin
 	cd priv && make
 
 ifeq ($(wildcard sqlite3.plt),)

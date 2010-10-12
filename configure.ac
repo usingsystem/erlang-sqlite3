@@ -50,6 +50,5 @@ AC_ARG_ENABLE([null-atom],
 NULL_ATOM="$ac_null_atom"
 AC_SUBST([NULL_ATOM])
 AC_CONFIG_FILES([Makefile
-                 Emakefile
                  priv/Makefile])
 AC_OUTPUT
