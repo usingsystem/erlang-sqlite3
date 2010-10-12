@@ -17,7 +17,7 @@
 -export([stop/0, close/1]).
 -export([sql_exec/1, sql_exec/2]).
 
--export([create_table/2, create_table/3]).
+-export([create_table/2, create_table/3, create_table/4]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3]).
 -export([update/4, update/5]).
@@ -167,9 +167,10 @@ create_table(Tbl, Options) ->
     ?MODULE:create_table(?MODULE, Tbl, Options).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> any()
+%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo) -> any()
+%%     TblInfo = [{atom(), atom()}]
 %% @doc
-%%   Creates the Tbl table in Db using TblInfo as the table structure. 
+%%   Creates the Tbl table in Db using Columns as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
 %%   e.g. [{name, text}, {age, integer}]
 %%
@@ -177,8 +178,25 @@ create_table(Tbl, Options) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create_table(atom(), atom(), [{atom(), atom()}]) -> any().
-create_table(Db, Tbl, Options) ->
-    gen_server:call(Db, {create_table, Tbl, Options}).
+create_table(Db, Tbl, Columns) ->
+    gen_server:call(Db, {create_table, Tbl, Columns}).
+
+%%--------------------------------------------------------------------
+%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo, Constraints) -> any()
+%%     Columns = [{atom(), atom()}]
+%%     Constraints = [term()]
+%% @doc
+%%   Creates the Tbl table in Db using Columns as the table structure and
+%%   Constraints as table constraints. 
+%%   The table structure is a list of {column name, column type} pairs. 
+%%   e.g. [{name, text}, {age, integer}]
+%%
+%%   Returns the result of the create table call.
+%% @end
+%%--------------------------------------------------------------------
+-spec create_table(atom(), atom(), [{atom(), atom()}], [any()]) -> any().
+create_table(Db, Tbl, Columns, Constraints) ->
+    gen_server:call(Db, {create_table, Tbl, Columns, Constraints}).
 
 %%--------------------------------------------------------------------
 %% @spec list_tables() -> [atom()]
@@ -475,8 +493,13 @@ handle_call({create_function, FunctionName, Function}, _From, #state{port = Port
     % SQL Injection warning
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
-handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
-    SQL = sqlite3_lib:create_table_sql(Tbl, Options),
+handle_call({create_table, Tbl, Columns}, _From, #state{port = Port} = State) ->
+    SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
+    Cmd = {sql_exec, SQL},
+    Reply = exec(Port, Cmd),
+    {reply, Reply, State};
+handle_call({create_table, Tbl, Columns, Constraints}, _From, #state{port = Port} = State) ->
+    SQL = sqlite3_lib:create_table_sql(Tbl, Columns, Constraints),
     Cmd = {sql_exec, SQL},
     Reply = exec(Port, Cmd),
     {reply, Reply, State};

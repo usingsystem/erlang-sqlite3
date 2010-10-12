@@ -13,19 +13,19 @@
 -export([col_type_to_atom/1]).
 -export([value_to_sql/1, value_to_sql_unsafe/1, sql_to_value/1, escape/1]).
 -export([write_value_sql/1, write_col_sql/1]).
--export([create_table_sql/2, write_sql/2, read_sql/3, delete_sql/3, drop_table/1]). 
--export([update_sql/4, update_set_sql/1]).
--export([read_sql/4, read_cols_sql/1]).
+-export([create_table_sql/2, create_table_sql/3, drop_table/1]). 
+-export([write_sql/2, update_sql/4, update_set_sql/1, delete_sql/3]).
+-export([read_sql/3, read_sql/4, read_cols_sql/1]).
 
 %%====================================================================
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% @spec col_type_to_string(Type :: atom()) -> string()
+%% @spec col_type_to_string(Type :: atom() | string()) -> string()
 %% @doc Maps sqlite3 column type.
 %% @end
 %%--------------------------------------------------------------------
--spec col_type_to_string(atom()) -> string().
+-spec col_type_to_string(atom() | string()) -> string().
 col_type_to_string(integer) ->
     "INTEGER";
 col_type_to_string(text) ->
@@ -33,7 +33,9 @@ col_type_to_string(text) ->
 col_type_to_string(double) ->
     "REAL";
 col_type_to_string(real) ->
-    "REAL".
+    "REAL";
+col_type_to_string(String) when is_list(String) ->
+    String.
 
 %%--------------------------------------------------------------------
 %% @spec col_type_to_atom(Type :: string()) -> atom()
@@ -168,7 +170,7 @@ read_cols_sql(Columns) ->
   map_intersperse(fun atom_to_list/1, Columns, ", ").
 
 %%--------------------------------------------------------------------
-%% @spec create_table_sql(Tbl :: atom(), [{Column, Type}]) -> iolist()
+%% @spec create_table_sql(Tbl :: atom(), ColumnData) -> iolist()
 %%       Tbl = atom()
 %%       ColumnData = {Column, Type} | {Column, Type, Constraints} 
 %%       Column = atom()
@@ -179,15 +181,26 @@ read_cols_sql(Columns) ->
 %%--------------------------------------------------------------------
 -spec create_table_sql(atom(), [{atom(), atom()} | {atom(), atom(), [any()]}]) -> iolist().
 create_table_sql(Tbl, Columns) ->
-    ColumnNameTypeFun = 
-	    fun({Name0, Type0}) ->
-	           [atom_to_list(Name0), " ", col_type_to_string(Type0)];
-		   ({Name0, Type0, Constraints}) ->
-			   [atom_to_list(Name0), " ", col_type_to_string(Type0), 
-				" " | map_intersperse(fun constraint_sql/1, Constraints, " ")]
-	    end,
     ["CREATE TABLE ", atom_to_list(Tbl), " (",
-     map_intersperse(ColumnNameTypeFun, Columns, ", "), ");"].
+     map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ");"].
+
+%%--------------------------------------------------------------------
+%% @spec create_table_sql(Tbl :: atom(), ColumnData, TableConstraints) -> iolist()
+%%       Tbl = atom()
+%%       ColumnData = {Column, Type} | {Column, Type, Constraints} 
+%%       Column = atom()
+%%       Type = atom()
+%%       Constraints = [any()]
+%%       TableConstraints = [any()]
+%% @doc Generates a table create stmt in SQL.
+%% @end
+%%--------------------------------------------------------------------
+-spec create_table_sql(atom(), [{atom(), atom()} | {atom(), atom(), [any()]}], [any()]) -> iolist().
+create_table_sql(Tbl, Columns, TblConstraints) ->
+    ["CREATE TABLE ", atom_to_list(Tbl), " (",
+     map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ", ",
+	 map_intersperse(fun table_constraint_sql/1, TblConstraints, ", "), 
+	 ");"].
 
 %%--------------------------------------------------------------------
 %% @spec update_sql(Tbl, Key, Value, Data) -> iolist()
@@ -307,7 +320,13 @@ sql_string(StringWithEscapedQuotes) ->
 -spec sql_blob(string()) -> string().
 sql_blob(Blob) -> Blob.
 
--spec constraint_sql([any()]) -> iolist().
+column_sql_for_create_table({Name, Type}) ->
+	[atom_to_list(Name), " ", col_type_to_string(Type)];
+column_sql_for_create_table({Name, Type, Constraints}) ->
+	[atom_to_list(Name), " ", col_type_to_string(Type), 
+	 " " | map_intersperse(fun constraint_sql/1, Constraints, " ")].
+
+-spec constraint_sql(any()) -> iolist().
 constraint_sql(Constraint) ->
 	case Constraint of
 		primary_key -> "PRIMARY KEY";
@@ -316,6 +335,18 @@ constraint_sql(Constraint) ->
 		not_null -> "NOT NULL";
 		{default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)]
 	end.
+
+-spec table_constraint_sql(any()) -> iolist().
+table_constraint_sql(TableConstraint) ->
+	case TableConstraint of
+		{primary_key, Columns} -> ["PRIMARY KEY(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
+		{unique, Columns} -> ["UNIQUE(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"]
+		%% TODO: foreign key
+	end.
+
+indexed_column_sql({ColumnName, asc}) -> [atom_to_list(ColumnName), " ASC"];
+indexed_column_sql({ColumnName, desc}) -> [atom_to_list(ColumnName), " DESC"];
+indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 
 %%--------------------------------------------------------------------
 %% @type sql_value() = number() | 'null' | iodata().
