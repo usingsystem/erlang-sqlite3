@@ -7,3 +7,4 @@ ebin
 priv
 erl_crash.dump
 *.o
+.eunit
