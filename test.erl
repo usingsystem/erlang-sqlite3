@@ -8,7 +8,7 @@ test() ->
     sqlite3:open(ct),
     sqlite3:create_table(ct, user, [{id, integer}, {name, text}, {age, integer}, {wage, integer}]),
     [user] = sqlite3:list_tables(ct),
-    [{id, primary_key}, {name, text}, {age, integer}, {wage, integer}] = sqlite3:table_info(ct, user),
+    [{id, integer, primary_key}, {name, text}, {age, integer}, {wage, integer}] = sqlite3:table_info(ct, user),
     {id, Id1} = sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
     Id1 = 1,
     {id, Id2} = sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}]),
