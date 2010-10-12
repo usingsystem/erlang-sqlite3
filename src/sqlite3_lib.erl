@@ -92,8 +92,7 @@ value_to_sql(X) ->
 %%--------------------------------------------------------------------
 -spec(write_value_sql/1::(any()) -> string()).
 write_value_sql(Values) ->
-    StrValues = lists:map(fun value_to_sql/1, Values),
-    intersperse(StrValues, ",").
+    map_intersperse(fun value_to_sql/1, Values, ",").
 
 %%--------------------------------------------------------------------
 %% @spec write_col_sql([atom()]) -> string()
@@ -102,10 +101,7 @@ write_value_sql(Values) ->
 %%--------------------------------------------------------------------
 -spec(write_col_sql/1::([atom()]) -> string()).
 write_col_sql(Cols) ->
-    StrCols = lists:map(fun(X) ->
-				atom_to_list(X)
-			end, Cols),
-    intersperse(StrCols, ",").
+    map_intersperse(fun atom_to_list/1, Cols, ",").
 
 %%--------------------------------------------------------------------
 %% @spec replace (String) -> string ()
@@ -141,14 +137,11 @@ escape(IoData) -> re:replace(IoData, "'", "''", [global]).
 %%--------------------------------------------------------------------
 -spec (update_set_sql/1::(any ()) -> string ()).
 update_set_sql (Data) ->
-  Set = lists:map (fun 
-      ({Col, Value}) when is_list(Value) -> 
-        [atom_to_list (Col), " = ", $", replace(Value), $"];
-      ({Col, Value}) ->
+  ColValueToSqlFun =
+	fun({Col, Value}) ->
 		[atom_to_list (Col), " = ", value_to_sql(Value)]
     end,
-    Data),
-  intersperse(Set, ", ").
+  map_intersperse(ColValueToSqlFun, Data, ", ").
 
 %%--------------------------------------------------------------------
 %% @spec read_cols_sql (Columns::[atom ()]) -> string ()
@@ -158,8 +151,7 @@ update_set_sql (Data) ->
 %%--------------------------------------------------------------------
 -spec (read_cols_sql/1::([atom ()]) -> string ()).
 read_cols_sql (Columns) ->
-  intersperse(
-    lists:map(fun atom_to_list/1, Columns), ", ").
+  map_intersperse(fun atom_to_list/1, Columns, ", ").
 
 %%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl, [{ColName, Type}]) -> string()
@@ -173,10 +165,10 @@ read_cols_sql (Columns) ->
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
     CT = ["CREATE TABLE ", atom_to_list(Tbl), " "],
     Start = ["(", atom_to_list(ColName), " ", sqlite3_lib:col_type(Type), " PRIMARY KEY, "],
-    End = [intersperse(
-	         lists:map(fun({Name0, Type0}) ->
-	                     [atom_to_list(Name0), " ", sqlite3_lib:col_type(Type0)]
-	                   end, Tl), ", "), ");"],
+    End = [map_intersperse(
+	         fun({Name0, Type0}) ->
+	             [atom_to_list(Name0), " ", sqlite3_lib:col_type(Type0)]
+	         end, Tl, ", "), ");"],
     [CT, Start, End].
 
 %%--------------------------------------------------------------------
@@ -271,6 +263,7 @@ drop_table(Tbl) ->
 
 %% @doc Works like string:join for iolists
 
-intersperse([], _Sep) -> [];
-intersperse([Elem], _Sep) -> [Elem];
-intersperse([Head | Tail], Sep) -> [Head, Sep | intersperse(Tail, Sep)].
+-spec map_intersperse(fun((X) -> Z), [X], Y) -> [Z | Y].
+map_intersperse(_Fun, [], _Sep) -> [];
+map_intersperse(Fun, [Elem], _Sep) -> [Fun(Elem)];
+map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fun, Tail, Sep)].
