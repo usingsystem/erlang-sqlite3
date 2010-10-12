@@ -14,7 +14,7 @@ all: compile docs
 
 test: compile_test
 	$(ERL) -noshell -pa ebin \
-		-eval 'eunit:dir("ebin")' \
+		-eval 'eunit:test({dir, "ebin"})' \
 		-s init stop
 
 compile: compile_c
