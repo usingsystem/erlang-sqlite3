@@ -10,7 +10,7 @@
 -include("sqlite3.hrl").
 
 %% API
--export([col_type/1]).
+-export([col_type_to_atom/1]).
 -export([value_to_sql/1, value_to_sql_unsafe/1, escape/1]).
 -export([write_value_sql/1, write_col_sql/1]).
 -export([create_table_sql/2, write_sql/2, read_sql/3, delete_sql/3, drop_table/1]). 
@@ -21,27 +21,32 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% @spec col_type(Type :: term()) -> term()
+%% @spec col_type_to_string(Type :: atom()) -> string()
 %% @doc Maps sqlite3 column type.
 %% @end
 %%--------------------------------------------------------------------
--spec(col_type/1::(atom() | string()) -> atom() | string()).
-col_type(integer) ->
-    "INTEGER";     
-col_type("INTEGER") ->
-    integer;
-col_type(text) ->
+-spec(col_type_to_string/1::(atom()) -> string()).
+col_type_to_string(integer) ->
+    "INTEGER";
+col_type_to_string(text) ->
     "TEXT";
-col_type("TEXT") ->
+col_type_to_string(double) ->
+    "REAL";
+col_type_to_string(real) ->
+    "REAL".
+
+%%--------------------------------------------------------------------
+%% @spec col_type_to_atom(Type :: string()) -> atom()
+%% @doc Maps sqlite3 column type.
+%% @end
+%%--------------------------------------------------------------------
+-spec(col_type_to_atom/1::(string()) -> atom()).
+col_type_to_atom("INTEGER") ->
+    integer;
+col_type_to_atom("TEXT") ->
     text;
-col_type(double) ->
-    "DOUBLE";
-col_type("DOUBLE") ->
-    double;
-col_type(date) ->
-    "DATE";
-col_type("DATE") ->
-    date.
+col_type_to_atom("REAL") ->
+    double.
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iodata()
@@ -159,15 +164,16 @@ read_cols_sql (Columns) ->
 %%       ColName = atom()
 %%       Type = string()
 %% @doc Generates a table create stmt in SQL.
+%%      First column listed is considered the primary key.
 %% @end
 %%--------------------------------------------------------------------
 -spec(create_table_sql/2::(atom(), [{atom(), string()}]) -> string()).
 create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
     CT = ["CREATE TABLE ", atom_to_list(Tbl), " "],
-    Start = ["(", atom_to_list(ColName), " ", sqlite3_lib:col_type(Type), " PRIMARY KEY, "],
+    Start = ["(", atom_to_list(ColName), " ", col_type_to_string(Type), " PRIMARY KEY, "],
     End = [map_intersperse(
 	         fun({Name0, Type0}) ->
-	             [atom_to_list(Name0), " ", sqlite3_lib:col_type(Type0)]
+	             [atom_to_list(Name0), " ", col_type_to_string(Type0)]
 	         end, Tl, ", "), ");"],
     [CT, Start, End].
 
@@ -185,7 +191,7 @@ create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
 %%--------------------------------------------------------------------
 -spec (update_sql/4::(atom (), atom (), atom (), [{atom (), sql_value ()}]) -> string ()).
 update_sql (Tbl, Key, Value, Data) ->
-    ["UPDATE ", atom_to_list(Tbl), " SET ", sqlite3_lib:update_set_sql(Data), 
+    ["UPDATE ", atom_to_list(Tbl), " SET ", update_set_sql(Data), 
 	 " WHERE ", atom_to_list(Key), " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------

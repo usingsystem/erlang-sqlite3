@@ -602,7 +602,7 @@ parse_table_info(Info) ->
 build_table_info([], Acc) -> 
     lists:reverse(Acc);
 build_table_info([[ColName, ColType] | Tl], Acc) -> 
-    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]); 
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type_to_atom(ColType)}| Acc]); 
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
     build_table_info(Tl, [{list_to_atom(ColName), primary_key}| Acc]).
     
