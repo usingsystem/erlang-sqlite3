@@ -605,3 +605,10 @@ build_table_info([[ColName, ColType] | Tl], Acc) ->
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
     build_table_info(Tl, [{list_to_atom(ColName), primary_key} | Acc]).
     
+%%--------------------------------------------------------------------
+%% @type sql_value() = number() | 'null' | iodata().
+%% 
+%% Values accepted in SQL statements include numbers, atom 'null',
+%% and io:iolist().
+%% @end
+%%--------------------------------------------------------------------

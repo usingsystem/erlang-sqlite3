@@ -49,7 +49,7 @@ col_type_to_atom("REAL") ->
     double.
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iodata()
+%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
 %% @doc 
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata 
@@ -71,7 +71,7 @@ value_to_sql_unsafe(X) ->
 	end.
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql(Value :: sql_value()) -> iodata()
+%% @spec value_to_sql(Value :: sql_value()) -> iolist()
 %% @doc 
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata 
@@ -118,16 +118,13 @@ write_col_sql(Cols) ->
 escape(IoData) -> re:replace(IoData, "'", "''", [global]).
 
 %%--------------------------------------------------------------------
-%% @spec update_set_sql([{Col, Value}]) -> iolist()
-%%       Col = atom()
-%%       Value = number() | atom() | string()
+%% @spec update_set_sql([{Column :: atom(), Value :: sql_value()}]) -> iolist()
 %% @doc 
 %%    Creates update set stmt.
 %%    Currently supports integer, double/float and strings.
-%%    For strings \" replaced with '.
 %% @end
 %%--------------------------------------------------------------------
--spec update_set_sql(any()) -> iolist().
+-spec update_set_sql([{atom(), sql_value()}]) -> iolist().
 update_set_sql(Data) ->
   ColValueToSqlFun =
 	fun({Col, Value}) ->
@@ -146,9 +143,9 @@ read_cols_sql(Columns) ->
   map_intersperse(fun atom_to_list/1, Columns, ", ").
 
 %%--------------------------------------------------------------------
-%% @spec create_table_sql(Tbl, [{ColName, Type}]) -> iolist()
+%% @spec create_table_sql(Tbl :: atom(), [{Column, Type}]) -> iolist()
 %%       Tbl = atom()
-%%       ColName = atom()
+%%       Column = atom()
 %%       Type = atom()
 %% @doc Generates a table create stmt in SQL.
 %%      First column listed is considered the primary key.
@@ -168,15 +165,15 @@ create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
 %% @spec update_sql(Tbl, Key, Value, Data) -> iolist()
 %%        Tbl = atom()
 %%        Key = atom()
-%%        Value = atom()
-%%        Data = [{ColName :: atom(), Value :: string() | integer() | float()}]
+%%        Value = sql_value()
+%%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc 
 %%    Using Key as the column name and Data as list of column names 
 %%    and values pairs it creates the proper update SQL stmt for the 
 %%    record with matching Value.
 %% @end
 %%--------------------------------------------------------------------
--spec update_sql(atom(), atom(), atom(), [{atom(), sql_value()}]) -> iolist().
+-spec update_sql(atom(), atom(), sql_value(), [{atom(), sql_value()}]) -> iolist().
 update_sql(Tbl, Key, Value, Data) ->
     ["UPDATE ", atom_to_list(Tbl), " SET ", update_set_sql(Data), 
 	 " WHERE ", atom_to_list(Key), " = ", value_to_sql(Value), ";"].
@@ -184,7 +181,7 @@ update_sql(Tbl, Key, Value, Data) ->
 %%--------------------------------------------------------------------
 %% @spec write_sql(Tbl, Data) -> iolist()
 %%       Tbl = atom()
-%%       Data = [{ColName :: atom(), Value :: string() | integer() | float()}]
+%%       Data = [{ColName :: atom(), Value :: sql_value()}]
 %% @doc Taking Data as list of column names and values pairs it creates the
 %%      proper insertion SQL stmt.
 %% @end
@@ -199,7 +196,7 @@ write_sql(Tbl, Data) ->
 %% @spec read_sql(Tbl, Key, Value) -> iolist()
 %%       Tbl = atom()
 %%       Key = atom()
-%%       Value = string() | integer() | float()
+%%       Value = sql_value()
 %% @doc Using Key as the column name searches for the record with
 %%      matching Value.
 %% @end
@@ -213,7 +210,7 @@ read_sql(Tbl, Key, Value) ->
 %% @spec read_sql(Tbl, Key, Value, Columns) -> iolist()
 %%        Tbl = atom()
 %%        Key = atom()
-%%        Value = string() | integer() | float()
+%%        Value = sql_value()
 %%        Columns = [atom()]
 %% @doc
 %%    Using Key as the column name searhces for the record with
@@ -230,7 +227,7 @@ read_sql(Tbl, Key, Value, Columns) ->
 %% @spec delete_sql(Tbl, Key, Value) -> iolist()
 %%       Tbl = atom()
 %%       Key = atom()
-%%       Value = string() | integer() | float()
+%%       Value = sql_value()
 %% @doc Using Key as the column name searches for the record with
 %%      matching Value then deletes that record.
 %% @end
@@ -260,3 +257,11 @@ drop_table(Tbl) ->
 map_intersperse(_Fun, [], _Sep) -> [];
 map_intersperse(Fun, [Elem], _Sep) -> [Fun(Elem)];
 map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fun, Tail, Sep)].
+
+%%--------------------------------------------------------------------
+%% @type sql_value() = number() | 'null' | iodata().
+%% 
+%% Values accepted in SQL statements include numbers, atom 'null',
+%% and io:iolist().
+%% @end
+%%--------------------------------------------------------------------
