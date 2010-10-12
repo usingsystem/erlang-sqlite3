@@ -41,8 +41,7 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% @spec start_link(Db) -> {ok,Pid} | ignore | {error,Error}
-%%      Db = atom()
+%% @spec start_link(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc 
 %%   Opens a sqlite3 dbase creating one if necessary. The dbase must 
 %%   be called Db.db in the current path. start_link/1 can be use 
@@ -61,8 +60,7 @@ start_link(Db) ->
     ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
 %%--------------------------------------------------------------------
-%% @spec start_link(Db, Options) -> {ok,Pid} | ignore | {error,Error}
-%%      Db = atom()
+%% @spec start_link(Db :: atom(), Options) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc 
 %%   Opens a sqlite3 dbase creating one if necessary. By default the 
 %%   dbase will be called Db.db in the current path. This can be changed 
@@ -84,7 +82,7 @@ start_link(Db, Options) ->
     ?MODULE:open(Db, Opts).
 
 %%--------------------------------------------------------------------
-%% @spec open(Db :: atom()) -> {ok, Pid::pid()} | ignore | {error, Error}
+%% @spec open(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc
 %%   Opens a sqlite3 dbase creating one if necessary. The dbase must be 
 %%   called Db.db in the current path. Can be use to open multiple sqlite3 
@@ -98,7 +96,7 @@ open(Db) ->
     ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
 %%--------------------------------------------------------------------
-%% @spec open(Db::atom(), Options::[tuple()]) -> {ok, Pid::pid()} | ignore | {error, Error}
+%% @spec open(Db :: atom(), Options :: [{atom(), any()}]) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc
 %%   Opens a sqlite3 dbase creating one if necessary. By default the dbase 
 %%   will be called Db.db in the current path. This can be changed by 
@@ -114,7 +112,7 @@ open(Db, Options) ->
     gen_server:start_link({local, Db}, ?MODULE, Options, []).
 
 %%--------------------------------------------------------------------
-%% @spec close(Db::atom()) -> ok
+%% @spec close(Db :: atom()) -> ok
 %% @doc
 %%   Closes the Db sqlite3 dbase. 
 %% @end
@@ -134,28 +132,28 @@ stop() ->
     ?MODULE:close(?MODULE).
     
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Sql::string()) -> term()
+%% @spec sql_exec(Sql :: iodata()) -> term()
 %% @doc
 %%   Executes the Sql statement directly.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec(string()) -> any().
+-spec sql_exec(iodata()) -> any().
 sql_exec(SQL) ->
     ?MODULE:sql_exec(?MODULE, SQL).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Db::atom(), Sql::string()) -> term()
+%% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> any()
 %% @doc
 %%   Executes the Sql statement directly on the Db dbase. Returns the 
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec(atom(), string()) -> any().
+-spec sql_exec(atom(), iodata()) -> any().
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Tbl::atom(), TblInfo::[tuple()]) -> term()
+%% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> any()
 %% @doc
 %%   Creates the Tbl table using TblInfo as the table structure. The 
 %%   table structure is a list of {column name, column type} pairs.
@@ -164,12 +162,12 @@ sql_exec(Db, SQL) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), [tuple()]) -> any().
+-spec create_table(atom(), [{atom(), atom()}]) -> any().
 create_table(Tbl, Options) ->
     ?MODULE:create_table(?MODULE, Tbl, Options).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db::atom(), Tbl::atom(), TblInfo::[tuple()]) -> term()
+%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> any()
 %% @doc
 %%   Creates the Tbl table in Db using TblInfo as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
@@ -178,7 +176,7 @@ create_table(Tbl, Options) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), atom(), [{atom(), any()}]) -> any().
+-spec create_table(atom(), atom(), [{atom(), atom()}]) -> any().
 create_table(Db, Tbl, Options) ->
     gen_server:call(Db, {create_table, Tbl, Options}).
 
@@ -203,7 +201,7 @@ list_tables(Db) ->
     gen_server:call(Db, list_tables).
 
 %%--------------------------------------------------------------------
-%% @spec table_info(Tbl :: atom()) -> [term()]
+%% @spec table_info(Tbl :: atom()) -> [any()]
 %% @doc
 %%    Returns table schema for Tbl.
 %% @end
@@ -213,7 +211,7 @@ table_info(Tbl) ->
     ?MODULE:table_info(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
-%% @spec table_info(Db::atom(), Tbl::atom()) -> [term()]
+%% @spec table_info(Db :: atom(), Tbl :: atom()) -> [any()]
 %% @doc
 %%   Returns table schema for Tbl in Db.
 %% @end
@@ -223,33 +221,33 @@ table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec write(Tbl::atom(), Data) -> term()
-%%         Data = [{ColName::atom(), ColData::term()}]
+%% @spec write(Tbl :: atom(), Data) -> any()
+%%         Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
-%%   Write Data into Tbl table. ColData must be of the same type as 
+%%   Write Data into Tbl table. Value must be of the same type as 
 %%   determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec write(atom(), [{atom(), any()}]) -> any().
+-spec write(atom(), [{atom(), sql_value()}]) -> any().
 write(Tbl, Data) ->
     ?MODULE:write(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
-%% @spec write(Db::atom(), Tbl::atom(), Data) -> term()
-%%         Data = [{ColName::atom(), ColData::term()}]
+%% @spec write(Db :: atom(), Tbl :: atom(), Data) -> term()
+%%         Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
-%%   Write Data into Tbl table in Db dbase. ColData must be of the 
+%%   Write Data into Tbl table in Db dbase. Value must be of the 
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write(atom(), atom(), [{atom(), any()}]) -> any().
+-spec write(atom(), atom(), [{atom(), sql_value()}]) -> any().
 write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
 %%--------------------------------------------------------------------
 %% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> Result
 %%        Value = any()
-%%        Data = [{Column :: atom(), Value :: string() | integer() | float()}]
+%%        Data = [{Column :: atom(), Value :: sql_value()}]
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term()
 %% @doc
@@ -262,9 +260,9 @@ update(Tbl, Key, Value, Data) ->
   ?MODULE:update(?MODULE, Tbl, Key, Value, Data).
 
 %%--------------------------------------------------------------------
-%% @spec update(Db::atom(), Tbl::atom(), Key::atom(), Value, Data) -> Result
-%%        Value = any()
-%%        Data = [{Column::atom(), Value::string() | integer() | float()}]
+%% @spec update(Db :: atom(), Tbl :: atom(), Key :: atom(), Value, Data) -> Result
+%%        Value = sql_value()
+%%        Data = [{Column :: atom(), Value :: sql_value()}]
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term()
 %% @doc
@@ -277,12 +275,12 @@ update(Db, Tbl, Key, Value, Data) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec read(Tbl::atom(), Key) -> [term()]
-%%         Key = {ColName::atom(), ColValue::term()}
+%% @spec read(Tbl :: atom(), Key) -> [any()]
+%%         Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Reads a row from Tbl table such that the ColValue matches the 
-%%   value in ColName. Returns only the first match. ColValue must 
-%%   have the same type as determined from table_info/2.
+%%   Reads a row from Tbl table such that the Value matches the 
+%%   value in Column. Value must have the same type as determined 
+%%   from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
 -spec read(atom(), {atom(), any()}) -> any().
@@ -290,12 +288,12 @@ read(Tbl, Key) ->
     ?MODULE:read(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
-%% @spec read(Db::atom(), Tbl::atom(), Key) -> [term()]
-%%         Key = {ColName::atom(), ColValue::term()}
+%% @spec read(Db :: atom(), Tbl :: atom(), Key) -> [any()]
+%%         Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Reads a row from Tbl table in Db dbase such that the ColValue 
-%%   matches the value in ColName. Returns only the first match. 
-%%   ColValue must have the same type as determined from table_info/3.
+%%   Reads a row from Tbl table in Db dbase such that the Value 
+%%   matches the value in Column. ColValue must have the same type 
+%%   as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
 -spec read(atom(), atom(), {atom(), any()}) -> any().
@@ -303,28 +301,27 @@ read(Db, Tbl, Key) ->
     gen_server:call(Db, {read, Tbl, Key}).
 
 %%--------------------------------------------------------------------
-%% @spec read(Db, Tbl, Key, Columns) -> [term()]
+%% @spec read(Db, Tbl, Key, Columns) -> [any()]
 %%        Db = atom()
 %%        Tbl = atom()
-%%        Key = {Column::atom(), Value::term()}
+%%        Key = {Column :: atom(), Value :: sql_value()}
 %%        Columns = [atom()]
 %% @doc
 %%    Reads a row from Tbl table in Db dbase such that the Value
-%%    matches the value in Column. Returns columns Columns only for
-%%    the first match. Value must have the same type as determined
-%%    from table_info/3.
+%%    matches the value in Column. Value must have the same type as 
+%%    determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
 read(Db, Tbl, Key, Columns) ->
   gen_server:call(Db, {read, Tbl, Key, Columns}).
 
 %%--------------------------------------------------------------------
-%% @spec delete(Tbl::atom(), Key) -> term()
-%%         Key = {ColName::atom(), ColValue::term()}
+%% @spec delete(Tbl :: atom(), Key) -> any()
+%%        Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Delete a row from Tbl table such that the ColValue 
-%%   matches the value in ColName. Removes only the first match. 
-%%   ColValue must have the same type as determined from table_info/3.
+%%   Delete a row from Tbl table in Db dbase such that the Value 
+%%   matches the value in Column. 
+%%   Value must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
 -spec delete(atom(), {atom(), any()}) -> any().
@@ -332,12 +329,12 @@ delete(Tbl, Key) ->
     ?MODULE:delete(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
-%% @spec delete(Db::atom(), Tbl::atom(), Key) -> term()
-%%         Key = {ColName::atom(), ColValue::term()}
+%% @spec delete(Db :: atom(), Tbl :: atom(), Key) -> any()
+%%        Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Delete a row from Tbl table in Db dbase such that the ColValue 
-%%   matches the value in ColName. Removes only the first match. 
-%%   ColValue must have the same type as determined from table_info/3.
+%%   Delete a row from Tbl table in Db dbase such that the Value 
+%%   matches the value in Column. 
+%%   Value must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
 -spec delete(atom(), atom(), {atom(), any()}) -> any().
@@ -345,7 +342,7 @@ delete(Db, Tbl, Key) ->
     gen_server:call(Db, {delete, Tbl, Key}).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Tbl::atom()) -> term()
+%% @spec drop_table(Tbl :: atom()) -> any()
 %% @doc
 %%   Drop the table Tbl.
 %% @end
@@ -355,7 +352,7 @@ drop_table(Tbl) ->
     ?MODULE:drop_table(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Db::atom(), Tbl::atom()) -> term()
+%% @spec drop_table(Db :: atom(), Tbl :: atom()) -> any()
 %% @doc
 %%   Drop the table Tbl from Db dbase.
 %% @end
@@ -366,7 +363,8 @@ drop_table(Db, Tbl) ->
 
 
 %%--------------------------------------------------------------------
-%% @spec create_function(Db::atom(), FunctionName::atom(), Function::function()) -> term()
+%% @spec create_function(Db :: atom(), FunctionName :: atom(), Function :: function()) -> term()
+%%    
 %% @doc
 %%   Creates function under name FunctionName.
 %%
