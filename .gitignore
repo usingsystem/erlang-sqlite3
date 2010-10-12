@@ -1,13 +1,8 @@
 doc
-config.log
-config.status
-autom4te.cache
-Makefile
-priv/Makefile
 sqlite3.plt
-.svn
-*/.svn
 *.db
 *.swp
 *~
-
+ebin
+priv
+erl_crash.dump

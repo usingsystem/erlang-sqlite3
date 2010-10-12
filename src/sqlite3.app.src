@@ -1,0 +1,10 @@
+{application, sqlite3,
+ [
+  {description, "SQLite3 Interface"},
+  {vsn, "1"},
+  {modules, []},
+  {registered, []},
+  {applications, [kernel, stdlib, crypto, inets, lhttpc]},
+  {mod, {sqlite3, []}},
+  {env, []}
+ ]}.

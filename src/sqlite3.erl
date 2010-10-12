@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %%% File    : sqlite3.erl
 %%% @author Tee Teoh
-%%% @copyright 21 Jun 2008 by Tee Teoh 
+%%% @copyright 21 Jun 2008 by Tee Teoh
 %%% @version 1.0.0
 %%% @doc Library module for sqlite3
 %%% @end
@@ -32,7 +32,7 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 -define('DRIVER_NAME', 'sqlite3_drv').
 -record(state, {port, ops = []}).
@@ -43,11 +43,11 @@
 %%--------------------------------------------------------------------
 %% @spec start_link(Db) -> {ok,Pid} | ignore | {error,Error}
 %%      Db = atom()
-%% @doc 
-%%   Opens a sqlite3 dbase creating one if necessary. The dbase must 
-%%   be called Db.db in the current path. start_link/1 can be use 
-%%   with stop/0, sql_exec/1, create_table/2, list_tables/0, 
-%%   table_info/1, write/2, read/2, delete/2 and drop_table/1. 
+%% @doc
+%%   Opens a sqlite3 dbase creating one if necessary. The dbase must
+%%   be called Db.db in the current path. start_link/1 can be use
+%%   with stop/0, sql_exec/1, create_table/2, list_tables/0,
+%%   table_info/1, write/2, read/2, delete/2 and drop_table/1.
 %%   There can be only one start_link call per node.
 %%
 %%   To open multiple dbases on the same node use open/1 or open/2.
@@ -62,33 +62,33 @@ start_link(Db) ->
 %%--------------------------------------------------------------------
 %% @spec start_link(Db, Options) -> {ok,Pid} | ignore | {error,Error}
 %%      Db = atom()
-%% @doc 
-%%   Opens a sqlite3 dbase creating one if necessary. By default the 
-%%   dbase will be called Db.db in the current path. This can be changed 
-%%   by passing the option {db, DbFile :: String()}. DbFile must be the 
-%%   full path to the sqlite3 db file. start_link/1 can be use with stop/0, 
-%%   sql_exec/1, create_table/2, list_tables/0, table_info/1, write/2, 
-%%   read/2, delete/2 and drop_table/1. There can be only one start_link 
+%% @doc
+%%   Opens a sqlite3 dbase creating one if necessary. By default the
+%%   dbase will be called Db.db in the current path. This can be changed
+%%   by passing the option {db, DbFile :: String()}. DbFile must be the
+%%   full path to the sqlite3 db file. start_link/1 can be use with stop/0,
+%%   sql_exec/1, create_table/2, list_tables/0, table_info/1, write/2,
+%%   read/2, delete/2 and drop_table/1. There can be only one start_link
 %%   call per node.
 %%
-%%   To open multiple dbases on the same node use open/1 or open/2. 
+%%   To open multiple dbases on the same node use open/1 or open/2.
 %% @end
 %%--------------------------------------------------------------------
 -spec(start_link/2::(atom(), [{atom(), any()}]) -> result()).
 start_link(Db, Options) ->
     Opts = case proplists:get_value(db, Options) of
-	       undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
-	       _ -> Options
-	   end,
+               undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
+               _ -> Options
+           end,
     ?MODULE:open(Db, Opts).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid::pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite3 dbase creating one if necessary. The dbase must be 
-%%   called Db.db in the current path. Can be use to open multiple sqlite3 
+%%   Opens a sqlite3 dbase creating one if necessary. The dbase must be
+%%   called Db.db in the current path. Can be use to open multiple sqlite3
 %%   dbases per node. Must be use in conjunction with stop/1, sql_exec/2,
-%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
+%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3
 %%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
@@ -99,13 +99,13 @@ open(Db) ->
 %%--------------------------------------------------------------------
 %% @spec open(Db::atom(), Options::[tuple()]) -> {ok, Pid::pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite3 dbase creating one if necessary. By default the dbase 
-%%   will be called Db.db in the current path. This can be changed by 
-%%   passing the option {db, DbFile :: String()}. DbFile must be the full 
-%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 dbases 
-%%   per node. Must be use in conjunction with stop/1, sql_exec/2, 
-%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
-%%   and drop_table/2. 
+%%   Opens a sqlite3 dbase creating one if necessary. By default the dbase
+%%   will be called Db.db in the current path. This can be changed by
+%%   passing the option {db, DbFile :: String()}. DbFile must be the full
+%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 dbases
+%%   per node. Must be use in conjunction with stop/1, sql_exec/2,
+%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3
+%%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
 -spec(open/2::(atom(), [{atom(), any()}]) -> result()).
@@ -115,7 +115,7 @@ open(Db, Options) ->
 %%--------------------------------------------------------------------
 %% @spec close(Db::atom()) -> ok
 %% @doc
-%%   Closes the Db sqlite3 dbase. 
+%%   Closes the Db sqlite3 dbase.
 %% @end
 %%--------------------------------------------------------------------
 -spec(close/1::(atom()) -> 'ok').
@@ -131,7 +131,7 @@ close(Db) ->
 -spec(stop/0::() -> 'ok').
 stop() ->
     ?MODULE:close(?MODULE).
-    
+
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Sql::string()) -> term()
 %% @doc
@@ -145,7 +145,7 @@ sql_exec(SQL) ->
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Db::atom(), Sql::string()) -> term()
 %% @doc
-%%   Executes the Sql statement directly on the Db dbase. Returns the 
+%%   Executes the Sql statement directly on the Db dbase. Returns the
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
@@ -156,7 +156,7 @@ sql_exec(Db, SQL) ->
 %%--------------------------------------------------------------------
 %% @spec create_table(Tbl::atom(), TblInfo::[tuple()]) -> term()
 %% @doc
-%%   Creates the Tbl table using TblInfo as the table structure. The 
+%%   Creates the Tbl table using TblInfo as the table structure. The
 %%   table structure is a list of {column name, column type} pairs.
 %%   e.g. [{name, text}, {age, integer}]
 %%
@@ -170,8 +170,8 @@ create_table(Tbl, Options) ->
 %%--------------------------------------------------------------------
 %% @spec create_table(Db::atom(), Tbl::atom(), TblInfo::[tuple()]) -> term()
 %% @doc
-%%   Creates the Tbl table in Db using TblInfo as the table structure. 
-%%   The table structure is a list of {column name, column type} pairs. 
+%%   Creates the Tbl table in Db using TblInfo as the table structure.
+%%   The table structure is a list of {column name, column type} pairs.
 %%   e.g. [{name, text}, {age, integer}]
 %%
 %%   Returns the result of the create table call.
@@ -225,7 +225,7 @@ table_info(Db, Tbl) ->
 %% @spec write(Tbl::atom(), Data) -> term()
 %%         Data = [{ColName::atom(), ColData::term()}]
 %% @doc
-%%   Write Data into Tbl table. ColData must be of the same type as 
+%%   Write Data into Tbl table. ColData must be of the same type as
 %%   determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
@@ -237,7 +237,7 @@ write(Tbl, Data) ->
 %% @spec write(Db::atom(), Tbl::atom(), Data) -> term()
 %%         Data = [{ColName::atom(), ColData::term()}]
 %% @doc
-%%   Write Data into Tbl table in Db dbase. ColData must be of the 
+%%   Write Data into Tbl table in Db dbase. ColData must be of the
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
@@ -252,8 +252,8 @@ write(Db, Tbl, Data) ->
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term ()
 %% @doc
-%%    Updates rows into Tbl table such that the Value matches the 
-%%    value in Key with Data. Returns ID of the first updated 
+%%    Updates rows into Tbl table such that the Value matches the
+%%    value in Key with Data. Returns ID of the first updated
 %%    record.
 %% @end
 %%--------------------------------------------------------------------
@@ -267,8 +267,8 @@ update (Tbl, Key, Value, Data) ->
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term ()
 %% @doc
-%%    Updates rows into Tbl table in Db dbase such that the Value 
-%%    matches the value in Key with Data. Returns ID of the first 
+%%    Updates rows into Tbl table in Db dbase such that the Value
+%%    matches the value in Key with Data. Returns ID of the first
 %%    updated record.
 %% @end
 %%--------------------------------------------------------------------
@@ -279,8 +279,8 @@ update (Db, Tbl, Key, Value, Data) ->
 %% @spec read(Tbl::atom(), Key) -> [term()]
 %%         Key = {ColName::atom(), ColValue::term()}
 %% @doc
-%%   Reads a row from Tbl table such that the ColValue matches the 
-%%   value in ColName. Returns only the first match. ColValue must 
+%%   Reads a row from Tbl table such that the ColValue matches the
+%%   value in ColName. Returns only the first match. ColValue must
 %%   have the same type as determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
@@ -292,8 +292,8 @@ read(Tbl, Key) ->
 %% @spec read(Db::atom(), Tbl::atom(), Key) -> [term()]
 %%         Key = {ColName::atom(), ColValue::term()}
 %% @doc
-%%   Reads a row from Tbl table in Db dbase such that the ColValue 
-%%   matches the value in ColName. Returns only the first match. 
+%%   Reads a row from Tbl table in Db dbase such that the ColValue
+%%   matches the value in ColName. Returns only the first match.
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
@@ -321,8 +321,8 @@ read (Db, Tbl, Key, Columns) ->
 %% @spec delete(Tbl::atom(), Key) -> term()
 %%         Key = {ColName::atom(), ColValue::term()}
 %% @doc
-%%   Delete a row from Tbl table such that the ColValue 
-%%   matches the value in ColName. Removes only the first match. 
+%%   Delete a row from Tbl table such that the ColValue
+%%   matches the value in ColName. Removes only the first match.
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
@@ -334,8 +334,8 @@ delete(Tbl, Key) ->
 %% @spec delete(Db::atom(), Tbl::atom(), Key) -> term()
 %%         Key = {ColName::atom(), ColValue::term()}
 %% @doc
-%%   Delete a row from Tbl table in Db dbase such that the ColValue 
-%%   matches the value in ColName. Removes only the first match. 
+%%   Delete a row from Tbl table in Db dbase such that the ColValue
+%%   matches the value in ColName. Removes only the first match.
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
@@ -377,12 +377,12 @@ create_function(Db, FunctionName, Function) ->
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iodata()
-%% @doc 
+%% @doc
 %%    Converts an Erlang term to an SQL string.
-%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    Currently supports integers, floats, 'null' atom, and iodata
 %%    (binaries and iolists) which are treated as SQL strings.
 %%
-%%    Note that it opens opportunity for injection if an iolist includes 
+%%    Note that it opens opportunity for injection if an iolist includes
 %%    single quotes! Replace all single quotes (') with '' manually, or
 %%    use value_to_sql/1 if you are not sure if your strings contain
 %%    single quotes (e.g. can be entered by users).
@@ -395,9 +395,9 @@ value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql(Value :: sql_value()) -> iodata()
-%% @doc 
+%% @doc
 %%    Converts an Erlang term to an SQL string.
-%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    Currently supports integers, floats, 'null' atom, and iodata
 %%    (binaries and iolists) which are treated as SQL strings.
 %%
 %%    All single quotes (') will be replaced with ''.
@@ -426,16 +426,16 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
     {?MODULE, _, FileName} = code:get_object_code(?MODULE),
-    SearchDir = filename:dirname(FileName),
+    SearchDir = filename:dirname(filename:dirname(FileName)) ++ "/priv",
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
-      ok -> 
+      ok ->
         Port = open_port({spawn, string:join ([atom_to_list (?DRIVER_NAME), Dbase], " ")}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
         {stop, lists:flatten (Msg)}
     end.
-		     
+
 %%--------------------------------------------------------------------
 %% @spec handle_call(Request, From, State) -> {reply, Reply, State} |
 %%                                      {reply, Reply, State, Timeout} |
@@ -570,15 +570,15 @@ create_cmd(Dbase) ->
 
 wait_result(Port) ->
   receive
-	  {Port, Reply} ->
+          {Port, Reply} ->
       % io:format("Reply: ~p~n", [Reply]),
-	    Reply;
+            Reply;
   {error, Reason} ->
     io:format("Error: ~p~n", [Reason]),
     {error, Reason};
-	_Else ->
+        _Else ->
     io:format("Else: ~p~n", [_Else]),
-	  _Else
+          _Else
   end.
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
@@ -594,15 +594,14 @@ exec(Port, {sql_exec, Cmd}) ->
 
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
-    Cols = string:tokens(Tail, ","), 
+    Cols = string:tokens(Tail, ","),
     build_table_info(lists:map(fun(X) ->
-				       string:tokens(X, " ") 
-			       end, Cols), []).
-   
-build_table_info([], Acc) -> 
+                                       string:tokens(X, " ")
+                               end, Cols), []).
+
+build_table_info([], Acc) ->
     lists:reverse(Acc);
-build_table_info([[ColName, ColType] | Tl], Acc) -> 
-    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]); 
+build_table_info([[ColName, ColType] | Tl], Acc) ->
+    build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type(ColType)}| Acc]);
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
     build_table_info(Tl, [{list_to_atom(ColName), primary_key}| Acc]).
-    
