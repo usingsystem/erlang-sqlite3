@@ -53,8 +53,9 @@
 %%   To open multiple dbases on the same node use open/1 or open/2.
 %% @end
 %%--------------------------------------------------------------------
--type(result() :: {'ok', pid()} | 'ignore' | {'error', any()}).
--spec(start_link/1::(atom()) -> result()).
+-type result() :: {'ok', pid()} | 'ignore' | {'error', any()}.
+
+-spec start_link(atom()) -> result().
 
 start_link(Db) ->
     ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
@@ -74,7 +75,7 @@ start_link(Db) ->
 %%   To open multiple dbases on the same node use open/1 or open/2. 
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link/2::(atom(), [{atom(), any()}]) -> result()).
+-spec start_link(atom(), [{atom(), any()}]) -> result().
 start_link(Db, Options) ->
     Opts = case proplists:get_value(db, Options) of
 	       undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
@@ -92,7 +93,7 @@ start_link(Db, Options) ->
 %%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
--spec(open/1::(atom()) -> result()).
+-spec open(atom()) -> result().
 open(Db) ->
     ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
@@ -108,7 +109,7 @@ open(Db) ->
 %%   and drop_table/2. 
 %% @end
 %%--------------------------------------------------------------------
--spec(open/2::(atom(), [{atom(), any()}]) -> result()).
+-spec open(atom(), [{atom(), any()}]) -> result().
 open(Db, Options) ->
     gen_server:start_link({local, Db}, ?MODULE, Options, []).
 
@@ -118,7 +119,7 @@ open(Db, Options) ->
 %%   Closes the Db sqlite3 dbase. 
 %% @end
 %%--------------------------------------------------------------------
--spec(close/1::(atom()) -> 'ok').
+-spec close(atom()) -> 'ok'.
 close(Db) ->
     gen_server:call(Db, close).
 
@@ -128,7 +129,7 @@ close(Db) ->
 %%   Closes the sqlite3 dbase.
 %% @end
 %%--------------------------------------------------------------------
--spec(stop/0::() -> 'ok').
+-spec stop() -> 'ok'.
 stop() ->
     ?MODULE:close(?MODULE).
     
@@ -138,7 +139,7 @@ stop() ->
 %%   Executes the Sql statement directly.
 %% @end
 %%--------------------------------------------------------------------
--spec(sql_exec/1::(string()) -> any()).
+-spec sql_exec(string()) -> any().
 sql_exec(SQL) ->
     ?MODULE:sql_exec(?MODULE, SQL).
 
@@ -149,7 +150,7 @@ sql_exec(SQL) ->
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
--spec(sql_exec/2::(atom(), string()) -> any()).
+-spec sql_exec(atom(), string()) -> any().
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
@@ -163,7 +164,7 @@ sql_exec(Db, SQL) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec(create_table/2::(atom(), [tuple()]) -> any()).
+-spec create_table(atom(), [tuple()]) -> any().
 create_table(Tbl, Options) ->
     ?MODULE:create_table(?MODULE, Tbl, Options).
 
@@ -177,7 +178,7 @@ create_table(Tbl, Options) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec(create_table/3::(atom(), atom(), [{atom(), any()}]) -> any()).
+-spec create_table(atom(), atom(), [{atom(), any()}]) -> any().
 create_table(Db, Tbl, Options) ->
     gen_server:call(Db, {create_table, Tbl, Options}).
 
@@ -187,7 +188,7 @@ create_table(Db, Tbl, Options) ->
 %%   Returns a list of tables.
 %% @end
 %%--------------------------------------------------------------------
--spec(list_tables/0::() -> [atom()]).
+-spec list_tables() -> [atom()].
 list_tables() ->
     ?MODULE:list_tables(?MODULE).
 
@@ -197,7 +198,7 @@ list_tables() ->
 %%   Returns a list of tables for Db.
 %% @end
 %%--------------------------------------------------------------------
--spec(list_tables/1::(atom()) -> [atom()]).
+-spec list_tables(atom()) -> [atom()].
 list_tables(Db) ->
     gen_server:call(Db, list_tables).
 
@@ -207,7 +208,7 @@ list_tables(Db) ->
 %%    Returns table schema for Tbl.
 %% @end
 %%--------------------------------------------------------------------
--spec(table_info/1::(atom()) -> [any()]).
+-spec table_info(atom()) -> [any()].
 table_info(Tbl) ->
     ?MODULE:table_info(?MODULE, Tbl).
 
@@ -217,7 +218,7 @@ table_info(Tbl) ->
 %%   Returns table schema for Tbl in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec(table_info/2::(atom(), atom()) -> [any()]).
+-spec table_info(atom(), atom()) -> [any()].
 table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
@@ -229,7 +230,7 @@ table_info(Db, Tbl) ->
 %%   determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec(write/2::(atom(), [{atom(), any()}]) -> any()).
+-spec write(atom(), [{atom(), any()}]) -> any().
 write(Tbl, Data) ->
     ?MODULE:write(?MODULE, Tbl, Data).
 
@@ -241,38 +242,38 @@ write(Tbl, Data) ->
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec(write/3::(atom(), atom(), [{atom(), any()}]) -> any()).
+-spec write(atom(), atom(), [{atom(), any()}]) -> any().
 write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec update (Tbl::atom (), Key::atom (), Value, Data) -> Result
-%%        Value = any ()
-%%        Data = [{Column::atom (), Value::string () | integer () | float ()}]
+%% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> Result
+%%        Value = any()
+%%        Data = [{Column :: atom(), Value :: string() | integer() | float()}]
 %%        Result = {ok, ID} | Unknown
-%%        Unknown = term ()
+%%        Unknown = term()
 %% @doc
 %%    Updates rows into Tbl table such that the Value matches the 
 %%    value in Key with Data. Returns ID of the first updated 
 %%    record.
 %% @end
 %%--------------------------------------------------------------------
-update (Tbl, Key, Value, Data) ->
+update(Tbl, Key, Value, Data) ->
   ?MODULE:update(?MODULE, Tbl, Key, Value, Data).
 
 %%--------------------------------------------------------------------
-%% @spec update (Db::atom (), Tbl::atom (), Key::atom (), Value, Data) -> Result
-%%        Value = any ()
-%%        Data = [{Column::atom (), Value::string () | integer () | float ()}]
+%% @spec update(Db::atom(), Tbl::atom(), Key::atom(), Value, Data) -> Result
+%%        Value = any()
+%%        Data = [{Column::atom(), Value::string() | integer() | float()}]
 %%        Result = {ok, ID} | Unknown
-%%        Unknown = term ()
+%%        Unknown = term()
 %% @doc
 %%    Updates rows into Tbl table in Db dbase such that the Value 
 %%    matches the value in Key with Data. Returns ID of the first 
 %%    updated record.
 %% @end
 %%--------------------------------------------------------------------
-update (Db, Tbl, Key, Value, Data) ->
+update(Db, Tbl, Key, Value, Data) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------
@@ -284,7 +285,7 @@ update (Db, Tbl, Key, Value, Data) ->
 %%   have the same type as determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec(read/2::(atom(), {atom(), any()}) -> any()).
+-spec read(atom(), {atom(), any()}) -> any().
 read(Tbl, Key) ->
     ?MODULE:read(?MODULE, Tbl, Key).
 
@@ -297,16 +298,16 @@ read(Tbl, Key) ->
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec(read/3::(atom(), atom(), {atom(), any()}) -> any()).
+-spec read(atom(), atom(), {atom(), any()}) -> any().
 read(Db, Tbl, Key) ->
     gen_server:call(Db, {read, Tbl, Key}).
 
 %%--------------------------------------------------------------------
-%% @spec read (Db, Tbl, Key, Columns) -> [term ()]
-%%        Db = atom ()
-%%        Tbl = atom ()
-%%        Key = {Column::atom (), Value::term ()}
-%%        Columns = [atom ()]
+%% @spec read(Db, Tbl, Key, Columns) -> [term()]
+%%        Db = atom()
+%%        Tbl = atom()
+%%        Key = {Column::atom(), Value::term()}
+%%        Columns = [atom()]
 %% @doc
 %%    Reads a row from Tbl table in Db dbase such that the Value
 %%    matches the value in Column. Returns columns Columns only for
@@ -314,7 +315,7 @@ read(Db, Tbl, Key) ->
 %%    from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
-read (Db, Tbl, Key, Columns) ->
+read(Db, Tbl, Key, Columns) ->
   gen_server:call(Db, {read, Tbl, Key, Columns}).
 
 %%--------------------------------------------------------------------
@@ -326,7 +327,7 @@ read (Db, Tbl, Key, Columns) ->
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec(delete/2::(atom(), {atom(), any()}) -> any()).
+-spec delete(atom(), {atom(), any()}) -> any().
 delete(Tbl, Key) ->
     ?MODULE:delete(?MODULE, Tbl, Key).
 
@@ -339,7 +340,7 @@ delete(Tbl, Key) ->
 %%   ColValue must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec(delete/3::(atom(), atom(), {atom(), any()}) -> any()).
+-spec delete(atom(), atom(), {atom(), any()}) -> any().
 delete(Db, Tbl, Key) ->
     gen_server:call(Db, {delete, Tbl, Key}).
 
@@ -349,7 +350,7 @@ delete(Db, Tbl, Key) ->
 %%   Drop the table Tbl.
 %% @end
 %%--------------------------------------------------------------------
--spec(drop_table/1::(atom()) -> any()).
+-spec drop_table(atom()) -> any().
 drop_table(Tbl) ->
     ?MODULE:drop_table(?MODULE, Tbl).
 
@@ -359,7 +360,7 @@ drop_table(Tbl) ->
 %%   Drop the table Tbl from Db dbase.
 %% @end
 %%--------------------------------------------------------------------
--spec(drop_table/2::(atom(), atom()) -> any()).
+-spec drop_table(atom(), atom()) -> any().
 drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
@@ -371,7 +372,7 @@ drop_table(Db, Tbl) ->
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(create_function/3::(atom(), atom(), function()) -> any()).
+-spec create_function(atom(), atom(), function()) -> any().
 create_function(Db, FunctionName, Function) ->
     gen_server:call(Db, {create_function, FunctionName, Function}).
 
@@ -390,7 +391,7 @@ create_function(Db, FunctionName, Function) ->
 %%    Reexported from sqlite3_lib:value_to_sql/1 for user convenience.
 %% @end
 %%--------------------------------------------------------------------
--spec(value_to_sql_unsafe/1::(sql_value()) -> iodata()).
+-spec value_to_sql_unsafe(sql_value()) -> iodata().
 value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
 
 %%--------------------------------------------------------------------
@@ -405,7 +406,7 @@ value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
 %%    Reexported from sqlite3_lib:value_to_sql/1 for user convenience.
 %% @end
 %%--------------------------------------------------------------------
--spec(value_to_sql/1::(sql_value()) -> iolist()).
+-spec value_to_sql(sql_value()) -> iolist().
 value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 
 %%====================================================================
@@ -421,19 +422,19 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--type(init_return() :: {'ok', tuple()} | {'ok', tuple(), integer()} | 'ignore' | {'stop', any()}).
--spec(init/1::([any()]) -> init_return()).
+-type init_return() :: {'ok', tuple()} | {'ok', tuple(), integer()} | 'ignore' | {'stop', any()}.
+-spec init([any()]) -> init_return().
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
     {?MODULE, _, FileName} = code:get_object_code(?MODULE),
     SearchDir = filename:dirname(FileName),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
       ok -> 
-        Port = open_port({spawn, string:join ([atom_to_list (?DRIVER_NAME), Dbase], " ")}, [binary]),
+        Port = open_port({spawn, string:join([atom_to_list(?DRIVER_NAME), Dbase], " ")}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
-        {stop, lists:flatten (Msg)}
+        {stop, lists:flatten(Msg)}
     end.
 		     
 %%--------------------------------------------------------------------
@@ -447,10 +448,10 @@ init(Options) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--type(handle_call_return() :: {reply, any(), tuple()} | {reply, any(), tuple(), integer()} |
+-type handle_call_return() :: {reply, any(), tuple()} | {reply, any(), tuple(), integer()} |
       {noreply, tuple()} | {noreply, tuple(), integer()} |
-      {stop, any(), any(), tuple()} | {stop, any(), tuple()}).
--spec(handle_call/3::(any(), pid(), tuple()) -> handle_call_return()).
+      {stop, any(), any(), tuple()} | {stop, any(), tuple()}.
+-spec handle_call(any(), pid(), tuple()) -> handle_call_return().
 handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
@@ -460,7 +461,7 @@ handle_call({sql_exec, SQL}, _From, #state{port = Port} = State) ->
 handle_call(list_tables, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, "select name from sqlite_master where type='table';"}),
     TableList = proplists:get_value(rows, Reply),
-    TableNames = [erlang:list_to_atom (erlang:binary_to_list (Name)) || {Name} <- TableList],
+    TableNames = [erlang:list_to_atom(erlang:binary_to_list(Name)) || {Name} <- TableList],
     {reply, TableNames, State};
 handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     % make sure we only get table info.
@@ -481,8 +482,8 @@ handle_call({create_table, Tbl, Options}, _From, #state{port = Port} = State) ->
     Cmd = {sql_exec, SQL},
     Reply = exec(Port, Cmd),
     {reply, Reply, State};
-handle_call ({update, Tbl, Key, Value, Data}, _From, #state{port = Port} = State)->
-    Reply = exec (Port, {sql_exec, sqlite3_lib:update_sql (Tbl, Key, Value, Data)}),
+handle_call({update, Tbl, Key, Value, Data}, _From, #state{port = Port} = State)->
+    Reply = exec(Port, {sql_exec, sqlite3_lib:update_sql(Tbl, Key, Value, Data)}),
     {reply, Reply, State};
 handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
@@ -492,8 +493,8 @@ handle_call({read, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     % select * from  Tbl where Key = Value;
     Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value)}),
     {reply, Reply, State};
-handle_call ({read, Tbl, {Key, Value}, Columns}, _From, #state{port = Port} = State) ->
-    Reply = exec (Port, {sql_exec, sqlite3_lib:read_sql (Tbl, Key, Value, Columns)}),
+handle_call({read, Tbl, {Key, Value}, Columns}, _From, #state{port = Port} = State) ->
+    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value, Columns)}),
     {reply, Reply, State};
 handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     % delete from Tbl where Key = Value;
@@ -514,9 +515,9 @@ handle_call(_Request, _From, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--type(handle_cast_return() :: {noreply, tuple()} | {noreply, tuple(), integer()} |
-      {stop, any(), tuple()}).
--spec(handle_cast/2::(any(), tuple()) -> handle_cast_return()).
+-type handle_cast_return() :: {noreply, tuple()} | {noreply, tuple(), integer()} |
+      {stop, any(), tuple()}.
+-spec handle_cast(any(), tuple()) -> handle_cast_return().
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -528,7 +529,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--spec(handle_info/2::(any(), tuple()) -> handle_cast_return()).
+-spec handle_info(any(), tuple()) -> handle_cast_return().
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -541,7 +542,7 @@ handle_info(_Info, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--spec(terminate/2::(atom(), tuple()) -> atom()).
+-spec terminate(atom(), tuple()) -> atom().
 terminate(normal, #state{port = Port}) ->
     port_command(Port, term_to_binary({close, nop})),
     port_close(Port),
@@ -582,7 +583,7 @@ wait_result(Port) ->
   end.
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
-  error_logger:error_report ([{application, sqlite3}, "NOT IMPL YET"]);
+  error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
   %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
   %wait_result(Port);
 
@@ -604,5 +605,5 @@ build_table_info([], Acc) ->
 build_table_info([[ColName, ColType] | Tl], Acc) -> 
     build_table_info(Tl, [{list_to_atom(ColName), sqlite3_lib:col_type_to_atom(ColType)}| Acc]); 
 build_table_info([[ColName, ColType, "PRIMARY", "KEY"] | Tl], Acc) ->
-    build_table_info(Tl, [{list_to_atom(ColName), primary_key}| Acc]).
+    build_table_info(Tl, [{list_to_atom(ColName), primary_key} | Acc]).
     
