@@ -13,9 +13,9 @@
 -export([col_type_to_atom/1]).
 -export([value_to_sql/1, value_to_sql_unsafe/1, sql_to_value/1, escape/1]).
 -export([write_value_sql/1, write_col_sql/1]).
--export([create_table_sql/2, create_table_sql/3, drop_table/1]). 
+-export([create_table_sql/2, create_table_sql/3, drop_table_sql/1]). 
 -export([write_sql/2, update_sql/4, update_set_sql/1, delete_sql/3]).
--export([read_sql/3, read_sql/4, read_cols_sql/1]).
+-export([read_sql/1, read_sql/2, read_sql/3, read_sql/4, read_cols_sql/1]).
 
 %%====================================================================
 %% API
@@ -234,6 +234,29 @@ write_sql(Tbl, Data) ->
 	 ") values (", sqlite3_lib:write_value_sql(Values), ");"].
 
 %%--------------------------------------------------------------------
+%% @spec read_sql(Tbl) -> iolist()
+%%       Tbl = atom()
+%% @doc Returns all records from table Tbl.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_sql(atom()) -> iolist().
+read_sql(Tbl) ->
+    ["SELECT * FROM ", atom_to_list(Tbl), ";"].
+
+%%--------------------------------------------------------------------
+%% @spec read_sql(Tbl, Columns) -> iolist()
+%%        Tbl = atom()
+%%        Columns = [atom()]
+%% @doc
+%%    Returns only specified Columns of all records from table Tbl.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_sql(atom(), [atom()]) -> iolist().
+read_sql(Tbl, Columns) ->
+    ["SELECT ", sqlite3_lib:read_cols_sql(Columns), " FROM ",
+	 atom_to_list(Tbl), ";"].
+
+%%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value) -> iolist()
 %%       Tbl = atom()
 %%       Key = atom()
@@ -254,8 +277,8 @@ read_sql(Tbl, Key, Value) ->
 %%        Value = sql_value()
 %%        Columns = [atom()]
 %% @doc
-%%    Using Key as the column name searhces for the record with
-%%    matching Value and returns only specified columns Columns.
+%%    Using Key as the column name searches for the record with
+%%    matching Value and returns only specified Columns.
 %% @end
 %%--------------------------------------------------------------------
 -spec read_sql(atom(), atom(), sql_value(), [atom()]) -> iolist().
@@ -279,13 +302,13 @@ delete_sql(Tbl, Key, Value) ->
 	 " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Tbl) -> iolist()
+%% @spec drop_table_sql(Tbl) -> iolist()
 %%       Tbl = atom()
 %% @doc Drop the table Tbl from the database
 %% @end
 %%--------------------------------------------------------------------
--spec drop_table(atom()) -> iolist().
-drop_table(Tbl) ->
+-spec drop_table_sql(atom()) -> iolist().
+drop_table_sql(Tbl) ->
     ["DROP TABLE ", atom_to_list(Tbl), ";"].
 
 %%====================================================================
@@ -363,10 +386,52 @@ indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 -include_lib("eunit/include/eunit.hrl").
 
 -define(FLAT(X), iolist_to_binary(X)).
+-define(assertFlat(Expected, Value), ?assertEqual(?FLAT(Expected), ?FLAT(Value))).
 
 quote_test() ->
-	?assertEqual(<<"'abc'">>, ?FLAT(value_to_sql("abc"))),
-	?assertEqual(<<"'a''b''''c'">>, ?FLAT(value_to_sql("a'b''c"))).
+	?assertFlat("'abc'", value_to_sql("abc")),
+	?assertFlat("'a''b''''c'", value_to_sql("a'b''c")).
 
+create_table_sql_test() ->
+	?assertFlat(
+		"CREATE TABLE user (id INTEGER PRIMARY KEY, name TEXT);",
+		create_table_sql(user, [{id, integer, [primary_key]}, {name, text}])),
+	?assertFlat(
+		"CREATE TABLE user (id INTEGER, name TEXT, PRIMARY KEY(id));",
+		create_table_sql(user, [{id, integer}, {name, text}], [{primary_key, [id]}])).
+
+update_sql_test() ->
+	?assertFlat(
+		"UPDATE user SET name = 'a' WHERE id = 1;",
+		update_sql(user, id, 1, [{name, "a"}])).
+
+write_sql_test() ->
+	?assertFlat(
+		"INSERT INTO user (id, name) values (1, 'a');",
+		write_sql(user, [{id, 1}, {name, "a"}])).
+
+read_sql_test() ->
+	?assertFlat(
+		"SELECT * FROM user;",
+		read_sql(user)),
+	?assertFlat(
+		"SELECT id, name FROM user;",
+		read_sql(user, [id, name])),
+	?assertFlat(
+		"SELECT * FROM user WHERE id = 1;",
+		read_sql(user, id, 1)),
+	?assertFlat(
+		"SELECT id, name FROM user WHERE id = 1;",
+		read_sql(user, id, 1, [id, name])).
+
+delete_sql_test() ->
+	?assertFlat(
+		"DELETE FROM user WHERE id = 1;",
+		delete_sql(user, id, 1)).
+
+drop_table_sql_test() ->
+	?assertFlat(
+		"DROP TABLE user;",
+		drop_table_sql(user)).
 
 -endif.

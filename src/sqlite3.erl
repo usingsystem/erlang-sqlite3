@@ -315,8 +315,8 @@ read(Tbl, Key) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(atom(), atom(), {atom(), any()}) -> any().
-read(Db, Tbl, Key) ->
-    gen_server:call(Db, {read, Tbl, Key}).
+read(Db, Tbl, {Key, Value}) ->
+    gen_server:call(Db, {read, Tbl, Key, Value}).
 
 %%--------------------------------------------------------------------
 %% @spec read(Db, Tbl, Key, Columns) -> [any()]
@@ -330,8 +330,8 @@ read(Db, Tbl, Key) ->
 %%    determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
-read(Db, Tbl, Key, Columns) ->
-  gen_server:call(Db, {read, Tbl, Key, Columns}).
+read(Db, Tbl, {Key, Value}, Columns) ->
+  gen_server:call(Db, {read, Tbl, Key, Value, Columns}).
 
 %%--------------------------------------------------------------------
 %% @spec delete(Tbl :: atom(), Key) -> any()
@@ -514,11 +514,18 @@ handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
     Reply = exec(Port, {sql_exec, sqlite3_lib:write_sql(Tbl, Data)}),
     {reply, Reply, State};
-handle_call({read, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
+handle_call({read, Tbl}, _From, #state{port = Port} = State) ->
+    % select * from  Tbl where Key = Value;
+    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl)}),
+    {reply, Reply, State};
+handle_call({read, Tbl, Columns}, _From, #state{port = Port} = State) ->
+    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Columns)}),
+    {reply, Reply, State};
+handle_call({read, Tbl, Key, Value}, _From, #state{port = Port} = State) ->
     % select * from  Tbl where Key = Value;
     Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value)}),
     {reply, Reply, State};
-handle_call({read, Tbl, {Key, Value}, Columns}, _From, #state{port = Port} = State) ->
+handle_call({read, Tbl, Key, Value, Columns}, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value, Columns)}),
     {reply, Reply, State};
 handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
@@ -526,7 +533,7 @@ handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, sqlite3_lib:delete_sql(Tbl, Key, Value)}),
     {reply, Reply, State};
 handle_call({drop_table, Tbl}, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, sqlite3_lib:drop_table(Tbl)}),
+    Reply = exec(Port, {sql_exec, sqlite3_lib:drop_table_sql(Tbl)}),
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
