@@ -19,10 +19,11 @@ compile:
 
 ifeq ($(wildcard sqlite3.plt),)
 static:
-	dialyzer --build_plt --output_plt sqlite3.plt -r $(PLT_SRC) ebin
+	dialyzer --build_plt --output_plt sqlite3.plt -r $(PLT_SRC)
+	dialyzer --add_to_plt --plt sqlite3.plt -r ebin --get_warnings
 else
 static:
-	dialyzer --add_to_plt --plt sqlite3.plt -r ebin
+	dialyzer --add_to_plt --plt sqlite3.plt -r ebin --get_warnings
 endif
 
 clean:
