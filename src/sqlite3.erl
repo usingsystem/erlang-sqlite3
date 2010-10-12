@@ -377,7 +377,7 @@ create_function(Db, FunctionName, Function) ->
     gen_server:call(Db, {create_function, FunctionName, Function}).
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iodata()
+%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
 %% @doc 
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata 
@@ -391,11 +391,11 @@ create_function(Db, FunctionName, Function) ->
 %%    Reexported from sqlite3_lib:value_to_sql/1 for user convenience.
 %% @end
 %%--------------------------------------------------------------------
--spec value_to_sql_unsafe(sql_value()) -> iodata().
+-spec value_to_sql_unsafe(sql_value()) -> iolist().
 value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql(Value :: sql_value()) -> iodata()
+%% @spec value_to_sql(Value :: sql_value()) -> iolist()
 %% @doc 
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata 

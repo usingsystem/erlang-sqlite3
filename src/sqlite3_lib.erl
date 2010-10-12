@@ -256,7 +256,7 @@ drop_table(Tbl) ->
 
 %% @doc Works like string:join for iolists
 
--spec map_intersperse(fun((X) -> Z), [X], Y) -> [Z | Y].
+-spec map_intersperse(fun((X) -> iolist()), [X], [iolist() | integer()]) -> iolist().
 map_intersperse(_Fun, [], _Sep) -> [];
 map_intersperse(Fun, [Elem], _Sep) -> [Fun(Elem)];
 map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fun, Tail, Sep)].
