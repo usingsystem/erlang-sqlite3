@@ -19,9 +19,9 @@ test() ->
     [{columns, Columns}, {rows, Rows2}] = sqlite3:read(ct, user, {name, "abby"}),
 	Rows2 = [{1, <<"abby">>, 20, 2000}],
     [{columns, Columns}, {rows, Rows1}] = sqlite3:read(ct, user, {wage, 2000}),
-    sqlite3:delete(ct, user, {name, "abby"}),
+    sqlite3:delete(ct, user, {name, "marge"}),
+    [{columns, Columns}, {rows, Rows2}] = sqlite3:sql_exec(ct, "select * from user;"),
     sqlite3:drop_table(ct, user),
-%sqlite3:delete_db(ct)
     sqlite3:close(ct),
     io:format("Tests passed~n").
 
