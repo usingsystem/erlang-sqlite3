@@ -485,9 +485,13 @@ handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
     SQL = io_lib:format("select sql from sqlite_master where tbl_name = '~p' and type='table';", [Tbl]),
     Data = exec(Port, {sql_exec, SQL}),
     TableSql = proplists:get_value(rows, Data),
-    [{Info}] = TableSql,
-    ColumnList = parse_table_info(binary_to_list(Info)),
-    {reply, ColumnList, State};
+    case TableSql of
+        [{Info}] ->
+            ColumnList = parse_table_info(binary_to_list(Info)),
+            {reply, ColumnList, State};
+        [] ->
+            {reply, table_does_not_exist, State}
+    end;
 handle_call({create_function, FunctionName, Function}, _From, #state{port = Port} = State) ->
     % make sure we only get table info.
     % SQL Injection warning
@@ -630,14 +634,28 @@ build_table_info([[ColName, ColType | Constraints] | Tl], Acc) ->
 
 %% TODO conflict-clause parsing
 build_constraints([]) -> [];
-build_constraints(["PRIMARY", "KEY", "ASC" | Tail]) -> [primary_key | build_constraints(Tail)];
-build_constraints(["PRIMARY", "KEY", "DESC" | Tail]) -> [{primary_key, desc} | build_constraints(Tail)];
-build_constraints(["PRIMARY", "KEY" | Tail]) -> [primary_key | build_constraints(Tail)];
+build_constraints(["PRIMARY", "KEY" | Tail]) -> 
+	{Constraint, Rest} = build_primary_key_constraint(Tail),
+	[Constraint | build_constraints(Rest)];
 build_constraints(["UNIQUE" | Tail]) -> [unique | build_constraints(Tail)];
 build_constraints(["NOT", "NULL" | Tail]) -> [not_null | build_constraints(Tail)];
 build_constraints(["DEFAULT", DefaultValue | Tail]) -> [{default, sqlite3_lib:sql_to_value(DefaultValue)} | build_constraints(Tail)].
 % build_constraints(["CHECK", Check | Tail]) -> ...
 % build_constraints(["REFERENCES", Check | Tail]) -> ...
+
+build_primary_key_constraint(Tokens) -> build_primary_key_constraint(Tokens, []).
+
+build_primary_key_constraint(["ASC" | Rest], Acc) ->
+	build_primary_key_constraint(Rest, [asc | Acc]);
+build_primary_key_constraint(["DESC" | Rest], Acc) ->
+	build_primary_key_constraint(Rest, [desc | Acc]);
+build_primary_key_constraint(["AUTOINCREMENT" | Rest], Acc) ->
+	build_primary_key_constraint(Rest, [autoincrement | Acc]);
+build_primary_key_constraint(Tail, []) ->
+	{primary_key, Tail};
+build_primary_key_constraint(Tail, Acc) ->
+	{{primary_key, lists:reverse(Acc)}, Tail}.
+
 
 conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
     Resolution = case ResolutionString of
@@ -658,3 +676,11 @@ conflict_clause(NoOnConflictClause) ->
 %% and io:iolist().
 %% @end
 %%--------------------------------------------------------------------
+
+%%--------------------------------------------------------------------
+%% Tests
+%%--------------------------------------------------------------------
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+-endif.

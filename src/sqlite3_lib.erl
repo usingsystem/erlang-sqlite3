@@ -116,14 +116,14 @@ sql_to_value(String) ->
 	end.
 
 %%--------------------------------------------------------------------
-%% @spec write_value_sql(Value :: [term()]) -> iolist()
+%% @spec write_value_sql(Value :: [sql_value()]) -> iolist()
 %% @doc 
 %%    Creates the values portion of the sql stmt.
 %% @end
 %%--------------------------------------------------------------------
--spec write_value_sql(any()) -> iolist().
+-spec write_value_sql(sql_value()) -> iolist().
 write_value_sql(Values) ->
-    map_intersperse(fun value_to_sql/1, Values, ",").
+    map_intersperse(fun value_to_sql/1, Values, ", ").
 
 	
 %%--------------------------------------------------------------------
@@ -133,7 +133,7 @@ write_value_sql(Values) ->
 %%--------------------------------------------------------------------
 -spec write_col_sql([atom()]) -> iolist().
 write_col_sql(Cols) ->
-    map_intersperse(fun atom_to_list/1, Cols, ",").
+    map_intersperse(fun atom_to_list/1, Cols, ", ").
 
 %%--------------------------------------------------------------------
 %% @spec escape(IoData :: iodata()) -> iodata()
@@ -355,3 +355,18 @@ indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 %% and io:iolist().
 %% @end
 %%--------------------------------------------------------------------
+
+%%--------------------------------------------------------------------
+%% Tests
+%%--------------------------------------------------------------------
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+-define(FLAT(X), iolist_to_binary(X)).
+
+quote_test() ->
+	?assertEqual(<<"'abc'">>, ?FLAT(value_to_sql("abc"))),
+	?assertEqual(<<"'a''b''''c'">>, ?FLAT(value_to_sql("a'b''c"))).
+
+
+-endif.
