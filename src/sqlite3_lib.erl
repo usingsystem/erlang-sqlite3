@@ -170,21 +170,24 @@ read_cols_sql(Columns) ->
 %%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl :: atom(), [{Column, Type}]) -> iolist()
 %%       Tbl = atom()
+%%       ColumnData = {Column, Type} | {Column, Type, Constraints} 
 %%       Column = atom()
 %%       Type = atom()
+%%       Constraints = [any()]
 %% @doc Generates a table create stmt in SQL.
-%%      First column listed is considered the primary key.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_sql(atom(), [{atom(), atom()}]) -> iolist().
-create_table_sql(Tbl, [{ColName, Type} | Tl]) ->
-    CT = ["CREATE TABLE ", atom_to_list(Tbl), " "],
-    Start = ["(", atom_to_list(ColName), " ", col_type_to_string(Type), " PRIMARY KEY, "],
-    End = [map_intersperse(
-	         fun({Name0, Type0}) ->
-	             [atom_to_list(Name0), " ", col_type_to_string(Type0)]
-	         end, Tl, ", "), ");"],
-    [CT, Start, End].
+-spec create_table_sql(atom(), [{atom(), atom()} | {atom(), atom(), [any()]}]) -> iolist().
+create_table_sql(Tbl, Columns) ->
+    ColumnNameTypeFun = 
+	    fun({Name0, Type0}) ->
+	           [atom_to_list(Name0), " ", col_type_to_string(Type0)];
+		   ({Name0, Type0, Constraints}) ->
+			   [atom_to_list(Name0), " ", col_type_to_string(Type0), 
+				" " | map_intersperse(fun constraint_sql/1, Constraints, " ")]
+	    end,
+    ["CREATE TABLE ", atom_to_list(Tbl), " (",
+     map_intersperse(ColumnNameTypeFun, Columns, ", "), ");"].
 
 %%--------------------------------------------------------------------
 %% @spec update_sql(Tbl, Key, Value, Data) -> iolist()
@@ -303,6 +306,16 @@ sql_string(StringWithEscapedQuotes) ->
 
 -spec sql_blob(string()) -> string().
 sql_blob(Blob) -> Blob.
+
+-spec constraint_sql([any()]) -> iolist().
+constraint_sql(Constraint) ->
+	case Constraint of
+		primary_key -> "PRIMARY KEY";
+		{primary_key, desc} -> "PRIMARY KEY DESC";
+		unique -> "UNIQUE";
+		not_null -> "NOT NULL";
+		{default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)]
+	end.
 
 %%--------------------------------------------------------------------
 %% @type sql_value() = number() | 'null' | iodata().

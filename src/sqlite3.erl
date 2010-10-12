@@ -616,7 +616,18 @@ build_constraints(["DEFAULT", DefaultValue | Tail]) -> [{default, sqlite3_lib:sq
 % build_constraints(["CHECK", Check | Tail]) -> ...
 % build_constraints(["REFERENCES", Check | Tail]) -> ...
 
-    
+conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
+    Resolution = case ResolutionString of
+                     "ROLLBACK" -> rollback;
+                     "ABORT" -> abort;
+                     "FAIL" -> fail;
+                     "IGNORE" -> ignore;
+                     "REPLACE" -> replace
+				 end,
+    {{on_conflict, Resolution}, Tail};
+conflict_clause(NoOnConflictClause) ->
+    {no_on_conflict, NoOnConflictClause}.
+
 %%--------------------------------------------------------------------
 %% @type sql_value() = number() | 'null' | iodata().
 %% 
