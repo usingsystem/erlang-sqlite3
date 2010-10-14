@@ -22,3 +22,5 @@ else
 static:
 	$(REBAR_COMPILE) analyze
 endif
+
+.PHONY: all compile test clean docs static
