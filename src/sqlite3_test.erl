@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %%% File    : sqlite3_test.erl
 %%% Author  : Tee Teoh <tteoh@teemac.ott.cti.com>
-%%% Description : 
+%%% Description :
 %%%
 %%% Created : 10 Jun 2008 by Tee Teoh <tteoh@teemac.ott.cti.com>
 %%%-------------------------------------------------------------------

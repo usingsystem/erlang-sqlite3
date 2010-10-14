@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %%% File    : sqlite3.erl
 %%% @author Tee Teoh
-%%% @copyright 21 Jun 2008 by Tee Teoh 
+%%% @copyright 21 Jun 2008 by Tee Teoh
 %%% @version 1.0.0
 %%% @doc Library module for sqlite3
 %%% @end
@@ -32,7 +32,7 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 -define('DRIVER_NAME', 'sqlite3_drv').
 -record(state, {port, ops = []}).
@@ -70,24 +70,24 @@ start_link(Db) ->
 %%   read/2, delete/2 and drop_table/1. There can be only one start_link 
 %%   call per node.
 %%
-%%   To open multiple dbases on the same node use open/1 or open/2. 
+%%   To open multiple dbases on the same node use open/1 or open/2.
 %% @end
 %%--------------------------------------------------------------------
 -spec start_link(atom(), [{atom(), any()}]) -> result().
 start_link(Db, Options) ->
     Opts = case proplists:get_value(db, Options) of
-	       undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
-	       _ -> Options
-	   end,
+               undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
+               _ -> Options
+           end,
     ?MODULE:open(Db, Opts).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite3 dbase creating one if necessary. The dbase must be 
-%%   called Db.db in the current path. Can be use to open multiple sqlite3 
+%%   Opens a sqlite3 dbase creating one if necessary. The dbase must be
+%%   called Db.db in the current path. Can be use to open multiple sqlite3
 %%   dbases per node. Must be use in conjunction with stop/1, sql_exec/2,
-%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
+%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3
 %%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
@@ -98,13 +98,13 @@ open(Db) ->
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom(), Options :: [{atom(), any()}]) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite3 dbase creating one if necessary. By default the dbase 
-%%   will be called Db.db in the current path. This can be changed by 
-%%   passing the option {db, DbFile :: String()}. DbFile must be the full 
-%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 dbases 
-%%   per node. Must be use in conjunction with stop/1, sql_exec/2, 
-%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3 
-%%   and drop_table/2. 
+%%   Opens a sqlite3 dbase creating one if necessary. By default the dbase
+%%   will be called Db.db in the current path. This can be changed by
+%%   passing the option {db, DbFile :: String()}. DbFile must be the full
+%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 dbases
+%%   per node. Must be use in conjunction with stop/1, sql_exec/2,
+%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3
+%%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
 -spec open(atom(), [{atom(), any()}]) -> result().
@@ -114,7 +114,7 @@ open(Db, Options) ->
 %%--------------------------------------------------------------------
 %% @spec close(Db :: atom()) -> ok
 %% @doc
-%%   Closes the Db sqlite3 dbase. 
+%%   Closes the Db sqlite3 dbase.
 %% @end
 %%--------------------------------------------------------------------
 -spec close(atom()) -> 'ok'.
@@ -130,7 +130,7 @@ close(Db) ->
 -spec stop() -> 'ok'.
 stop() ->
     ?MODULE:close(?MODULE).
-    
+
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Sql :: iodata()) -> term()
 %% @doc
@@ -144,7 +144,7 @@ sql_exec(SQL) ->
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> any()
 %% @doc
-%%   Executes the Sql statement directly on the Db dbase. Returns the 
+%%   Executes the Sql statement directly on the Db dbase. Returns the
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
@@ -155,7 +155,7 @@ sql_exec(Db, SQL) ->
 %%--------------------------------------------------------------------
 %% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> any()
 %% @doc
-%%   Creates the Tbl table using TblInfo as the table structure. The 
+%%   Creates the Tbl table using TblInfo as the table structure. The
 %%   table structure is a list of {column name, column type} pairs.
 %%   e.g. [{name, text}, {age, integer}]
 %%
@@ -167,8 +167,8 @@ create_table(Tbl, Options) ->
     ?MODULE:create_table(?MODULE, Tbl, Options).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo) -> any()
-%%     TblInfo = [{atom(), atom()}]
+%% @spec create_table(Db :: atom(), Tbl :: atom(), Columns) -> any()
+%%     Columns = [{atom(), atom()}]
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
@@ -269,8 +269,8 @@ write(Db, Tbl, Data) ->
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term()
 %% @doc
-%%    Updates rows into Tbl table such that the Value matches the 
-%%    value in Key with Data. Returns ID of the first updated 
+%%    Updates rows into Tbl table such that the Value matches the
+%%    value in Key with Data. Returns ID of the first updated
 %%    record.
 %% @end
 %%--------------------------------------------------------------------
@@ -284,8 +284,8 @@ update(Tbl, Key, Value, Data) ->
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term()
 %% @doc
-%%    Updates rows into Tbl table in Db dbase such that the Value 
-%%    matches the value in Key with Data. Returns ID of the first 
+%%    Updates rows into Tbl table in Db dbase such that the Value
+%%    matches the value in Key with Data. Returns ID of the first
 %%    updated record.
 %% @end
 %%--------------------------------------------------------------------
@@ -382,7 +382,6 @@ drop_table(Db, Tbl) ->
 
 %%--------------------------------------------------------------------
 %% @spec create_function(Db :: atom(), FunctionName :: atom(), Function :: function()) -> term()
-%%    
 %% @doc
 %%   Creates function under name FunctionName.
 %%
@@ -394,12 +393,12 @@ create_function(Db, FunctionName, Function) ->
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
-%% @doc 
+%% @doc
 %%    Converts an Erlang term to an SQL string.
-%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    Currently supports integers, floats, 'null' atom, and iodata
 %%    (binaries and iolists) which are treated as SQL strings.
 %%
-%%    Note that it opens opportunity for injection if an iolist includes 
+%%    Note that it opens opportunity for injection if an iolist includes
 %%    single quotes! Replace all single quotes (') with '' manually, or
 %%    use value_to_sql/1 if you are not sure if your strings contain
 %%    single quotes (e.g. can be entered by users).
@@ -412,9 +411,9 @@ value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql(Value :: sql_value()) -> iolist()
-%% @doc 
+%% @doc
 %%    Converts an Erlang term to an SQL string.
-%%    Currently supports integers, floats, 'null' atom, and iodata 
+%%    Currently supports integers, floats, 'null' atom, and iodata
 %%    (binaries and iolists) which are treated as SQL strings.
 %%
 %%    All single quotes (') will be replaced with ''.
@@ -443,16 +442,16 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
     {?MODULE, _, FileName} = code:get_object_code(?MODULE),
-    SearchDir = filename:dirname(FileName),
+    SearchDir = filename:join(filename:dirname(FileName), "../priv"),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
-      ok -> 
+      ok ->
         Port = open_port({spawn, string:join([atom_to_list(?DRIVER_NAME), Dbase], " ")}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
         {stop, lists:flatten(Msg)}
     end.
-		     
+
 %%--------------------------------------------------------------------
 %% @spec handle_call(Request, From, State) -> {reply, Reply, State} |
 %%                                      {reply, Reply, State, Timeout} |
@@ -603,15 +602,15 @@ create_cmd(Dbase) ->
 
 wait_result(Port) ->
   receive
-	  {Port, Reply} ->
+    {Port, Reply} ->
       % io:format("Reply: ~p~n", [Reply]),
-	    Reply;
-  {error, Reason} ->
-    io:format("Error: ~p~n", [Reason]),
-    {error, Reason};
-	_Else ->
-    io:format("Else: ~p~n", [_Else]),
-	  _Else
+      Reply;
+    {error, Reason} ->
+      io:format("Error: ~p~n", [Reason]),
+      {error, Reason};
+    _Else ->
+      io:format("Else: ~p~n", [_Else]),
+      _Else
   end.
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
@@ -627,10 +626,10 @@ exec(Port, {sql_exec, Cmd}) ->
 
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
-    Cols = string:tokens(Tail, ","), 
+    Cols = string:tokens(Tail, ","),
     build_table_info(lists:map(fun(X) ->
-				       string:tokens(X, " ") 
-			       end, Cols), []).
+				         string:tokens(X, " ") 
+			         end, Cols), []).
    
 build_table_info([], Acc) -> 
     lists:reverse(Acc);

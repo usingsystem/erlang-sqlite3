@@ -1,7 +1,4 @@
 doc
-config.log
-config.status
-autom4te.cache
 sqlite3.plt
 .svn
 */.svn
@@ -9,3 +6,8 @@ sqlite3.plt
 *.swp
 *~
 erl_crash.dump
+*.o
+.eunit
+*.orig
+ebin
+priv
