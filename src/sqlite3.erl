@@ -437,15 +437,17 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--type init_return() :: {'ok', tuple()} | {'ok', tuple(), integer()} | 'ignore' | {'stop', any()}.
--spec init([any()]) -> init_return().
+
+% -type init_return() :: {'ok', tuple()} | {'ok', tuple(), integer()} | 'ignore' | {'stop', any()}.
+
+-spec init([any()]) -> {'ok', #state{}} | {'stop', string()}.
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
     {?MODULE, _, FileName} = code:get_object_code(?MODULE),
     SearchDir = filename:join(filename:dirname(FileName), "../priv"),
     case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
       ok ->
-        Port = open_port({spawn, string:join([atom_to_list(?DRIVER_NAME), Dbase], " ")}, [binary]),
+        Port = open_port({spawn, create_port_cmd(Dbase)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
@@ -463,10 +465,12 @@ init(Options) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--type handle_call_return() :: {reply, any(), tuple()} | {reply, any(), tuple(), integer()} |
-      {noreply, tuple()} | {noreply, tuple(), integer()} |
-      {stop, any(), any(), tuple()} | {stop, any(), tuple()}.
--spec handle_call(any(), pid(), tuple()) -> handle_call_return().
+
+%% -type handle_call_return() :: {reply, any(), tuple()} | {reply, any(), tuple(), integer()} |
+%%       {noreply, tuple()} | {noreply, tuple(), integer()} |
+%%       {stop, any(), any(), tuple()} | {stop, any(), tuple()}.
+
+-spec handle_call(any(), pid(), #state{}) -> {'reply', any(), #state{}} | {'stop', 'normal', 'ok', #state{}}.
 handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
@@ -546,9 +550,11 @@ handle_call(_Request, _From, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--type handle_cast_return() :: {noreply, tuple()} | {noreply, tuple(), integer()} |
-      {stop, any(), tuple()}.
--spec handle_cast(any(), tuple()) -> handle_cast_return().
+
+%% -type handle_cast_return() :: {noreply, tuple()} | {noreply, tuple(), integer()} |
+%%       {stop, any(), tuple()}.
+
+-spec handle_cast(any(), #state{}) -> {'noreply', #state{}}.
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -560,7 +566,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--spec handle_info(any(), tuple()) -> handle_cast_return().
+-spec handle_info(any(), #state{}) -> {'noreply', #state{}}.
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -597,8 +603,8 @@ code_change(_OldVsn, State, _Extra) ->
 -define(SQL_EXEC_COMMAND, 2).
 -define(SQL_CREATE_FUNCTION, 3).
 
-create_cmd(Dbase) ->
-    "sqlite3_port " ++ Dbase.
+create_port_cmd(Dbase) ->
+    atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
 wait_result(Port) ->
   receive
@@ -663,17 +669,17 @@ build_primary_key_constraint(Tail, Acc) ->
 	{{primary_key, lists:reverse(Acc)}, Tail}.
 
 
-conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
-    Resolution = case ResolutionString of
-                     "ROLLBACK" -> rollback;
-                     "ABORT" -> abort;
-                     "FAIL" -> fail;
-                     "IGNORE" -> ignore;
-                     "REPLACE" -> replace
-				 end,
-    {{on_conflict, Resolution}, Tail};
-conflict_clause(NoOnConflictClause) ->
-    {no_on_conflict, NoOnConflictClause}.
+%% conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
+%%     Resolution = case ResolutionString of
+%%                      "ROLLBACK" -> rollback;
+%%                      "ABORT" -> abort;
+%%                      "FAIL" -> fail;
+%%                      "IGNORE" -> ignore;
+%%                      "REPLACE" -> replace
+%% 				 end,
+%%     {{on_conflict, Resolution}, Tail};
+%% conflict_clause(NoOnConflictClause) ->
+%%     {no_on_conflict, NoOnConflictClause}.
 
 %%--------------------------------------------------------------------
 %% @type sql_value() = number() | 'null' | iodata().

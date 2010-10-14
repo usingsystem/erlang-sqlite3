@@ -1,23 +1,24 @@
 REBAR=./rebar
+REBAR_COMPILE=$(REBAR) get-deps compile
 
 all: compile
 
 compile:
-	$(REBAR) get-deps compile
+	$(REBAR_COMPILE)
 
-test: all
-	$(REBAR) skip_deps=true eunit
+test:
+	$(REBAR_COMPILE) skip_deps=true eunit
 
 clean:
 	-rm -rf deps ebin priv doc/*
 
 docs:
-	$(REBAR) doc
+	$(REBAR_COMPILE) doc
 
 ifeq ($(wildcard dialyzer/sqlite3.plt),)
 static:
-	$(REBAR) build_plt analyze
+	$(REBAR_COMPILE) build_plt analyze
 else
 static:
-	$(REBAR) analyze
+	$(REBAR_COMPILE) analyze
 endif
