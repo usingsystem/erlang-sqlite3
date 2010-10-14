@@ -4,7 +4,6 @@
   {vsn, "1"},
   {modules, []},
   {registered, []},
-  {applications, [kernel, stdlib, crypto, inets, lhttpc]},
-  {mod, {sqlite3, []}},
+  {applications, [kernel, stdlib, crypto, inets]},
   {env, []}
  ]}.
