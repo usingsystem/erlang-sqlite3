@@ -9,7 +9,7 @@ test: all
 	$(REBAR) skip_deps=true eunit
 
 clean:
-	-rm -rf deps ebin priv doc/* ct_run* all_runs.html variables* index.html
+	-rm -rf deps ebin priv doc/*
 
 docs:
 	$(REBAR) doc
