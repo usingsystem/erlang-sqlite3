@@ -336,12 +336,18 @@ sql_number(NumberStr) ->
 			end
 	end.
 
--spec sql_string(string()) -> string().
+-spec sql_string(string()) -> binary().
 sql_string(StringWithEscapedQuotes) ->
-	re:replace(StringWithEscapedQuotes, "'(?!')", "", [global, {return, list}]).
+	Res1 = re:replace(StringWithEscapedQuotes, "''", "'", [global, {return, binary}]),
+	binary_part(Res1, 0, byte_size(Res1) - 1).
 
--spec sql_blob(string()) -> string().
-sql_blob(Blob) -> Blob.
+-spec sql_blob(string()) -> binary().
+sql_blob([$' | Tail]) -> hex_str_to_bin(Tail, <<>>).
+
+hex_str_to_bin("'", Acc) -> 
+	Acc; %% single quote at the end of blob literal 
+hex_str_to_bin([X, Y | Tail], Acc) ->
+	hex_str_to_bin(Tail, <<Acc/binary, (X * 16 + Y)>>).
 
 column_sql_for_create_table({Name, Type}) ->
 	[atom_to_list(Name), " ", col_type_to_string(Type)];
