@@ -78,7 +78,7 @@ select_many_records_test() ->
 	sqlite3:open(ct),
 	drop_table_if_exists(ct, many_records),
     sqlite3:create_table(ct, many_records, [{id, integer}, {name, text}]),
-	lists:foreach(fun(X) -> sqlite3:write(ct, many_records, [{id, X}, {name, "bar"}]) end, lists:seq(1, 1024)),
+	[sqlite3:write(ct, many_records, [{id, X}, {name, "bar"}]) || X <- Seq],
 	Columns = ["id", "name"],
     ?assertEqual(
         [{columns, Columns}, {rows, [{1, <<"bar">>}]}], 
