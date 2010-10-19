@@ -613,10 +613,11 @@ wait_result(Port) ->
       Reply;
     {error, Reason} ->
       io:format("Error: ~p~n", [Reason]),
-      {error, Reason};
-    _Else ->
-      io:format("Else: ~p~n", [_Else]),
-      _Else
+      {error, Reason}
+%%   ;
+%%     _Else ->
+%%       io:format("Else: ~p~n", [_Else]),
+%%       _Else
   end.
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
