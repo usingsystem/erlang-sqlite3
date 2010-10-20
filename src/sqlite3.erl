@@ -493,9 +493,6 @@ init(Options) ->
 handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
-handle_call({sql_exec, SQL}, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, SQL}),
-    {reply, Reply, State};
 handle_call(list_tables, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {sql_exec, "select name from sqlite_master where type='table';"}),
     TableList = proplists:get_value(rows, Reply),
@@ -519,44 +516,42 @@ handle_call({create_function, FunctionName, Function}, _From, #state{port = Port
     % SQL Injection warning
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
-handle_call({create_table, Tbl, Columns}, _From, #state{port = Port} = State) ->
+handle_call({sql_exec, SQL}, _From, State) ->
+	do_handle_sql_exec(SQL, State);
+handle_call({create_table, Tbl, Columns}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
-    Cmd = {sql_exec, SQL},
-    Reply = exec(Port, Cmd),
-    {reply, Reply, State};
-handle_call({create_table, Tbl, Columns, Constraints}, _From, #state{port = Port} = State) ->
+	do_handle_sql_exec(SQL, State);
+handle_call({create_table, Tbl, Columns, Constraints}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns, Constraints),
-    Cmd = {sql_exec, SQL},
-    Reply = exec(Port, Cmd),
-    {reply, Reply, State};
-handle_call({update, Tbl, Key, Value, Data}, _From, #state{port = Port} = State)->
-    Reply = exec(Port, {sql_exec, sqlite3_lib:update_sql(Tbl, Key, Value, Data)}),
-    {reply, Reply, State};
-handle_call({write, Tbl, Data}, _From, #state{port = Port} = State) ->
+	do_handle_sql_exec(SQL, State);
+handle_call({update, Tbl, Key, Value, Data}, _From, State) ->
+	SQL = sqlite3_lib:update_sql(Tbl, Key, Value, Data),
+	do_handle_sql_exec(SQL, State);
+handle_call({write, Tbl, Data}, _From, State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
-    Reply = exec(Port, {sql_exec, sqlite3_lib:write_sql(Tbl, Data)}),
-    {reply, Reply, State};
-handle_call({read, Tbl}, _From, #state{port = Port} = State) ->
+	SQL = sqlite3_lib:write_sql(Tbl, Data),
+	do_handle_sql_exec(SQL, State);
+handle_call({read, Tbl}, _From, State) ->
     % select * from  Tbl where Key = Value;
-    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl)}),
-    {reply, Reply, State};
-handle_call({read, Tbl, Columns}, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Columns)}),
-    {reply, Reply, State};
-handle_call({read, Tbl, Key, Value}, _From, #state{port = Port} = State) ->
+	SQL = sqlite3_lib:read_sql(Tbl),
+	do_handle_sql_exec(SQL, State);
+handle_call({read, Tbl, Columns}, _From, State) ->
+	SQL = sqlite3_lib:read_sql(Tbl, Columns),
+	do_handle_sql_exec(SQL, State);
+handle_call({read, Tbl, Key, Value}, _From, State) ->
     % select * from  Tbl where Key = Value;
-    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value)}),
-    {reply, Reply, State};
-handle_call({read, Tbl, Key, Value, Columns}, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, sqlite3_lib:read_sql(Tbl, Key, Value, Columns)}),
-    {reply, Reply, State};
-handle_call({delete, Tbl, {Key, Value}}, _From, #state{port = Port} = State) ->
+	SQL = sqlite3_lib:read_sql(Tbl, Key, Value),
+	do_handle_sql_exec(SQL, State);
+handle_call({read, Tbl, Key, Value, Columns}, _From, State) ->
+	SQL = sqlite3_lib:read_sql(Tbl, Key, Value, Columns),
+	do_handle_sql_exec(SQL, State);
+handle_call({delete, Tbl, {Key, Value}}, _From, State) ->
     % delete from Tbl where Key = Value;
-    Reply = exec(Port, {sql_exec, sqlite3_lib:delete_sql(Tbl, Key, Value)}),
-    {reply, Reply, State};
-handle_call({drop_table, Tbl}, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, sqlite3_lib:drop_table_sql(Tbl)}),
-    {reply, Reply, State};
+	SQL = sqlite3_lib:delete_sql(Tbl, Key, Value),
+	do_handle_sql_exec(SQL, State);
+handle_call({drop_table, Tbl}, _From, State) ->
+	SQL = sqlite3_lib:drop_table_sql(Tbl),
+	do_handle_sql_exec(SQL, State);
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -625,6 +620,18 @@ code_change(_OldVsn, State, _Extra) ->
 create_port_cmd(Dbase) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
+do_handle_sql_exec(SQL, #state{port = Port} = State) ->
+	Reply = exec(Port, {sql_exec, SQL}),
+	{reply, Reply, State}.
+
+exec(_Port, {create_function, _FunctionName, _Function}) ->
+  error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
+  %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
+  %wait_result(Port);
+exec(Port, {sql_exec, Cmd}) ->
+  port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
+  wait_result(Port).
+
 wait_result(Port) ->
   receive
     %% Messages given at http://www.erlang.org/doc/reference_manual/ports.html
@@ -640,17 +647,6 @@ wait_result(Port) ->
 %%       io:format("Else: ~p~n", [_Else]),
 %%       _Else
   end.
-
-exec(_Port, {create_function, _FunctionName, _Function}) ->
-  error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
-  %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
-  %wait_result(Port);
-
-
-exec(Port, {sql_exec, Cmd}) ->
-  port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
-  wait_result(Port).
-
 
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
