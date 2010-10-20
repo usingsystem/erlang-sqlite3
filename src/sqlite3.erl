@@ -21,8 +21,7 @@
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3]).
 -export([update/4, update/5]).
--export([read/4]).
--export([read/2, read/3]).
+-export([read_all/2, read_all/3, read/2, read/3, read/4]).
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
 
@@ -293,6 +292,26 @@ update(Db, Tbl, Key, Value, Data) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------
+%% @spec read_all(Db :: atom(), Table :: atom()) -> any()
+%% @doc
+%%   Reads all rows from Table in Db.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_all(atom(), atom()) -> any().
+read_all(Db, Tbl) ->
+    gen_server:call(Db, {read, Tbl}).
+
+%%--------------------------------------------------------------------
+%% @spec read(Db :: atom(), Table :: atom(), Columns :: [atom()]) -> any()
+%% @doc
+%%   Reads Columns in all rows from Table in Db.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_all(atom(), atom(), [atom()]) -> any().
+read_all(Db, Tbl, Columns) ->
+    gen_server:call(Db, {read, Tbl, Columns}).
+
+%%--------------------------------------------------------------------
 %% @spec read(Tbl :: atom(), Key) -> [any()]
 %%         Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
@@ -315,8 +334,8 @@ read(Tbl, Key) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(atom(), atom(), {atom(), any()}) -> any().
-read(Db, Tbl, {Key, Value}) ->
-    gen_server:call(Db, {read, Tbl, Key, Value}).
+read(Db, Tbl, {Column, Value}) ->
+    gen_server:call(Db, {read, Tbl, Column, Value}).
 
 %%--------------------------------------------------------------------
 %% @spec read(Db, Tbl, Key, Columns) -> [any()]
@@ -608,11 +627,13 @@ create_port_cmd(Dbase) ->
 
 wait_result(Port) ->
   receive
+    %% Messages given at http://www.erlang.org/doc/reference_manual/ports.html
     {Port, Reply} ->
       % io:format("Reply: ~p~n", [Reply]),
       Reply;
-    {error, Reason} ->
-      io:format("Error: ~p~n", [Reason]),
+    {'EXIT', Port, Reason} ->
+      error_logger:error_msg("sqlite3 driver port closed with reason~p~n", [Reason]),
+      % io:format("Error: ~p~n", [Reason]),
       {error, Reason}
 %%   ;
 %%     _Else ->

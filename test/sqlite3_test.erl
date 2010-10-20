@@ -58,6 +58,12 @@ basic_functionality_test() ->
         [{columns, Columns}, {rows, AllRows}], 
         sqlite3:sql_exec(ct, "select * from user;")),
     ?assertEqual(
+        [{columns, Columns}, {rows, AllRows}], 
+        sqlite3:read_all(ct, user)),
+    ?assertEqual(
+        [{columns, ["name"]}, {rows, [{<<"abby">>}, {<<"marge">>}]}], 
+        sqlite3:read_all(ct, user, [name])),
+    ?assertEqual(
         [{columns, Columns}, {rows, AbbyOnly}], 
         sqlite3:read(ct, user, {name, "abby"})),
     ?assertEqual(
