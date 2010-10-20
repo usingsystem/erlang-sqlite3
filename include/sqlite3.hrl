@@ -1,2 +1,15 @@
+-ifdef(DEBUG).
+-include_lib("eunit/include/eunit.hrl"). %% for debugging macros
+-else.
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl"). %% for debugging macros
+-else.
+-define(debugMsg(_Message), ok).
+-define(debugFmt(_Format, _Data), ok).
+-define(debugVal(Expr), Expr).
+-define(debugTime(_Text, Expr), Expr).
+-endif.
+-endif.
+
 -define(NULL_ATOM, null).
 -type(sql_value() :: number() | ?NULL_ATOM | iodata()).

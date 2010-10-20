@@ -629,11 +629,11 @@ wait_result(Port) ->
   receive
     %% Messages given at http://www.erlang.org/doc/reference_manual/ports.html
     {Port, Reply} ->
-      % io:format("Reply: ~p~n", [Reply]),
+      % ?debugFmt("Reply: ~p~n", [Reply]),
       Reply;
     {'EXIT', Port, Reason} ->
       error_logger:error_msg("sqlite3 driver port closed with reason~p~n", [Reason]),
-      % io:format("Error: ~p~n", [Reason]),
+      ?debugFmt("Error: ~p~n", [Reason]),
       {error, Reason}
 %%   ;
 %%     _Else ->
