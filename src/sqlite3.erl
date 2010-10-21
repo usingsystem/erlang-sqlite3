@@ -494,7 +494,8 @@ handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
 handle_call(list_tables, _From, #state{port = Port} = State) ->
-    Reply = exec(Port, {sql_exec, "select name from sqlite_master where type='table';"}),
+	SQL = "select name from sqlite_master where type='table';",
+    Reply = exec(Port, {sql_exec, SQL}),
     TableList = proplists:get_value(rows, Reply),
     TableNames = [erlang:list_to_atom(erlang:binary_to_list(Name)) || {Name} <- TableList],
     {reply, TableNames, State};
@@ -621,7 +622,7 @@ create_port_cmd(Dbase) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
 do_handle_sql_exec(SQL, #state{port = Port} = State) ->
-	% ?debugFmt("~s~n", [SQL]),
+	?dbg("SQL: ~s~n", [SQL]),
 	Reply = exec(Port, {sql_exec, SQL}),
 	{reply, Reply, State}.
 
@@ -637,20 +638,16 @@ wait_result(Port) ->
   receive
     %% Messages given at http://www.erlang.org/doc/reference_manual/ports.html
     {Port, Reply} ->
-      % ?debugFmt("Reply: ~p~n", [Reply]),
+      % ?dbg("Reply: ~p~n", [Reply]),
       Reply;
 	{error, Reason} ->
-      error_logger:error_msg("sqlite3 driver port closed with reason~p~n", [Reason]),
-      % ?debugFmt("Error: ~p~n", [Reason]),
+      error_logger:error_msg("sqlite3 driver error: ~s~n", [Reason]),
+      % ?dbg("Error: ~p~n", [Reason]),
       {error, Reason};
     {'EXIT', Port, Reason} ->
-      error_logger:error_msg("sqlite3 driver port closed with reason~p~n", [Reason]),
-      % ?debugFmt("Error: ~p~n", [Reason]),
+      error_logger:error_msg("sqlite3 driver port closed with reason ~p~n", [Reason]),
+      % ?dbg("Error: ~p~n", [Reason]),
       {error, Reason}
-%%   ;
-%%     _Else ->
-%%       io:format("Else: ~p~n", [_Else]),
-%%       _Else
   end.
 
 parse_table_info(Info) ->
@@ -690,7 +687,6 @@ build_primary_key_constraint(Tail, []) ->
 	{primary_key, Tail};
 build_primary_key_constraint(Tail, Acc) ->
 	{{primary_key, lists:reverse(Acc)}, Tail}.
-
 
 %% conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
 %%     Resolution = case ResolutionString of
