@@ -621,6 +621,7 @@ create_port_cmd(Dbase) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
 do_handle_sql_exec(SQL, #state{port = Port} = State) ->
+	% ?debugFmt("~s~n", [SQL]),
 	Reply = exec(Port, {sql_exec, SQL}),
 	{reply, Reply, State}.
 
@@ -638,9 +639,13 @@ wait_result(Port) ->
     {Port, Reply} ->
       % ?debugFmt("Reply: ~p~n", [Reply]),
       Reply;
+	{error, Reason} ->
+      error_logger:error_msg("sqlite3 driver port closed with reason~p~n", [Reason]),
+      % ?debugFmt("Error: ~p~n", [Reason]),
+      {error, Reason};
     {'EXIT', Port, Reason} ->
       error_logger:error_msg("sqlite3 driver port closed with reason~p~n", [Reason]),
-      ?debugFmt("Error: ~p~n", [Reason]),
+      % ?debugFmt("Error: ~p~n", [Reason]),
       {error, Reason}
 %%   ;
 %%     _Else ->
