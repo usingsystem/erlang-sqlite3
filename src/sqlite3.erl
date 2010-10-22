@@ -19,11 +19,12 @@
 
 -export([create_table/2, create_table/3, create_table/4]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
--export([write/2, write/3]).
+-export([write/2, write/3, write_many/2, write_many/3]).
 -export([update/4, update/5]).
 -export([read_all/2, read_all/3, read/2, read/3, read/4]).
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
+-export([begin_transaction/1, commit_transaction/1, rollback_transaction/1]).
 
 -export([create_function/3]).
 
@@ -262,6 +263,30 @@ write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
 %%--------------------------------------------------------------------
+%% @spec write_many(Tbl :: atom(), Data) -> any()
+%%         Data = [[{Column :: atom(), Value :: sql_value()}]]
+%% @doc
+%%   Write all records in Data into table Tbl. Value must be of the 
+%%   same type as determined from table_info/2.
+%% @end
+%%--------------------------------------------------------------------
+-spec write_many(atom(), [[{atom(), sql_value()}]]) -> any().
+write_many(Tbl, Data) ->
+    write_many(?MODULE, Tbl, Data).
+
+%%--------------------------------------------------------------------
+%% @spec write_many(Db :: atom(), Tbl :: atom(), Data) -> term()
+%%         Data = [[{Column :: atom(), Value :: sql_value()}]]
+%% @doc
+%%   Write all records in Data into table Tbl in database Db. Value 
+%%   must be of the same type as determined from table_info/3.
+%% @end
+%%--------------------------------------------------------------------
+-spec write_many(atom(), atom(), [[{atom(), sql_value()}]]) -> any().
+write_many(Db, Tbl, Data) ->
+    gen_server:call(Db, {write_many, Tbl, Data}).
+
+%%--------------------------------------------------------------------
 %% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> Result
 %%        Value = any()
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
@@ -411,6 +436,39 @@ create_function(Db, FunctionName, Function) ->
     gen_server:call(Db, {create_function, FunctionName, Function}).
 
 %%--------------------------------------------------------------------
+%% @spec begin_transaction(Db :: atom()) -> term()
+%% @doc
+%%   Begins a transaction in Db.
+%% @end
+%%--------------------------------------------------------------------
+-spec begin_transaction(atom()) -> any().
+begin_transaction(Db) ->
+    SQL = "BEGIN;",
+    sql_exec(Db, SQL).
+
+%%--------------------------------------------------------------------
+%% @spec commit_transaction(Db :: atom()) -> term()
+%% @doc
+%%   Commits the current transaction in Db.
+%% @end
+%%--------------------------------------------------------------------
+-spec commit_transaction(atom()) -> any().
+commit_transaction(Db) ->
+    SQL = "COMMIT;",
+    sql_exec(Db, SQL).
+
+%%--------------------------------------------------------------------
+%% @spec rollback_transaction(Db :: atom()) -> term()
+%% @doc
+%%   Rolls back the current transaction in Db.
+%% @end
+%%--------------------------------------------------------------------
+-spec rollback_transaction(atom()) -> any().
+rollback_transaction(Db) ->
+    SQL = "ROLLBACK;",
+    sql_exec(Db, SQL).
+
+%%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
 %% @doc
 %%    Converts an Erlang term to an SQL string.
@@ -493,17 +551,17 @@ init(Options) ->
 handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
-handle_call(list_tables, _From, #state{port = Port} = State) ->
+handle_call(list_tables, _From, State) ->
 	SQL = "select name from sqlite_master where type='table';",
-    Reply = exec(Port, {sql_exec, SQL}),
-    TableList = proplists:get_value(rows, Reply),
+    Data = do_sql_exec(SQL, State),
+    TableList = proplists:get_value(rows, Data),
     TableNames = [erlang:list_to_atom(erlang:binary_to_list(Name)) || {Name} <- TableList],
     {reply, TableNames, State};
-handle_call({table_info, Tbl}, _From, #state{port = Port} = State) ->
+handle_call({table_info, Tbl}, _From, State) ->
     % make sure we only get table info.
     % SQL Injection warning
     SQL = io_lib:format("select sql from sqlite_master where tbl_name = '~p' and type='table';", [Tbl]),
-    Data = exec(Port, {sql_exec, SQL}),
+    Data = do_sql_exec(SQL, State),
     TableSql = proplists:get_value(rows, Data),
     case TableSql of
         [{Info}] ->
@@ -518,41 +576,45 @@ handle_call({create_function, FunctionName, Function}, _From, #state{port = Port
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
 handle_call({sql_exec, SQL}, _From, State) ->
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({create_table, Tbl, Columns}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({create_table, Tbl, Columns, Constraints}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns, Constraints),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({update, Tbl, Key, Value, Data}, _From, State) ->
 	SQL = sqlite3_lib:update_sql(Tbl, Key, Value, Data),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({write, Tbl, Data}, _From, State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
 	SQL = sqlite3_lib:write_sql(Tbl, Data),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
+handle_call({write_many, Tbl, DataList}, _From, State) ->
+    do_sql_exec("BEGIN;", State),
+    [do_sql_exec(sqlite3_lib:write_sql(Tbl, Data), State) || Data <- DataList],
+    do_handle_call_sql_exec("COMMIT;", State);
 handle_call({read, Tbl}, _From, State) ->
     % select * from  Tbl where Key = Value;
 	SQL = sqlite3_lib:read_sql(Tbl),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({read, Tbl, Columns}, _From, State) ->
 	SQL = sqlite3_lib:read_sql(Tbl, Columns),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({read, Tbl, Key, Value}, _From, State) ->
     % select * from  Tbl where Key = Value;
 	SQL = sqlite3_lib:read_sql(Tbl, Key, Value),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({read, Tbl, Key, Value, Columns}, _From, State) ->
 	SQL = sqlite3_lib:read_sql(Tbl, Key, Value, Columns),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({delete, Tbl, {Key, Value}}, _From, State) ->
     % delete from Tbl where Key = Value;
 	SQL = sqlite3_lib:delete_sql(Tbl, Key, Value),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call({drop_table, Tbl}, _From, State) ->
 	SQL = sqlite3_lib:drop_table_sql(Tbl),
-	do_handle_sql_exec(SQL, State);
+	do_handle_call_sql_exec(SQL, State);
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -621,10 +683,14 @@ code_change(_OldVsn, State, _Extra) ->
 create_port_cmd(Dbase) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
-do_handle_sql_exec(SQL, #state{port = Port} = State) ->
+do_handle_call_sql_exec(SQL, State) ->
 	?dbg("SQL: ~s~n", [SQL]),
-	Reply = exec(Port, {sql_exec, SQL}),
+	Reply = do_sql_exec(SQL, State),
 	{reply, Reply, State}.
+
+do_sql_exec(SQL, #state{port = Port}) ->
+    ?dbg("SQL: ~s~n", [SQL]),
+    exec(Port, {sql_exec, SQL}).
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
   error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);

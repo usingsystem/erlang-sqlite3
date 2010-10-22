@@ -7,14 +7,13 @@
 %%%-------------------------------------------------------------------
 -module(sqlite3_test).
 
-%%====================================================================
+%% ====================================================================
 %% API
-%%====================================================================
-%%--------------------------------------------------------------------
+%% ====================================================================
+%% --------------------------------------------------------------------
 %% Function: 
 %% Description:
-%%--------------------------------------------------------------------
--ifdef(TEST).
+%% --------------------------------------------------------------------
 -include_lib("eunit/include/eunit.hrl").
 
 drop_all_tables(Db) ->
@@ -84,7 +83,10 @@ select_many_records_test() ->
 	sqlite3:open(ct),
 	drop_table_if_exists(ct, many_records),
     sqlite3:create_table(ct, many_records, [{id, integer}, {name, text}]),
-	[sqlite3:write(ct, many_records, [{id, X}, {name, "bar"}]) || X <- lists:seq(1, 1024)], %% takes very long :(
+    sqlite3:write_many(ct, many_records, [[{id, X}, {name, "bar"}] || X <- lists:seq(1, 1024)]),
+%%     sqlite3:begin_transaction(ct),
+%% 	[sqlite3:write(ct, many_records, [{id, X}, {name, "bar"}]) || X <- lists:seq(1, 1024)], %% takes very long :(
+%%     sqlite3:commit_transaction(ct),
 	Columns = ["id", "name"],
     ?assertEqual(
         [{columns, Columns}, {rows, [{1, <<"bar">>}]}], 
@@ -107,8 +109,6 @@ nonexistent_table_info_test() ->
 	sqlite3:open(ct),
 	?assertEqual(table_does_not_exist, sqlite3:table_info(ct, nonexistent)),
 	sqlite3:close(ct).
-	
--endif.
 
 % create, read, update, delete
 %%====================================================================
