@@ -65,12 +65,12 @@ col_type_to_atom("REAL") ->
 %%--------------------------------------------------------------------
 -spec value_to_sql_unsafe(sql_value()) -> iolist().
 value_to_sql_unsafe(X) ->
-	if
-		is_integer(X)   -> integer_to_list(X);
-		is_float(X)     -> float_to_list(X);
-		X == ?NULL_ATOM -> "NULL";
-		true            -> [$', X, $'] %% assumes no $' inside strings!
-	end.
+    if
+        is_integer(X)   -> integer_to_list(X);
+        is_float(X)     -> float_to_list(X);
+        X == ?NULL_ATOM -> "NULL";
+        true            -> [$', X, $'] %% assumes no $' inside strings!
+    end.
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql(Value :: sql_value()) -> iolist()
@@ -84,12 +84,12 @@ value_to_sql_unsafe(X) ->
 %%--------------------------------------------------------------------
 -spec value_to_sql(sql_value()) -> iolist().
 value_to_sql(X) ->
-	if
-		is_integer(X)   -> integer_to_list(X);
-		is_float(X)     -> float_to_list(X);
-		X == ?NULL_ATOM -> "NULL";
-		true            -> [$', escape(X), $']
-	end.
+    if
+        is_integer(X)   -> integer_to_list(X);
+        is_float(X)     -> float_to_list(X);
+        X == ?NULL_ATOM -> "NULL";
+        true            -> [$', escape(X), $']
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -99,21 +99,21 @@ value_to_sql(X) ->
 %% @end
 %%--------------------------------------------------------------------
 sql_to_value(String) ->
-	case String of
-		"NULL" -> null;
-		"CURRENT_TIME" -> current_time;
-		"CURRENT_DATE" -> current_date;
-		"CURRENT_TIMESTAMP" -> current_timestamp;
-		[FirstChar | Tail] ->
-			case FirstChar of
-				$' -> sql_string(Tail);
-				$x -> sql_blob(Tail);
-				$X -> sql_blob(Tail);
-				$+ -> sql_number(Tail);
-				$- -> -sql_number(Tail);
-				Digit when $0 =< Digit, Digit =< $9 -> sql_number(Tail)
-			end
-	end.
+    case String of
+        "NULL" -> null;
+        "CURRENT_TIME" -> current_time;
+        "CURRENT_DATE" -> current_date;
+        "CURRENT_TIMESTAMP" -> current_timestamp;
+        [FirstChar | Tail] ->
+            case FirstChar of
+                $' -> sql_string(Tail);
+                $x -> sql_blob(Tail);
+                $X -> sql_blob(Tail);
+                $+ -> sql_number(Tail);
+                $- -> -sql_number(Tail);
+                Digit when $0 =< Digit, Digit =< $9 -> sql_number(Tail)
+            end
+    end.
 
 %%--------------------------------------------------------------------
 %% @spec write_value_sql(Value :: [sql_value()]) -> iolist()
@@ -125,7 +125,7 @@ sql_to_value(String) ->
 write_value_sql(Values) ->
     map_intersperse(fun value_to_sql/1, Values, ", ").
 
-	
+    
 %%--------------------------------------------------------------------
 %% @spec write_col_sql([atom()]) -> iolist()
 %% @doc Creates the column/data stmt for SQL.
@@ -154,8 +154,8 @@ escape(IoData) -> re:replace(IoData, "'", "''", [global]).
 -spec update_set_sql([{atom(), sql_value()}]) -> iolist().
 update_set_sql(Data) ->
   ColValueToSqlFun =
-	fun({Col, Value}) ->
-		[atom_to_list(Col), " = ", value_to_sql(Value)]
+    fun({Col, Value}) ->
+        [atom_to_list(Col), " = ", value_to_sql(Value)]
     end,
   map_intersperse(ColValueToSqlFun, Data, ", ").
 
@@ -199,8 +199,8 @@ create_table_sql(Tbl, Columns) ->
 create_table_sql(Tbl, Columns, TblConstraints) ->
     ["CREATE TABLE ", atom_to_list(Tbl), " (",
      map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ", ",
-	 map_intersperse(fun table_constraint_sql/1, TblConstraints, ", "), 
-	 ");"].
+     map_intersperse(fun table_constraint_sql/1, TblConstraints, ", "), 
+     ");"].
 
 %%--------------------------------------------------------------------
 %% @spec update_sql(Tbl, Key, Value, Data) -> iolist()
@@ -217,7 +217,7 @@ create_table_sql(Tbl, Columns, TblConstraints) ->
 -spec update_sql(atom(), atom(), sql_value(), [{atom(), sql_value()}]) -> iolist().
 update_sql(Tbl, Key, Value, Data) ->
     ["UPDATE ", atom_to_list(Tbl), " SET ", update_set_sql(Data), 
-	 " WHERE ", atom_to_list(Key), " = ", value_to_sql(Value), ";"].
+     " WHERE ", atom_to_list(Key), " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec write_sql(Tbl, Data) -> iolist()
@@ -231,7 +231,7 @@ update_sql(Tbl, Key, Value, Data) ->
 write_sql(Tbl, Data) ->
     {Cols, Values} = lists:unzip(Data),
     ["INSERT INTO ", atom_to_list(Tbl), " (", write_col_sql(Cols), 
-	 ") values (", write_value_sql(Values), ");"].
+     ") values (", write_value_sql(Values), ");"].
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl) -> iolist()
@@ -254,7 +254,7 @@ read_sql(Tbl) ->
 -spec read_sql(atom(), [atom()]) -> iolist().
 read_sql(Tbl, Columns) ->
     ["SELECT ", read_cols_sql(Columns), " FROM ",
-	 atom_to_list(Tbl), ";"].
+     atom_to_list(Tbl), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value) -> iolist()
@@ -268,7 +268,7 @@ read_sql(Tbl, Columns) ->
 -spec read_sql(atom(), atom(), sql_value()) -> iolist().
 read_sql(Tbl, Key, Value) ->
     ["SELECT * FROM ", atom_to_list(Tbl), " WHERE ", atom_to_list(Key), 
-	 " = ", value_to_sql(Value), ";"].
+     " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl, Key, Value, Columns) -> iolist()
@@ -284,8 +284,8 @@ read_sql(Tbl, Key, Value) ->
 -spec read_sql(atom(), atom(), sql_value(), [atom()]) -> iolist().
 read_sql(Tbl, Key, Value, Columns) ->
     ["SELECT ", read_cols_sql(Columns), " FROM ",
-	 atom_to_list(Tbl), " WHERE ", atom_to_list(Key), " = ", 
-	 value_to_sql(Value), ";"].
+     atom_to_list(Tbl), " WHERE ", atom_to_list(Key), " = ", 
+     value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec delete_sql(Tbl, Key, Value) -> iolist()
@@ -299,7 +299,7 @@ read_sql(Tbl, Key, Value, Columns) ->
 -spec delete_sql(atom(), atom(), sql_value()) -> iolist().
 delete_sql(Tbl, Key, Value) ->
     ["DELETE FROM ", atom_to_list(Tbl), " WHERE ", atom_to_list(Key), 
-	 " = ", value_to_sql(Value), ";"].
+     " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
 %% @spec drop_table_sql(Tbl) -> iolist()
@@ -324,54 +324,54 @@ map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fu
 
 -spec sql_number(string()) -> number() | {error, not_a_number}.
 sql_number(NumberStr) ->
-	case string:to_integer(NumberStr) of
-		{Int, []} -> 
-			Int;
-		Other -> 
-			case string:to_float(NumberStr) of
-				{Float, []} ->
-					Float;
-				Other ->
-					{error, not_a_number}
-			end
-	end.
+    case string:to_integer(NumberStr) of
+        {Int, []} -> 
+            Int;
+        Other -> 
+            case string:to_float(NumberStr) of
+                {Float, []} ->
+                    Float;
+                Other ->
+                    {error, not_a_number}
+            end
+    end.
 
 -spec sql_string(string()) -> binary().
 sql_string(StringWithEscapedQuotes) ->
-	Res1 = re:replace(StringWithEscapedQuotes, "''", "'", [global, {return, binary}]),
-	binary_part(Res1, 0, byte_size(Res1) - 1).
+    Res1 = re:replace(StringWithEscapedQuotes, "''", "'", [global, {return, binary}]),
+    binary_part(Res1, 0, byte_size(Res1) - 1).
 
 -spec sql_blob(string()) -> binary().
 sql_blob([$' | Tail]) -> hex_str_to_bin(Tail, <<>>).
 
 hex_str_to_bin("'", Acc) -> 
-	Acc; %% single quote at the end of blob literal 
+    Acc; %% single quote at the end of blob literal 
 hex_str_to_bin([X, Y | Tail], Acc) ->
-	hex_str_to_bin(Tail, <<Acc/binary, (X * 16 + Y)>>).
+    hex_str_to_bin(Tail, <<Acc/binary, (X * 16 + Y)>>).
 
 column_sql_for_create_table({Name, Type}) ->
-	[atom_to_list(Name), " ", col_type_to_string(Type)];
+    [atom_to_list(Name), " ", col_type_to_string(Type)];
 column_sql_for_create_table({Name, Type, Constraints}) ->
-	[atom_to_list(Name), " ", col_type_to_string(Type), 
-	 " " | map_intersperse(fun constraint_sql/1, Constraints, " ")].
+    [atom_to_list(Name), " ", col_type_to_string(Type), 
+     " " | map_intersperse(fun constraint_sql/1, Constraints, " ")].
 
 -spec constraint_sql(any()) -> iolist().
 constraint_sql(Constraint) ->
-	case Constraint of
-		primary_key -> "PRIMARY KEY";
-		{primary_key, desc} -> "PRIMARY KEY DESC";
-		unique -> "UNIQUE";
-		not_null -> "NOT NULL";
-		{default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)]
-	end.
+    case Constraint of
+        primary_key -> "PRIMARY KEY";
+        {primary_key, desc} -> "PRIMARY KEY DESC";
+        unique -> "UNIQUE";
+        not_null -> "NOT NULL";
+        {default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)]
+    end.
 
 -spec table_constraint_sql(any()) -> iolist().
 table_constraint_sql(TableConstraint) ->
-	case TableConstraint of
-		{primary_key, Columns} -> ["PRIMARY KEY(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
-		{unique, Columns} -> ["UNIQUE(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"]
-		%% TODO: foreign key
-	end.
+    case TableConstraint of
+        {primary_key, Columns} -> ["PRIMARY KEY(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
+        {unique, Columns} -> ["UNIQUE(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"]
+        %% TODO: foreign key
+    end.
 
 indexed_column_sql({ColumnName, asc}) -> [atom_to_list(ColumnName), " ASC"];
 indexed_column_sql({ColumnName, desc}) -> [atom_to_list(ColumnName), " DESC"];
@@ -395,49 +395,49 @@ indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 -define(assertFlat(Expected, Value), ?assertEqual(iolist_to_binary(Expected), iolist_to_binary(Value))).
 
 quote_test() ->
-	?assertFlat("'abc'", value_to_sql("abc")),
-	?assertFlat("'a''b''''c'", value_to_sql("a'b''c")).
+    ?assertFlat("'abc'", value_to_sql("abc")),
+    ?assertFlat("'a''b''''c'", value_to_sql("a'b''c")).
 
 create_table_sql_test() ->
-	?assertFlat(
-		"CREATE TABLE user (id INTEGER PRIMARY KEY, name TEXT);",
-		create_table_sql(user, [{id, integer, [primary_key]}, {name, text}])),
-	?assertFlat(
-		"CREATE TABLE user (id INTEGER, name TEXT, PRIMARY KEY(id));",
-		create_table_sql(user, [{id, integer}, {name, text}], [{primary_key, [id]}])).
+    ?assertFlat(
+        "CREATE TABLE user (id INTEGER PRIMARY KEY, name TEXT);",
+        create_table_sql(user, [{id, integer, [primary_key]}, {name, text}])),
+    ?assertFlat(
+        "CREATE TABLE user (id INTEGER, name TEXT, PRIMARY KEY(id));",
+        create_table_sql(user, [{id, integer}, {name, text}], [{primary_key, [id]}])).
 
 update_sql_test() ->
-	?assertFlat(
-		"UPDATE user SET name = 'a' WHERE id = 1;",
-		update_sql(user, id, 1, [{name, "a"}])).
+    ?assertFlat(
+        "UPDATE user SET name = 'a' WHERE id = 1;",
+        update_sql(user, id, 1, [{name, "a"}])).
 
 write_sql_test() ->
-	?assertFlat(
-		"INSERT INTO user (id, name) values (1, 'a');",
-		write_sql(user, [{id, 1}, {name, "a"}])).
+    ?assertFlat(
+        "INSERT INTO user (id, name) values (1, 'a');",
+        write_sql(user, [{id, 1}, {name, "a"}])).
 
 read_sql_test() ->
-	?assertFlat(
-		"SELECT * FROM user;",
-		read_sql(user)),
-	?assertFlat(
-		"SELECT id, name FROM user;",
-		read_sql(user, [id, name])),
-	?assertFlat(
-		"SELECT * FROM user WHERE id = 1;",
-		read_sql(user, id, 1)),
-	?assertFlat(
-		"SELECT id, name FROM user WHERE id = 1;",
-		read_sql(user, id, 1, [id, name])).
+    ?assertFlat(
+        "SELECT * FROM user;",
+        read_sql(user)),
+    ?assertFlat(
+        "SELECT id, name FROM user;",
+        read_sql(user, [id, name])),
+    ?assertFlat(
+        "SELECT * FROM user WHERE id = 1;",
+        read_sql(user, id, 1)),
+    ?assertFlat(
+        "SELECT id, name FROM user WHERE id = 1;",
+        read_sql(user, id, 1, [id, name])).
 
 delete_sql_test() ->
-	?assertFlat(
-		"DELETE FROM user WHERE id = 1;",
-		delete_sql(user, id, 1)).
+    ?assertFlat(
+        "DELETE FROM user WHERE id = 1;",
+        delete_sql(user, id, 1)).
 
 drop_table_sql_test() ->
-	?assertFlat(
-		"DROP TABLE user;",
-		drop_table_sql(user)).
+    ?assertFlat(
+        "DROP TABLE user;",
+        drop_table_sql(user)).
 
 -endif.

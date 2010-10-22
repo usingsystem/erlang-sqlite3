@@ -552,7 +552,7 @@ handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
 handle_call(list_tables, _From, State) ->
-	SQL = "select name from sqlite_master where type='table';",
+    SQL = "select name from sqlite_master where type='table';",
     Data = do_sql_exec(SQL, State),
     TableList = proplists:get_value(rows, Data),
     TableNames = [erlang:list_to_atom(erlang:binary_to_list(Name)) || {Name} <- TableList],
@@ -576,45 +576,45 @@ handle_call({create_function, FunctionName, Function}, _From, #state{port = Port
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
 handle_call({sql_exec, SQL}, _From, State) ->
-	do_handle_call_sql_exec(SQL, State);
+    do_handle_call_sql_exec(SQL, State);
 handle_call({create_table, Tbl, Columns}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
-	do_handle_call_sql_exec(SQL, State);
+    do_handle_call_sql_exec(SQL, State);
 handle_call({create_table, Tbl, Columns, Constraints}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns, Constraints),
-	do_handle_call_sql_exec(SQL, State);
+    do_handle_call_sql_exec(SQL, State);
 handle_call({update, Tbl, Key, Value, Data}, _From, State) ->
-	SQL = sqlite3_lib:update_sql(Tbl, Key, Value, Data),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:update_sql(Tbl, Key, Value, Data),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({write, Tbl, Data}, _From, State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
-	SQL = sqlite3_lib:write_sql(Tbl, Data),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:write_sql(Tbl, Data),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({write_many, Tbl, DataList}, _From, State) ->
     do_sql_exec("BEGIN;", State),
     [do_sql_exec(sqlite3_lib:write_sql(Tbl, Data), State) || Data <- DataList],
     do_handle_call_sql_exec("COMMIT;", State);
 handle_call({read, Tbl}, _From, State) ->
     % select * from  Tbl where Key = Value;
-	SQL = sqlite3_lib:read_sql(Tbl),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:read_sql(Tbl),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({read, Tbl, Columns}, _From, State) ->
-	SQL = sqlite3_lib:read_sql(Tbl, Columns),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:read_sql(Tbl, Columns),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({read, Tbl, Key, Value}, _From, State) ->
     % select * from  Tbl where Key = Value;
-	SQL = sqlite3_lib:read_sql(Tbl, Key, Value),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:read_sql(Tbl, Key, Value),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({read, Tbl, Key, Value, Columns}, _From, State) ->
-	SQL = sqlite3_lib:read_sql(Tbl, Key, Value, Columns),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:read_sql(Tbl, Key, Value, Columns),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({delete, Tbl, {Key, Value}}, _From, State) ->
     % delete from Tbl where Key = Value;
-	SQL = sqlite3_lib:delete_sql(Tbl, Key, Value),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:delete_sql(Tbl, Key, Value),
+    do_handle_call_sql_exec(SQL, State);
 handle_call({drop_table, Tbl}, _From, State) ->
-	SQL = sqlite3_lib:drop_table_sql(Tbl),
-	do_handle_call_sql_exec(SQL, State);
+    SQL = sqlite3_lib:drop_table_sql(Tbl),
+    do_handle_call_sql_exec(SQL, State);
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -684,8 +684,8 @@ create_port_cmd(Dbase) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
 do_handle_call_sql_exec(SQL, State) ->
-	Reply = do_sql_exec(SQL, State),
-	{reply, Reply, State}.
+    Reply = do_sql_exec(SQL, State),
+    {reply, Reply, State}.
 
 do_sql_exec(SQL, #state{port = Port}) ->
     ?dbg("SQL: ~s~n", [SQL]),
@@ -705,7 +705,7 @@ wait_result(Port) ->
     {Port, Reply} ->
       % ?dbg("Reply: ~p~n", [Reply]),
       Reply;
-	{error, Reason} ->
+    {error, Reason} ->
       error_logger:error_msg("sqlite3 driver error: ~s~n", [Reason]),
       % ?dbg("Error: ~p~n", [Reason]),
       {error, Reason};
@@ -719,8 +719,8 @@ parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
     Cols = string:tokens(Tail, ","),
     build_table_info(lists:map(fun(X) ->
-				         string:tokens(X, " ") 
-			         end, Cols), []).
+                         string:tokens(X, " ") 
+                     end, Cols), []).
    
 build_table_info([], Acc) -> 
     lists:reverse(Acc);
@@ -732,8 +732,8 @@ build_table_info([[ColName, ColType | Constraints] | Tl], Acc) ->
 %% TODO conflict-clause parsing
 build_constraints([]) -> [];
 build_constraints(["PRIMARY", "KEY" | Tail]) -> 
-	{Constraint, Rest} = build_primary_key_constraint(Tail),
-	[Constraint | build_constraints(Rest)];
+    {Constraint, Rest} = build_primary_key_constraint(Tail),
+    [Constraint | build_constraints(Rest)];
 build_constraints(["UNIQUE" | Tail]) -> [unique | build_constraints(Tail)];
 build_constraints(["NOT", "NULL" | Tail]) -> [not_null | build_constraints(Tail)];
 build_constraints(["DEFAULT", DefaultValue | Tail]) -> [{default, sqlite3_lib:sql_to_value(DefaultValue)} | build_constraints(Tail)].
@@ -743,15 +743,15 @@ build_constraints(["DEFAULT", DefaultValue | Tail]) -> [{default, sqlite3_lib:sq
 build_primary_key_constraint(Tokens) -> build_primary_key_constraint(Tokens, []).
 
 build_primary_key_constraint(["ASC" | Rest], Acc) ->
-	build_primary_key_constraint(Rest, [asc | Acc]);
+    build_primary_key_constraint(Rest, [asc | Acc]);
 build_primary_key_constraint(["DESC" | Rest], Acc) ->
-	build_primary_key_constraint(Rest, [desc | Acc]);
+    build_primary_key_constraint(Rest, [desc | Acc]);
 build_primary_key_constraint(["AUTOINCREMENT" | Rest], Acc) ->
-	build_primary_key_constraint(Rest, [autoincrement | Acc]);
+    build_primary_key_constraint(Rest, [autoincrement | Acc]);
 build_primary_key_constraint(Tail, []) ->
-	{primary_key, Tail};
+    {primary_key, Tail};
 build_primary_key_constraint(Tail, Acc) ->
-	{{primary_key, lists:reverse(Acc)}, Tail}.
+    {{primary_key, lists:reverse(Acc)}, Tail}.
 
 %% conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
 %%     Resolution = case ResolutionString of
@@ -760,7 +760,7 @@ build_primary_key_constraint(Tail, Acc) ->
 %%                      "FAIL" -> fail;
 %%                      "IGNORE" -> ignore;
 %%                      "REPLACE" -> replace
-%% 				 end,
+%%                  end,
 %%     {{on_conflict, Resolution}, Tail};
 %% conflict_clause(NoOnConflictClause) ->
 %%     {no_on_conflict, NoOnConflictClause}.
