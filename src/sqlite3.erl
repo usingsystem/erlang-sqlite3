@@ -57,7 +57,7 @@
 -spec start_link(atom()) -> result().
 
 start_link(Db) ->
-    ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
+    open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
 %%--------------------------------------------------------------------
 %% @spec start_link(Db :: atom(), Options) -> {ok, Pid :: pid()} | ignore | {error, Error}
@@ -79,7 +79,7 @@ start_link(Db, Options) ->
                undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
                _ -> Options
            end,
-    ?MODULE:open(Db, Opts).
+    open(Db, Opts).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
@@ -93,7 +93,7 @@ start_link(Db, Options) ->
 %%--------------------------------------------------------------------
 -spec open(atom()) -> result().
 open(Db) ->
-    ?MODULE:open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
+    open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom(), Options :: [{atom(), any()}]) -> {ok, Pid :: pid()} | ignore | {error, Error}
@@ -129,7 +129,7 @@ close(Db) ->
 %%--------------------------------------------------------------------
 -spec stop() -> 'ok'.
 stop() ->
-    ?MODULE:close(?MODULE).
+    close(?MODULE).
 
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Sql :: iodata()) -> term()
@@ -139,7 +139,7 @@ stop() ->
 %%--------------------------------------------------------------------
 -spec sql_exec(iodata()) -> any().
 sql_exec(SQL) ->
-    ?MODULE:sql_exec(?MODULE, SQL).
+    sql_exec(?MODULE, SQL).
 
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> any()
@@ -164,7 +164,7 @@ sql_exec(Db, SQL) ->
 %%--------------------------------------------------------------------
 -spec create_table(atom(), [{atom(), atom()}]) -> any().
 create_table(Tbl, Options) ->
-    ?MODULE:create_table(?MODULE, Tbl, Options).
+    create_table(?MODULE, Tbl, Options).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Db :: atom(), Tbl :: atom(), Columns) -> any()
@@ -206,7 +206,7 @@ create_table(Db, Tbl, Columns, Constraints) ->
 %%--------------------------------------------------------------------
 -spec list_tables() -> [atom()].
 list_tables() ->
-    ?MODULE:list_tables(?MODULE).
+    list_tables(?MODULE).
 
 %%--------------------------------------------------------------------
 %% @spec list_tables(Db :: atom()) -> [atom()]
@@ -226,7 +226,7 @@ list_tables(Db) ->
 %%--------------------------------------------------------------------
 -spec table_info(atom()) -> [any()].
 table_info(Tbl) ->
-    ?MODULE:table_info(?MODULE, Tbl).
+    table_info(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
 %% @spec table_info(Db :: atom(), Tbl :: atom()) -> [any()]
@@ -248,7 +248,7 @@ table_info(Db, Tbl) ->
 %%--------------------------------------------------------------------
 -spec write(atom(), [{atom(), sql_value()}]) -> any().
 write(Tbl, Data) ->
-    ?MODULE:write(?MODULE, Tbl, Data).
+    write(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
 %% @spec write(Db :: atom(), Tbl :: atom(), Data) -> term()
@@ -299,7 +299,7 @@ write_many(Db, Tbl, Data) ->
 %% @end
 %%--------------------------------------------------------------------
 update(Tbl, Key, Value, Data) ->
-  ?MODULE:update(?MODULE, Tbl, Key, Value, Data).
+  update(?MODULE, Tbl, Key, Value, Data).
 
 %%--------------------------------------------------------------------
 %% @spec update(Db :: atom(), Tbl :: atom(), Key :: atom(), Value, Data) -> Result
@@ -347,7 +347,7 @@ read_all(Db, Tbl, Columns) ->
 %%--------------------------------------------------------------------
 -spec read(atom(), {atom(), any()}) -> any().
 read(Tbl, Key) ->
-    ?MODULE:read(?MODULE, Tbl, Key).
+    read(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
 %% @spec read(Db :: atom(), Tbl :: atom(), Key) -> [any()]
@@ -388,7 +388,7 @@ read(Db, Tbl, {Key, Value}, Columns) ->
 %%--------------------------------------------------------------------
 -spec delete(atom(), {atom(), any()}) -> any().
 delete(Tbl, Key) ->
-    ?MODULE:delete(?MODULE, Tbl, Key).
+    delete(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
 %% @spec delete(Db :: atom(), Tbl :: atom(), Key) -> any()
@@ -411,7 +411,7 @@ delete(Db, Tbl, Key) ->
 %%--------------------------------------------------------------------
 -spec drop_table(atom()) -> any().
 drop_table(Tbl) ->
-    ?MODULE:drop_table(?MODULE, Tbl).
+    drop_table(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
 %% @spec drop_table(Db :: atom(), Tbl :: atom()) -> any()

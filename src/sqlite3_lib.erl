@@ -230,8 +230,8 @@ update_sql(Tbl, Key, Value, Data) ->
 -spec write_sql(atom(), [{atom(), sql_value()}]) -> iolist().
 write_sql(Tbl, Data) ->
     {Cols, Values} = lists:unzip(Data),
-    ["INSERT INTO ", atom_to_list(Tbl), " (", sqlite3_lib:write_col_sql(Cols), 
-	 ") values (", sqlite3_lib:write_value_sql(Values), ");"].
+    ["INSERT INTO ", atom_to_list(Tbl), " (", write_col_sql(Cols), 
+	 ") values (", write_value_sql(Values), ");"].
 
 %%--------------------------------------------------------------------
 %% @spec read_sql(Tbl) -> iolist()
@@ -253,7 +253,7 @@ read_sql(Tbl) ->
 %%--------------------------------------------------------------------
 -spec read_sql(atom(), [atom()]) -> iolist().
 read_sql(Tbl, Columns) ->
-    ["SELECT ", sqlite3_lib:read_cols_sql(Columns), " FROM ",
+    ["SELECT ", read_cols_sql(Columns), " FROM ",
 	 atom_to_list(Tbl), ";"].
 
 %%--------------------------------------------------------------------
@@ -283,7 +283,7 @@ read_sql(Tbl, Key, Value) ->
 %%--------------------------------------------------------------------
 -spec read_sql(atom(), atom(), sql_value(), [atom()]) -> iolist().
 read_sql(Tbl, Key, Value, Columns) ->
-    ["SELECT ", sqlite3_lib:read_cols_sql(Columns), " FROM ",
+    ["SELECT ", read_cols_sql(Columns), " FROM ",
 	 atom_to_list(Tbl), " WHERE ", atom_to_list(Key), " = ", 
 	 value_to_sql(Value), ";"].
 
