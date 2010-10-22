@@ -684,7 +684,6 @@ create_port_cmd(Dbase) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
 
 do_handle_call_sql_exec(SQL, State) ->
-	?dbg("SQL: ~s~n", [SQL]),
 	Reply = do_sql_exec(SQL, State),
 	{reply, Reply, State}.
 
