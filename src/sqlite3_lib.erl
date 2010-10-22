@@ -392,7 +392,7 @@ indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 -include_lib("eunit/include/eunit.hrl").
 
 -define(FLAT(X), iolist_to_binary(X)).
--define(assertFlat(Expected, Value), ?assertEqual(?FLAT(Expected), ?FLAT(Value))).
+-define(assertFlat(Expected, Value), ?assertEqual(iolist_to_binary(Expected), iolist_to_binary(Value))).
 
 quote_test() ->
 	?assertFlat("'abc'", value_to_sql("abc")),
