@@ -520,9 +520,8 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 -spec init([any()]) -> {'ok', #state{}} | {'stop', string()}.
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
-    {?MODULE, _, FileName} = code:get_object_code(?MODULE),
-    SearchDir = filename:join(filename:dirname(FileName), "../priv"),
-    case erl_ddll:load(SearchDir, atom_to_list(?DRIVER_NAME)) of
+    PrivDir = get_priv_dir(),
+    case erl_ddll:load(PrivDir, atom_to_list(?DRIVER_NAME)) of
       ok ->
         Port = open_port({spawn, create_port_cmd(Dbase)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
@@ -676,6 +675,16 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
+
+get_priv_dir() ->
+    case code:priv_dir(sqlite3) of
+        {error, bad_name} ->
+            %% application isn't in path, fall back
+            {?MODULE, _, FileName} = code:get_object_code(?MODULE),
+            filename:join(filename:dirname(FileName), "../priv");
+        Dir ->
+            Dir
+    end.
 
 -define(SQL_EXEC_COMMAND, 2).
 -define(SQL_CREATE_FUNCTION, 3).
