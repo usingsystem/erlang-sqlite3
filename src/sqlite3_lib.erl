@@ -11,7 +11,7 @@
 
 %% API
 -export([col_type_to_atom/1]).
--export([value_to_sql/1, value_to_sql_unsafe/1, sql_to_value/1, escape/1]).
+-export([value_to_sql/1, value_to_sql_unsafe/1, sql_to_value/1, escape/1, bin_to_hex/1]).
 -export([write_value_sql/1, write_col_sql/1]).
 -export([create_table_sql/2, create_table_sql/3, drop_table_sql/1]). 
 -export([write_sql/2, update_sql/4, update_set_sql/1, delete_sql/3]).
@@ -34,6 +34,8 @@ col_type_to_string(double) ->
     "REAL";
 col_type_to_string(real) ->
     "REAL";
+col_type_to_string(blob) ->
+    "BLOB";
 col_type_to_string(String) when is_list(String) ->
     String.
 
@@ -48,7 +50,9 @@ col_type_to_atom("INTEGER") ->
 col_type_to_atom("TEXT") ->
     text;
 col_type_to_atom("REAL") ->
-    double.
+    double;
+col_type_to_atom("BLOB") ->
+    blob.
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
@@ -65,11 +69,12 @@ col_type_to_atom("REAL") ->
 %%--------------------------------------------------------------------
 -spec value_to_sql_unsafe(sql_value()) -> iolist().
 value_to_sql_unsafe(X) ->
-    if
-        is_integer(X)   -> integer_to_list(X);
-        is_float(X)     -> float_to_list(X);
-        X == ?NULL_ATOM -> "NULL";
-        true            -> [$', X, $'] %% assumes no $' inside strings!
+    case X of
+        _ when is_integer(X)   -> integer_to_list(X);
+        _ when is_float(X)     -> float_to_list(X);
+        ?NULL_ATOM -> "NULL";
+        {blob, Blob} -> ["x'", bin_to_hex(Blob), $'];
+        _            -> [$', X, $'] %% assumes no $' inside strings!
     end.
 
 %%--------------------------------------------------------------------
@@ -84,13 +89,13 @@ value_to_sql_unsafe(X) ->
 %%--------------------------------------------------------------------
 -spec value_to_sql(sql_value()) -> iolist().
 value_to_sql(X) ->
-    if
-        is_integer(X)   -> integer_to_list(X);
-        is_float(X)     -> float_to_list(X);
-        X == ?NULL_ATOM -> "NULL";
-        true            -> [$', escape(X), $']
+    case X of
+        _ when is_integer(X)   -> integer_to_list(X);
+        _ when is_float(X)     -> float_to_list(X);
+        ?NULL_ATOM -> "NULL";
+        {blob, Blob} -> ["x'", bin_to_hex(Blob), $'];
+        _            -> [$', escape(X), $']
     end.
-
 
 %%--------------------------------------------------------------------
 %% @spec sql_to_value(String :: string()) -> sql_value()
@@ -143,6 +148,16 @@ write_col_sql(Cols) ->
 %%--------------------------------------------------------------------
 -spec escape(iodata()) -> iodata().
 escape(IoData) -> re:replace(IoData, "'", "''", [global]).
+
+%%--------------------------------------------------------------------
+%% @spec bin_to_hex(Binary :: binary()) -> binary()
+%% 
+%% @doc Converts a plain binary to its hexadecimal encoding, to be
+%%      passed as a blob literal.
+%% @end
+%%--------------------------------------------------------------------
+-spec bin_to_hex(iodata()) -> binary().
+bin_to_hex(Binary) -> << <<(half_byte_to_hex(X)):8>> || <<X:4>> <= Binary>>.
 
 %%--------------------------------------------------------------------
 %% @spec update_set_sql([{Column :: atom(), Value :: sql_value()}]) -> iolist()
@@ -321,6 +336,9 @@ drop_table_sql(Tbl) ->
 map_intersperse(_Fun, [], _Sep) -> [];
 map_intersperse(Fun, [Elem], _Sep) -> [Fun(Elem)];
 map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fun, Tail, Sep)].
+
+half_byte_to_hex(X) when X < 10 -> $0 + X;
+half_byte_to_hex(X) -> $a + X - 10.
 
 -spec sql_number(string()) -> number() | {error, not_a_number}.
 sql_number(NumberStr) ->

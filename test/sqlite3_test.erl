@@ -79,6 +79,16 @@ basic_functionality_test() ->
         sqlite3:drop_table(ct, user)),
     sqlite3:close(ct).
 
+blob_test() ->
+    sqlite3:open(ct),
+    drop_table_if_exists(ct, blobs),
+    sqlite3:create_table(ct, blobs, [{blob_col, blob}]),
+    sqlite3:write(ct, blobs, [{blob_col, {blob, <<0,255,1,2>>}}]),
+    ?assertEqual(
+        [{columns, ["blob_col"]}, {rows, [{<<0,255,1,2>>}]}], 
+        sqlite3:read_all(ct, blobs)),
+    sqlite3:close(ct).
+
 select_many_records_test() ->
     sqlite3:open(ct),
     drop_table_if_exists(ct, many_records),
