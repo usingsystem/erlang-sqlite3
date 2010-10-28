@@ -89,6 +89,19 @@ blob_test() ->
         sqlite3:read_all(ct, blobs)),
     sqlite3:close(ct).
 
+escaping_test() ->
+    sqlite3:open(ct),
+    drop_table_if_exists(ct, escaping),
+    sqlite3:create_table(ct, escaping, [{str, text}]),
+    Strings = ["a'", "b\"c", "d''e", "f\"\""],
+    Input = [[{str, String}] || String <- Strings],
+    ExpectedRows = [{list_to_binary(String)} || String <- Strings],
+    sqlite3:write_many(ct, escaping, Input),
+    ?assertEqual(
+        [{columns, ["str"]}, {rows, ExpectedRows}], 
+        sqlite3:read_all(ct, escaping)),
+    sqlite3:close(ct).
+
 select_many_records_test() ->
     sqlite3:open(ct),
     drop_table_if_exists(ct, many_records),
