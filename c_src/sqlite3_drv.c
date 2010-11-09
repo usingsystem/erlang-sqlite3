@@ -253,7 +253,7 @@ static void sql_exec_async(void *_async_command) {
           term_count += 2;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
           dataset[term_count - 2] = ERL_DRV_INT64;
-          dataset[term_count - 1] = &int64s[int64_count - 1];
+          dataset[term_count - 1] = (ErlDrvTermData)&int64s[int64_count - 1];
           break;
         }
         case SQLITE_FLOAT: {
