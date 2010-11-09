@@ -161,6 +161,9 @@ static void sql_free_async(void *_async_command)
   
   async_command->driver_data->async_handle = 0;
   
+  if (async_command->int64s) {
+    free(async_command->int64s);
+  }
   if (async_command->floats) {
     free(async_command->floats);
   }
@@ -188,6 +191,9 @@ static void sql_exec_async(void *_async_command) {
   char *error = NULL;
   char *rest = NULL;
   sqlite3_stmt *statement = async_command->statement;
+
+  sqlite3_int64 *int64s = NULL;
+  int int64_count = 0;
   
   double *floats = NULL;
   int float_count = 0;
@@ -240,10 +246,14 @@ static void sql_exec_async(void *_async_command) {
       // fflush (drv->log);
       switch (sqlite3_column_type(statement, i)) {
         case SQLITE_INTEGER: {
+          int64_count++;
+          int64s = realloc(int64s, sizeof(sqlite3_int64) * int64_count);
+          int64s[int64_count - 1] = sqlite3_column_int64(statement, i);
+
           term_count += 2;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
-          dataset[term_count - 2] = ERL_DRV_INT;
-          dataset[term_count - 1] = sqlite3_column_int(statement, i);
+          dataset[term_count - 2] = ERL_DRV_INT64;
+          dataset[term_count - 1] = &int64s[int64_count - 1];
           break;
         }
         case SQLITE_FLOAT: {
@@ -327,7 +337,7 @@ static void sql_exec_async(void *_async_command) {
 
   } else if (strcasestr(sqlite3_sql(statement), "INSERT"))  {
     
-    long long rowid = sqlite3_last_insert_rowid(drv->db);
+    sqlite3_int64 rowid = sqlite3_last_insert_rowid(drv->db);
     term_count += 6;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[term_count - 6] = ERL_DRV_ATOM;

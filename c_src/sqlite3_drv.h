@@ -48,6 +48,7 @@ typedef struct async_sqlite3_command {
   double *floats;
   int binaries_count;
   ErlDrvBinary **binaries;
+  sqlite3_int64 *int64s;
 } async_sqlite3_command;
 
 

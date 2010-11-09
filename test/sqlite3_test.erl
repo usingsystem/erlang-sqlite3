@@ -133,6 +133,13 @@ nonexistent_table_info_test() ->
     ?assertEqual(table_does_not_exist, sqlite3:table_info(ct, nonexistent)),
     sqlite3:close(ct).
 
+large_number_test() ->
+    sqlite3:open(ct),
+    N1 = 4294967295,
+    N2 = (N1 + 1) div 2,
+    Query1 = io_lib:format("select ~p, ~p", [N1, N2]),
+    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))).
+
 % create, read, update, delete
 %%====================================================================
 %% Internal functions
