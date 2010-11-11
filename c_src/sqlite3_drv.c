@@ -42,17 +42,17 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   struct sqlite3 *db = 0;
   int status = 0;
 
-  retval->log = fopen ("/tmp/erlang-sqlite3-drv.log", "a+");
+  retval->log = fopen("/tmp/erlang-sqlite3-drv.log", "a+");
   if (!retval->log) {
-    fprintf (stderr, "Can't create log file\n");
+    fprintf(stderr, "Can't create log file\n");
   }
 
-  fprintf (retval->log, "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
+  fprintf(retval->log, "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
 
 
-  const char *db_name = strstr (cmd, " ");
+  const char *db_name = strstr(cmd, " ");
   if (!db_name) {
-    fprintf (retval->log, "ERROR: DB name should be passed at command line\n");
+    fprintf(retval->log, "ERROR: DB name should be passed at command line\n");
     db_name = DB_PATH;
   } else {
     ++db_name;
@@ -73,15 +73,15 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->db = db;
   retval->key = 42; //FIXME: Just a magic number, make real key
 
-  retval->atom_error = driver_mk_atom ("error");
-  retval->atom_columns = driver_mk_atom ("columns");
-  retval->atom_rows = driver_mk_atom ("rows");
-  retval->atom_null = driver_mk_atom ("null");
-  retval->atom_id = driver_mk_atom ("id");
-  retval->atom_ok = driver_mk_atom ("ok");
-  retval->atom_unknown_cmd = driver_mk_atom ("unknown_command");
+  retval->atom_error = driver_mk_atom("error");
+  retval->atom_columns = driver_mk_atom("columns");
+  retval->atom_rows = driver_mk_atom("rows");
+  retval->atom_null = driver_mk_atom("null");
+  retval->atom_id = driver_mk_atom("id");
+  retval->atom_ok = driver_mk_atom("ok");
+  retval->atom_unknown_cmd = driver_mk_atom("unknown_command");
   
-  fflush (retval->log);
+  fflush(retval->log);
   return (ErlDrvData) retval;
 }
 
@@ -114,11 +114,11 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 
 
 static inline int return_error(sqlite3_drv_t *drv, const char *error, ErlDrvTermData **spec, int *terms_count) {
-  *spec = (ErlDrvTermData *)calloc(7, sizeof(ErlDrvTermData));
+  *spec = (ErlDrvTermData *) calloc(7, sizeof(ErlDrvTermData));
   (*spec)[0] = ERL_DRV_ATOM;
   (*spec)[1] = drv->atom_error;
   (*spec)[2] = ERL_DRV_STRING;
-  (*spec)[3] = (ErlDrvTermData)error;
+  (*spec)[3] = (ErlDrvTermData) error;
   (*spec)[4] = strlen(error);
   (*spec)[5] = ERL_DRV_TUPLE;
   (*spec)[6] = 2;
@@ -134,7 +134,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   
   // fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
   // fflush (drv->log);
-  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
+  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **) &rest);
   if(result != SQLITE_OK) { 
     ErlDrvTermData *dataset;
     int term_count;
@@ -143,7 +143,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
     return 0;
   }
   
-  async_sqlite3_command *async_command = (async_sqlite3_command *)calloc(1, sizeof(async_sqlite3_command));
+  async_sqlite3_command *async_command = (async_sqlite3_command *) malloc(sizeof(async_sqlite3_command));
   async_command->driver_data = drv;
   async_command->statement = statement;
 
@@ -154,7 +154,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
     drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
   } else {
     sql_exec_async(async_command);
-    ready_async((ErlDrvData)drv, (ErlDrvThreadData)async_command);
+    ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
     sql_free_async(async_command);
   }
   return 0;
@@ -163,7 +163,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 static void sql_free_async(void *_async_command)
 {
   int i;
-  async_sqlite3_command *async_command = (async_sqlite3_command *)_async_command;
+  async_sqlite3_command *async_command = (async_sqlite3_command *) _async_command;
   free(async_command->dataset);
   
   async_command->driver_data->async_handle = 0;
@@ -172,7 +172,7 @@ static void sql_free_async(void *_async_command)
   for (i = 0; i < async_command->binaries_count; i++) {
     driver_free_binary(async_command->binaries[i]);
   }
-  if(async_command->binaries) {
+  if (async_command->binaries) {
     free(async_command->binaries);
   }
   if (async_command->statement) {
@@ -183,7 +183,7 @@ static void sql_free_async(void *_async_command)
 
   
 static void sql_exec_async(void *_async_command) {
-  async_sqlite3_command *async_command = (async_sqlite3_command *)_async_command;
+  async_sqlite3_command *async_command = (async_sqlite3_command *) _async_command;
   ErlDrvTermData *dataset = async_command->dataset;
   int term_count = async_command->term_count;
   int row_count = async_command->row_count;
@@ -216,13 +216,13 @@ static void sql_exec_async(void *_async_command) {
     dataset[base] = ERL_DRV_ATOM;
     dataset[base + 1] = drv->atom_columns;
     for (i = 0; i < column_count; i++) {
-      char *column_name = (char *)sqlite3_column_name(statement, i);
+      const char *column_name = sqlite3_column_name(statement, i);
       // fprintf(drv->log, "Column: %s\n", column_name);
       // fflush (drv->log);
 
       dataset[base + 2 + (i*3)] = ERL_DRV_STRING;
       dataset[base + 2 + (i*3) + 1] = (ErlDrvTermData) column_name;
-      dataset[base + 2 + (i*3) + 2] = strlen (column_name);
+      dataset[base + 2 + (i*3) + 2] = strlen(column_name);
     }
     dataset[base + 2 + column_count*3 + 0] = ERL_DRV_NIL;
     dataset[base + 2 + column_count*3 + 1] = ERL_DRV_LIST;
@@ -277,14 +277,14 @@ static void sql_exec_async(void *_async_command) {
           term_count += 4;
           dataset = realloc(dataset, sizeof(*dataset) * term_count);
           dataset[term_count - 4] = ERL_DRV_BINARY;
-          dataset[term_count - 3] = (ErlDrvTermData)binaries[binaries_count - 1];
+          dataset[term_count - 3] = (ErlDrvTermData) binaries[binaries_count - 1];
           dataset[term_count - 2] = bytes;
           dataset[term_count - 1] = 0;
           break;
         }
         case SQLITE_NULL: {
           term_count += 2;
-          dataset = realloc (dataset, sizeof (*dataset) * term_count);
+          dataset = realloc (dataset, sizeof(*dataset) * term_count);
           dataset[term_count - 2] = ERL_DRV_ATOM;
           dataset[term_count - 1] = drv->atom_null;
           break;
@@ -371,7 +371,7 @@ static void sql_exec_async(void *_async_command) {
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
 {
-  async_sqlite3_command *async_command = (async_sqlite3_command *)thread_data;
+  async_sqlite3_command *async_command = (async_sqlite3_command *) thread_data;
   sqlite3_drv_t *drv = async_command->driver_data;
   
   int res = driver_output_term(drv->port, async_command->dataset, async_command->term_count);
@@ -384,8 +384,8 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
 static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   // Return {error, unknown_command}
   ErlDrvTermData spec[] = {ERL_DRV_ATOM, drv->atom_error,
-			   ERL_DRV_ATOM, drv->atom_unknown_cmd,
-			   ERL_DRV_TUPLE, 2};
+                           ERL_DRV_ATOM, drv->atom_unknown_cmd,
+                           ERL_DRV_TUPLE, 2};
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
 
@@ -395,51 +395,51 @@ static int print_dataset(ErlDrvTermData *dataset, int term_count) {
   int i;
   printf("dataset (%d terms):\n", term_count);
   for (i = 1; i < term_count; i++) {
-	dataset++;
-	newData = *dataset;
-	switch (lastData) {
-	case ERL_DRV_INT:
-		printf("int: %ld\n", (ErlDrvSInt) newData);
-		break;
-	case ERL_DRV_INT64:
-		printf("int64: %p:%lld\n", (void *) newData, *(ErlDrvSInt64 *) newData);
-		break;
-	case ERL_DRV_FLOAT:
-		printf("int64: %p:%f\n", (void *) newData, *(double *) newData);
-		break;
-//	case ERL_DRV_TUPLE:
-//		printf("tuple of size %d\n", (int) newData);
-//		break;
-//	case ERL_DRV_LIST:
-//		printf("list of length %d\n", (int) newData);
-//		break;
-	default:
-		break;
-	}
-	lastData = newData;
+    dataset++;
+    newData = *dataset;
+    switch (lastData) {
+      case ERL_DRV_INT:
+        printf("int: %ld\n", (ErlDrvSInt) newData);
+        break;
+      case ERL_DRV_INT64:
+        printf("int64: %p:%lld\n", (void *) newData, *(ErlDrvSInt64 *) newData);
+        break;
+      case ERL_DRV_FLOAT:
+        printf("int64: %p:%f\n", (void *) newData, *(double *) newData);
+        break;
+      case ERL_DRV_TUPLE:
+        printf("tuple of size %d\n", (int) newData);
+        break;
+      case ERL_DRV_LIST:
+        printf("list of length %d\n", (int) newData);
+        break;
+      default:
+        break;
+    }
+    lastData = newData;
   }
   return 0;
 }
 
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr) {
-	ptr_list* new_node = malloc(sizeof(ptr_list));
-	new_node->head = value_ptr;
-	new_node->tail = NULL;
-	if (list) {
-		list->tail = new_node;
-		return list;
-	}
-	else {
-		return new_node;
-	}
+  ptr_list* new_node = malloc(sizeof(ptr_list));
+  new_node->head = value_ptr;
+  new_node->tail = NULL;
+  if (list) {
+    list->tail = new_node;
+    return list;
+  }
+  else {
+    return new_node;
+  }
 }
 
 static inline void free_ptr_list(ptr_list *list) {
-	ptr_list* tail;
-	while (list) {
-		tail = list->tail;
-		free(list->head);
-		free(list);
-		list = tail;
-	}
+  ptr_list* tail;
+  while (list) {
+    tail = list->tail;
+    free(list->head);
+    free(list);
+    list = tail;
+  }
 }
