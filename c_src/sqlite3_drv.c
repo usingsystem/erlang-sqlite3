@@ -188,8 +188,9 @@ static void sql_free_async(void *_async_command) {
 static void sql_exec_async(void *_async_command) {
   async_sqlite3_command *async_command =
     (async_sqlite3_command *) _async_command;
-  ErlDrvTermData *dataset = async_command->dataset;
   int term_count = async_command->term_count;
+  int term_allocated = term_count <= 4 ? 4 : term_count;
+  ErlDrvTermData *dataset = malloc(sizeof(*dataset) * term_allocated);
   int row_count = async_command->row_count;
   sqlite3_drv_t *drv = async_command->driver_data;
 
@@ -205,17 +206,24 @@ static void sql_exec_async(void *_async_command) {
   int i;
 
   column_count = sqlite3_column_count(statement);
-  dataset = NULL;
 
   term_count += 2;
-  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  if (term_count > term_allocated) {
+    term_allocated =
+      (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+    dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+  }
   dataset[term_count - 2] = ERL_DRV_PORT;
   dataset[term_count - 1] = driver_mk_port(drv->port);
 
   if (column_count > 0) {
     int base = term_count;
     term_count += 2 + column_count * 3 + 1 + 2 + 2 + 2;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
+    if (term_count > term_allocated) {
+      term_allocated =
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
     dataset[base] = ERL_DRV_ATOM;
     dataset[base + 1] = drv->atom_columns;
     for (i = 0; i < column_count; i++) {
@@ -251,7 +259,11 @@ static void sql_exec_async(void *_async_command) {
         ptrs = add_to_ptr_list(ptrs, int64_ptr);
 
         term_count += 2;
-        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        if (term_count > term_allocated) {
+          term_allocated =
+            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
         dataset[term_count - 2] = ERL_DRV_INT64;
         dataset[term_count - 1] = (ErlDrvTermData) int64_ptr;
         break;
@@ -262,7 +274,11 @@ static void sql_exec_async(void *_async_command) {
         ptrs = add_to_ptr_list(ptrs, float_ptr);
 
         term_count += 2;
-        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        if (term_count > term_allocated) {
+          term_allocated =
+            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
         dataset[term_count - 2] = ERL_DRV_FLOAT;
         dataset[term_count - 1] = (ErlDrvTermData) float_ptr;
         break;
@@ -279,7 +295,11 @@ static void sql_exec_async(void *_async_command) {
                sqlite3_column_blob(statement, i), bytes);
 
         term_count += 4;
-        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        if (term_count > term_allocated) {
+          term_allocated =
+            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
         dataset[term_count - 4] = ERL_DRV_BINARY;
         dataset[term_count - 3] =
           (ErlDrvTermData) binaries[binaries_count - 1];
@@ -289,7 +309,11 @@ static void sql_exec_async(void *_async_command) {
       }
       case SQLITE_NULL: {
         term_count += 2;
-        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        if (term_count > term_allocated) {
+          term_allocated =
+            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
         dataset[term_count - 2] = ERL_DRV_ATOM;
         dataset[term_count - 1] = drv->atom_null;
         break;
@@ -297,7 +321,11 @@ static void sql_exec_async(void *_async_command) {
       }
     }
     term_count += 2;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
+    if (term_count > term_allocated) {
+      term_allocated =
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
     dataset[term_count - 2] = ERL_DRV_TUPLE;
     dataset[term_count - 1] = column_count;
 
@@ -320,26 +348,30 @@ static void sql_exec_async(void *_async_command) {
   }
 
   if (column_count > 0) {
-    term_count += 3;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
-    dataset[term_count - 3] = ERL_DRV_NIL;
-    dataset[term_count - 2] = ERL_DRV_LIST;
-    dataset[term_count - 1] = row_count + 1;
+    term_count += 3+2+3;
+    if (term_count > term_allocated) {
+      term_allocated =
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
+    dataset[term_count - 8] = ERL_DRV_NIL;
+    dataset[term_count - 7] = ERL_DRV_LIST;
+    dataset[term_count - 6] = row_count + 1;
 
-    term_count += 2;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
-    dataset[term_count - 2] = ERL_DRV_TUPLE;
-    dataset[term_count - 1] = 2;
+    dataset[term_count - 5] = ERL_DRV_TUPLE;
+    dataset[term_count - 4] = 2;
 
-    term_count += 3;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[term_count - 3] = ERL_DRV_NIL;
     dataset[term_count - 2] = ERL_DRV_LIST;
     dataset[term_count - 1] = 3;
   } else if (strcasestr(sqlite3_sql(statement), "INSERT")) {
     sqlite3_int64 rowid = sqlite3_last_insert_rowid(drv->db);
     term_count += 6;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
+    if (term_count > term_allocated) {
+      term_allocated =
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
     dataset[term_count - 6] = ERL_DRV_ATOM;
     dataset[term_count - 5] = drv->atom_id;
     dataset[term_count - 4] = ERL_DRV_INT;
@@ -348,7 +380,11 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 1] = 2;
   } else {
     term_count += 6;
-    dataset = realloc(dataset, sizeof(*dataset) * term_count);
+    if (term_count > term_allocated) {
+      term_allocated =
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
     dataset[term_count - 6] = ERL_DRV_ATOM;
     dataset[term_count - 5] = drv->atom_ok;
     dataset[term_count - 4] = ERL_DRV_INT;
@@ -358,7 +394,11 @@ static void sql_exec_async(void *_async_command) {
   }
 
   term_count += 2;
-  dataset = realloc(dataset, sizeof(*dataset) * term_count);
+  if (term_count > term_allocated) {
+    term_allocated =
+      (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+    dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+  }
   dataset[term_count - 2] = ERL_DRV_TUPLE;
   dataset[term_count - 1] = 2;
 
