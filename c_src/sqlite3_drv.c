@@ -6,26 +6,26 @@
 #endif
 
 static ErlDrvEntry basic_driver_entry = {
-    NULL,                             /* init */
-    start,                            /* startup (defined below) */
-    stop,                             /* shutdown (defined below) */
-    NULL,                             /* output */
-    NULL,                             /* ready_input */
-    NULL,                             /* ready_output */
-    "sqlite3_drv",                    /* the name of the driver */
-    NULL,                             /* finish */
-    NULL,                             /* handle */
-    control,                          /* control */
-    NULL,                             /* timeout */
-    NULL,                             /* outputv (defined below) */
-    ready_async,                      /* ready_async */
-    NULL,                             /* flush */
-    NULL,                             /* call */
-    NULL,                             /* event */
-    ERL_DRV_EXTENDED_MARKER,          /* ERL_DRV_EXTENDED_MARKER */
-    ERL_DRV_EXTENDED_MAJOR_VERSION,   /* ERL_DRV_EXTENDED_MAJOR_VERSION */
-    ERL_DRV_EXTENDED_MAJOR_VERSION,   /* ERL_DRV_EXTENDED_MINOR_VERSION */
-    ERL_DRV_FLAG_USE_PORT_LOCKING     /* ERL_DRV_FLAGs */
+    NULL, /* init */
+    start, /* startup (defined below) */
+    stop, /* shutdown (defined below) */
+    NULL, /* output */
+    NULL, /* ready_input */
+    NULL, /* ready_output */
+    "sqlite3_drv", /* the name of the driver */
+    NULL, /* finish */
+    NULL, /* handle */
+    control, /* control */
+    NULL, /* timeout */
+    NULL, /* outputv */
+    ready_async, /* ready_async (defined below) */
+    NULL, /* flush */
+    NULL, /* call */
+    NULL, /* event */
+    ERL_DRV_EXTENDED_MARKER, /* ERL_DRV_EXTENDED_MARKER */
+    ERL_DRV_EXTENDED_MAJOR_VERSION, /* ERL_DRV_EXTENDED_MAJOR_VERSION */
+    ERL_DRV_EXTENDED_MAJOR_VERSION, /* ERL_DRV_EXTENDED_MINOR_VERSION */
+    ERL_DRV_FLAG_USE_PORT_LOCKING /* ERL_DRV_FLAGs */
 };
 
 DRIVER_INIT(basic_driver) {
@@ -42,20 +42,21 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   struct sqlite3 *db = 0;
   int status = 0;
 
-  retval->log = fopen ("/tmp/erlang-sqlite3-drv.log", "a+");
+  retval->log = fopen("/tmp/erlang-sqlite3-drv.log", "a+");
   if (!retval->log) {
-    fprintf (stderr, "Can't create log file\n");
+    fprintf(stderr, "Can't create log file\n");
   }
 
-  fprintf (retval->log, "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
+  fprintf(retval->log,
+      "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
 
-
-  const char *db_name = strstr (cmd, " ");
+  const char *db_name = strstr(cmd, " ");
   if (!db_name) {
-    fprintf (retval->log, "ERROR: DB name should be passed at command line\n");
+    fprintf(retval->log,
+        "ERROR: DB name should be passed at command line\n");
     db_name = DB_PATH;
   } else {
-    ++db_name;
+    ++db_name; // move to first character after ' '
   }
 
   // Create and open the database
@@ -63,7 +64,8 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   status = sqlite3_errcode(db);
 
   if (status != SQLITE_OK) {
-    fprintf(retval->log, "ERROR: Unable to open file: %s because %s\n\n", db_name, sqlite3_errmsg(db));
+    fprintf(retval->log, "ERROR: Unable to open file: %s because %s\n\n",
+            db_name, sqlite3_errmsg(db));
   } else {
     fprintf(retval->log, "Opened file %s\n", db_name);
   }
@@ -73,18 +75,17 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->db = db;
   retval->key = 42; //FIXME: Just a magic number, make real key
 
-  retval->atom_error = driver_mk_atom ("error");
-  retval->atom_columns = driver_mk_atom ("columns");
-  retval->atom_rows = driver_mk_atom ("rows");
-  retval->atom_null = driver_mk_atom ("null");
-  retval->atom_id = driver_mk_atom ("id");
-  retval->atom_ok = driver_mk_atom ("ok");
-  retval->atom_unknown_cmd = driver_mk_atom ("unknown_command");
-  
-  fflush (retval->log);
+  retval->atom_error = driver_mk_atom("error");
+  retval->atom_columns = driver_mk_atom("columns");
+  retval->atom_rows = driver_mk_atom("rows");
+  retval->atom_null = driver_mk_atom("null");
+  retval->atom_id = driver_mk_atom("id");
+  retval->atom_ok = driver_mk_atom("ok");
+  retval->atom_unknown_cmd = driver_mk_atom("unknown_command");
+
+  fflush(retval->log);
   return (ErlDrvData) retval;
 }
-
 
 // Driver Stop
 static void stop(ErlDrvData handle) {
@@ -98,81 +99,84 @@ static void stop(ErlDrvData handle) {
 }
 
 // Handle input from Erlang VM
-static int control(ErlDrvData drv_data, unsigned int command, char *buf, 
-                     int len, char **rbuf, int rlen) {
+static int control(ErlDrvData drv_data, unsigned int command, char *buf,
+    int len, char **rbuf, int rlen) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
-  
-  switch(command) {
-    case CMD_SQL_EXEC:
-      sql_exec(driver_data, buf, len);
-      break;
-    default:
-      unknown(driver_data, buf, len);
+
+  switch (command) {
+  case CMD_SQL_EXEC:
+    sql_exec(driver_data, buf, len);
+    break;
+  default:
+    unknown(driver_data, buf, len);
   }
   return 0;
 }
 
-
-static inline int return_error(sqlite3_drv_t *drv, const char *error, ErlDrvTermData **spec, int *terms_count) {
-  *spec = (ErlDrvTermData *)calloc(7, sizeof(ErlDrvTermData));
+static inline int return_error(sqlite3_drv_t *drv, const char *error,
+    ErlDrvTermData **spec, int *term_count) {
+  *spec = (ErlDrvTermData *) calloc(7, sizeof(ErlDrvTermData));
   (*spec)[0] = ERL_DRV_ATOM;
   (*spec)[1] = drv->atom_error;
   (*spec)[2] = ERL_DRV_STRING;
-  (*spec)[3] = (ErlDrvTermData)error;
+  (*spec)[3] = (ErlDrvTermData) error;
   (*spec)[4] = strlen(error);
   (*spec)[5] = ERL_DRV_TUPLE;
   (*spec)[6] = 2;
-  *terms_count = 7;
+  *term_count = 7;
   return 0;
 }
 
 static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
-
   int result, next_row;
   char *rest = NULL;
   sqlite3_stmt *statement;
-  
+
   // fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
-  // fflush (drv->log);
-  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, (const char **)&rest);
-  if(result != SQLITE_OK) { 
+  // fflush(drv->log);
+  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
+                              (const char **) &rest);
+  if (result != SQLITE_OK) {
     ErlDrvTermData *dataset;
     int term_count;
-    return_error(drv, sqlite3_errmsg(drv->db), &dataset, &term_count); 
+    return_error(drv, sqlite3_errmsg(drv->db), &dataset, &term_count);
     driver_output_term(drv->port, dataset, term_count);
     return 0;
   }
-  
-  async_sqlite3_command *async_command = (async_sqlite3_command *)calloc(1, sizeof(async_sqlite3_command));
+
+  async_sqlite3_command *async_command =
+    (async_sqlite3_command *) calloc(1, sizeof(async_sqlite3_command));
   async_command->driver_data = drv;
   async_command->statement = statement;
 
   // fprintf(drv->log, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
-  // fflush (drv->log);
+  // fflush(drv->log);
 
   if (sqlite3_threadsafe()) {
-    drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async, async_command, sql_free_async);
+    drv->async_handle =
+      driver_async(drv->port, &drv->key, sql_exec_async,
+                   async_command, sql_free_async);
   } else {
     sql_exec_async(async_command);
-    ready_async((ErlDrvData)drv, (ErlDrvThreadData)async_command);
+    ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
     sql_free_async(async_command);
   }
   return 0;
 }
 
-static void sql_free_async(void *_async_command)
-{
+static void sql_free_async(void *_async_command) {
   int i;
-  async_sqlite3_command *async_command = (async_sqlite3_command *)_async_command;
+  async_sqlite3_command *async_command =
+    (async_sqlite3_command *) _async_command;
   free(async_command->dataset);
-  
+
   async_command->driver_data->async_handle = 0;
-  
+
   free_ptr_list(async_command->ptrs);
   for (i = 0; i < async_command->binaries_count; i++) {
     driver_free_binary(async_command->binaries[i]);
   }
-  if(async_command->binaries) {
+  if (async_command->binaries) {
     free(async_command->binaries);
   }
   if (async_command->statement) {
@@ -181,9 +185,9 @@ static void sql_free_async(void *_async_command)
   free(async_command);
 }
 
-  
 static void sql_exec_async(void *_async_command) {
-  async_sqlite3_command *async_command = (async_sqlite3_command *)_async_command;
+  async_sqlite3_command *async_command =
+    (async_sqlite3_command *) _async_command;
   ErlDrvTermData *dataset = async_command->dataset;
   int term_count = async_command->term_count;
   int row_count = async_command->row_count;
@@ -195,12 +199,11 @@ static void sql_exec_async(void *_async_command) {
   sqlite3_stmt *statement = async_command->statement;
 
   ptr_list *ptrs = NULL;
-  
+
   ErlDrvBinary **binaries = NULL;
   int binaries_count = 0;
   int i;
-  
-  
+
   column_count = sqlite3_column_count(statement);
   dataset = NULL;
 
@@ -208,87 +211,89 @@ static void sql_exec_async(void *_async_command) {
   dataset = realloc(dataset, sizeof(*dataset) * term_count);
   dataset[term_count - 2] = ERL_DRV_PORT;
   dataset[term_count - 1] = driver_mk_port(drv->port);
-  
+
   if (column_count > 0) {
     int base = term_count;
-    term_count += 2 + column_count*3 + 1 + 2 + 2 + 2;
+    term_count += 2 + column_count * 3 + 1 + 2 + 2 + 2;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[base] = ERL_DRV_ATOM;
     dataset[base + 1] = drv->atom_columns;
     for (i = 0; i < column_count; i++) {
-      char *column_name = (char *)sqlite3_column_name(statement, i);
+      char *column_name = (char *) sqlite3_column_name(statement, i);
       // fprintf(drv->log, "Column: %s\n", column_name);
-      // fflush (drv->log);
+      // fflush(drv->log);
 
-      dataset[base + 2 + (i*3)] = ERL_DRV_STRING;
-      dataset[base + 2 + (i*3) + 1] = (ErlDrvTermData) column_name;
-      dataset[base + 2 + (i*3) + 2] = strlen (column_name);
+      dataset[base + 2 + (i * 3)] = ERL_DRV_STRING;
+      dataset[base + 2 + (i * 3) + 1] = (ErlDrvTermData) column_name;
+      dataset[base + 2 + (i * 3) + 2] = strlen(column_name);
     }
-    dataset[base + 2 + column_count*3 + 0] = ERL_DRV_NIL;
-    dataset[base + 2 + column_count*3 + 1] = ERL_DRV_LIST;
-    dataset[base + 2 + column_count*3 + 2] = column_count + 1;
-    dataset[base + 2 + column_count*3 + 3] = ERL_DRV_TUPLE;
-    dataset[base + 2 + column_count*3 + 4] = 2;
+    dataset[base + 2 + column_count * 3 + 0] = ERL_DRV_NIL;
+    dataset[base + 2 + column_count * 3 + 1] = ERL_DRV_LIST;
+    dataset[base + 2 + column_count * 3 + 2] = column_count + 1;
+    dataset[base + 2 + column_count * 3 + 3] = ERL_DRV_TUPLE;
+    dataset[base + 2 + column_count * 3 + 4] = 2;
 
-    dataset[base + 2 + column_count*3 + 5] = ERL_DRV_ATOM;
-    dataset[base + 2 + column_count*3 + 6] = drv->atom_rows;
+    dataset[base + 2 + column_count * 3 + 5] = ERL_DRV_ATOM;
+    dataset[base + 2 + column_count * 3 + 6] = drv->atom_rows;
   }
 
   // fprintf(drv->log, "Exec: %s\n", sqlite3_sql(statement));
-  // fflush (drv->log);
-  
-  while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
+  // fflush(drv->log);
 
+  while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
     for (i = 0; i < column_count; i++) {
       // fprintf(drv->log, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
-      // fflush (drv->log);
+      // fflush(drv->log);
       switch (sqlite3_column_type(statement, i)) {
-        case SQLITE_INTEGER: {
-          ErlDrvSInt64 *int64_ptr = malloc(sizeof(ErlDrvSInt64));
-          *int64_ptr = (ErlDrvSInt64) sqlite3_column_int64(statement, i);
-          ptrs = add_to_ptr_list(ptrs, int64_ptr);
+      case SQLITE_INTEGER: {
+        ErlDrvSInt64 *int64_ptr = malloc(sizeof(ErlDrvSInt64));
+        *int64_ptr = (ErlDrvSInt64) sqlite3_column_int64(statement, i);
+        ptrs = add_to_ptr_list(ptrs, int64_ptr);
 
-          term_count += 2;
-          dataset = realloc(dataset, sizeof(*dataset) * term_count);
-          dataset[term_count - 2] = ERL_DRV_INT64;
-          dataset[term_count - 1] = (ErlDrvTermData) int64_ptr;
-          break;
-        }
-        case SQLITE_FLOAT: {
-          double *float_ptr = malloc(sizeof(double));
-          *float_ptr = sqlite3_column_double(statement, i);
-          ptrs = add_to_ptr_list(ptrs, float_ptr);
+        term_count += 2;
+        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        dataset[term_count - 2] = ERL_DRV_INT64;
+        dataset[term_count - 1] = (ErlDrvTermData) int64_ptr;
+        break;
+      }
+      case SQLITE_FLOAT: {
+        double *float_ptr = malloc(sizeof(double));
+        *float_ptr = sqlite3_column_double(statement, i);
+        ptrs = add_to_ptr_list(ptrs, float_ptr);
 
-          term_count += 2;
-          dataset = realloc(dataset, sizeof(*dataset) * term_count);
-          dataset[term_count - 2] = ERL_DRV_FLOAT;
-          dataset[term_count - 1] = (ErlDrvTermData) float_ptr;
-          break;
-        }
-        case SQLITE_BLOB: 
-        case SQLITE_TEXT: {
-          int bytes = sqlite3_column_bytes(statement, i);
-          binaries_count++;
-          binaries = realloc(binaries, sizeof(*binaries) * binaries_count);
-          binaries[binaries_count - 1] = driver_alloc_binary(bytes);
-          binaries[binaries_count - 1]->orig_size = bytes;
-          memcpy(binaries[binaries_count - 1]->orig_bytes, sqlite3_column_blob(statement, i), bytes);
+        term_count += 2;
+        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        dataset[term_count - 2] = ERL_DRV_FLOAT;
+        dataset[term_count - 1] = (ErlDrvTermData) float_ptr;
+        break;
+      }
+      case SQLITE_BLOB:
+      case SQLITE_TEXT: {
+        int bytes = sqlite3_column_bytes(statement, i);
+        binaries_count++;
+        binaries =
+          realloc(binaries, sizeof(*binaries) * binaries_count);
+        binaries[binaries_count - 1] = driver_alloc_binary(bytes);
+        binaries[binaries_count - 1]->orig_size = bytes;
+        memcpy(binaries[binaries_count - 1]->orig_bytes,
+               sqlite3_column_blob(statement, i), bytes);
 
-          term_count += 4;
-          dataset = realloc(dataset, sizeof(*dataset) * term_count);
-          dataset[term_count - 4] = ERL_DRV_BINARY;
-          dataset[term_count - 3] = (ErlDrvTermData)binaries[binaries_count - 1];
-          dataset[term_count - 2] = bytes;
-          dataset[term_count - 1] = 0;
-          break;
-        }
-        case SQLITE_NULL: {
-          term_count += 2;
-          dataset = realloc (dataset, sizeof (*dataset) * term_count);
-          dataset[term_count - 2] = ERL_DRV_ATOM;
-          dataset[term_count - 1] = drv->atom_null;
-          break;
-        }
+        term_count += 4;
+        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        dataset[term_count - 4] = ERL_DRV_BINARY;
+        dataset[term_count - 3] =
+          (ErlDrvTermData) binaries[binaries_count - 1];
+        dataset[term_count - 2] = bytes;
+        dataset[term_count - 1] = 0;
+        break;
+      }
+      case SQLITE_NULL: {
+        term_count += 2;
+        dataset = realloc(dataset, sizeof(*dataset) * term_count);
+        dataset[term_count - 2] = ERL_DRV_ATOM;
+        dataset[term_count - 1] = drv->atom_null;
+        break;
+      }
       }
     }
     term_count += 2;
@@ -302,17 +307,17 @@ static void sql_exec_async(void *_async_command) {
   async_command->ptrs = ptrs;
   async_command->binaries = binaries;
   async_command->binaries_count = binaries_count;
-  
-  
+
   if (next_row == SQLITE_BUSY) {
-    return_error(drv, "SQLite3 database is busy", &async_command->dataset, &async_command->term_count);
+    return_error(drv, "SQLite3 database is busy", &async_command->dataset,
+        &async_command->term_count);
     return;
   }
   if (next_row != SQLITE_DONE) {
-    return_error(drv, sqlite3_errmsg(drv->db), &async_command->dataset, &async_command->term_count);
+    return_error(drv, sqlite3_errmsg(drv->db), &async_command->dataset,
+        &async_command->term_count);
     return;
   }
-  
 
   if (column_count > 0) {
     term_count += 3;
@@ -326,15 +331,12 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 2] = ERL_DRV_TUPLE;
     dataset[term_count - 1] = 2;
 
-
     term_count += 3;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
     dataset[term_count - 3] = ERL_DRV_NIL;
     dataset[term_count - 2] = ERL_DRV_LIST;
     dataset[term_count - 1] = 3;
-
-  } else if (strcasestr(sqlite3_sql(statement), "INSERT"))  {
-    
+  } else if (strcasestr(sqlite3_sql(statement), "INSERT")) {
     sqlite3_int64 rowid = sqlite3_last_insert_rowid(drv->db);
     term_count += 6;
     dataset = realloc(dataset, sizeof(*dataset) * term_count);
@@ -354,38 +356,39 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 2] = ERL_DRV_TUPLE;
     dataset[term_count - 1] = 2;
   }
-  
+
   term_count += 2;
   dataset = realloc(dataset, sizeof(*dataset) * term_count);
   dataset[term_count - 2] = ERL_DRV_TUPLE;
   dataset[term_count - 1] = 2;
-  
 
-  
-  
   async_command->dataset = dataset;
   async_command->term_count = term_count;
   // fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
-  // fflush (drv->log);
+  // fflush(drv->log);
 }
 
-static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data)
-{
-  async_sqlite3_command *async_command = (async_sqlite3_command *)thread_data;
+static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
+  async_sqlite3_command *async_command =
+    (async_sqlite3_command *) thread_data;
   sqlite3_drv_t *drv = async_command->driver_data;
-  
-  int res = driver_output_term(drv->port, async_command->dataset, async_command->term_count);
+
+  int res = driver_output_term(drv->port,
+                               async_command->dataset,
+                               async_command->term_count);
   // fprintf(drv->log, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
-  // fflush (drv->log);
+  // fflush(drv->log);
   sql_free_async(async_command);
 }
 
 // Unknown Command
 static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   // Return {error, unknown_command}
-  ErlDrvTermData spec[] = {ERL_DRV_ATOM, drv->atom_error,
-			   ERL_DRV_ATOM, drv->atom_unknown_cmd,
-			   ERL_DRV_TUPLE, 2};
+  ErlDrvTermData spec[] = {
+    ERL_DRV_ATOM, drv->atom_error,
+    ERL_DRV_ATOM, drv->atom_unknown_cmd,
+    ERL_DRV_TUPLE, 2
+  };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
 
@@ -395,51 +398,51 @@ static int print_dataset(ErlDrvTermData *dataset, int term_count) {
   int i;
   printf("dataset (%d terms):\n", term_count);
   for (i = 1; i < term_count; i++) {
-	dataset++;
-	newData = *dataset;
-	switch (lastData) {
-	case ERL_DRV_INT:
-		printf("int: %ld\n", (ErlDrvSInt) newData);
-		break;
-	case ERL_DRV_INT64:
-		printf("int64: %p:%lld\n", (void *) newData, *(ErlDrvSInt64 *) newData);
-		break;
-	case ERL_DRV_FLOAT:
-		printf("int64: %p:%f\n", (void *) newData, *(double *) newData);
-		break;
-//	case ERL_DRV_TUPLE:
-//		printf("tuple of size %d\n", (int) newData);
-//		break;
-//	case ERL_DRV_LIST:
-//		printf("list of length %d\n", (int) newData);
-//		break;
-	default:
-		break;
-	}
-	lastData = newData;
+    dataset++;
+    newData = *dataset;
+    switch (lastData) {
+    case ERL_DRV_INT:
+      printf("int: %ld\n", (ErlDrvSInt) newData);
+      break;
+    case ERL_DRV_INT64:
+      printf("int64: %p:%lld\n", (void *) newData,
+             *(ErlDrvSInt64 *) newData);
+      break;
+    case ERL_DRV_FLOAT:
+      printf("int64: %p:%f\n", (void *) newData, *(double *) newData);
+      break;
+    //  case ERL_DRV_TUPLE:
+    //    printf("tuple of size %d\n", (int) newData);
+    //    break;
+    //  case ERL_DRV_LIST:
+    //    printf("list of length %d\n", (int) newData);
+    //    break;
+    default:
+      break;
+    }
+    lastData = newData;
   }
   return 0;
 }
 
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr) {
-	ptr_list* new_node = malloc(sizeof(ptr_list));
-	new_node->head = value_ptr;
-	new_node->tail = NULL;
-	if (list) {
-		list->tail = new_node;
-		return list;
-	}
-	else {
-		return new_node;
-	}
+  ptr_list* new_node = malloc(sizeof(ptr_list));
+  new_node->head = value_ptr;
+  new_node->tail = NULL;
+  if (list) {
+    list->tail = new_node;
+    return list;
+  } else {
+    return new_node;
+  }
 }
 
 static inline void free_ptr_list(ptr_list *list) {
-	ptr_list* tail;
-	while (list) {
-		tail = list->tail;
-		free(list->head);
-		free(list);
-		list = tail;
-	}
+  ptr_list* tail;
+  while (list) {
+    tail = list->tail;
+    free(list->head);
+    free(list);
+    list = tail;
+  }
 }
