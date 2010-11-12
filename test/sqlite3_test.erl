@@ -138,7 +138,8 @@ large_number_test() ->
     N1 = 4294967295,
     N2 = (N1 + 1) div 2,
     Query1 = io_lib:format("select ~p, ~p", [N1, N2]),
-    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))).
+    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))),
+    sqlite3:close(ct).
 
 % create, read, update, delete
 %%====================================================================
