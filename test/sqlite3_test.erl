@@ -16,6 +16,8 @@
 %% --------------------------------------------------------------------
 -include_lib("eunit/include/eunit.hrl").
 
+-define(FuncTest(Name), {??Name, fun Name/0}).
+
 drop_all_tables(Db) ->
     Tables = sqlite3:list_tables(Db),
     [sqlite3:drop_table(Db, Table) || Table <- Tables],
@@ -31,11 +33,29 @@ rows(SqlExecReply) ->
     [{columns, _Columns}, {rows, Rows}] = SqlExecReply,
     Rows.
 
-basic_functionality_test() ->
+all_test_() ->
+    {setup,
+     fun open_db/0,
+     fun close_db/1,
+     [?FuncTest(basic_functionality),
+      ?FuncTest(blob),
+      ?FuncTest(escaping),
+      ?FuncTest(select_many_records),
+      ?FuncTest(nonexistent_table_info),
+      ?FuncTest(large_number)]}.
+
+open_db() ->
+    sqlite3:open(ct).
+
+close_db({ok, _Pid}) ->
+    sqlite3:close(ct);
+close_db(_) ->
+    ok.
+
+basic_functionality() ->
     Columns = ["id", "name", "age", "wage"],
     AllRows = [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 2000}],
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
-    sqlite3:open(ct),
     drop_all_tables(ct),
     ?assertEqual(
         [], 
@@ -76,21 +96,17 @@ basic_functionality_test() ->
         sqlite3:sql_exec(ct, "select * from user;")),
     ?assertEqual(
         {ok, TableId}, 
-        sqlite3:drop_table(ct, user)),
-    sqlite3:close(ct).
+        sqlite3:drop_table(ct, user)).
 
-blob_test() ->
-    sqlite3:open(ct),
+blob() ->
     drop_table_if_exists(ct, blobs),
     sqlite3:create_table(ct, blobs, [{blob_col, blob}]),
     sqlite3:write(ct, blobs, [{blob_col, {blob, <<0,255,1,2>>}}]),
     ?assertEqual(
         [{columns, ["blob_col"]}, {rows, [{<<0,255,1,2>>}]}], 
-        sqlite3:read_all(ct, blobs)),
-    sqlite3:close(ct).
+        sqlite3:read_all(ct, blobs)).
 
-escaping_test() ->
-    sqlite3:open(ct),
+escaping() ->
     drop_table_if_exists(ct, escaping),
     sqlite3:create_table(ct, escaping, [{str, text}]),
     Strings = ["a'", "b\"c", "d''e", "f\"\""],
@@ -99,11 +115,9 @@ escaping_test() ->
     sqlite3:write_many(ct, escaping, Input),
     ?assertEqual(
         [{columns, ["str"]}, {rows, ExpectedRows}], 
-        sqlite3:read_all(ct, escaping)),
-    sqlite3:close(ct).
+        sqlite3:read_all(ct, escaping)).
 
-select_many_records_test() ->
-    sqlite3:open(ct),
+select_many_records() ->
     drop_table_if_exists(ct, many_records),
     sqlite3:create_table(ct, many_records, [{id, integer}, {name, text}]),
     sqlite3:write_many(ct, many_records, [[{id, X}, {name, "bar"}] || X <- lists:seq(1, 1024)]),
@@ -125,21 +139,16 @@ select_many_records_test() ->
         length(rows(sqlite3:sql_exec(ct, "select * from many_records limit 1000;")))),
     ?assertEqual(
         1024, 
-        length(rows(sqlite3:sql_exec(ct, "select * from many_records;")))),
-    sqlite3:close(ct).
+        length(rows(sqlite3:sql_exec(ct, "select * from many_records;")))).
 
-nonexistent_table_info_test() ->
-    sqlite3:open(ct),
-    ?assertEqual(table_does_not_exist, sqlite3:table_info(ct, nonexistent)),
-    sqlite3:close(ct).
+nonexistent_table_info() ->
+    ?assertEqual(table_does_not_exist, sqlite3:table_info(ct, nonexistent)).
 
-large_number_test() ->
-    sqlite3:open(ct),
+large_number() ->
     N1 = 4294967295,
     N2 = (N1 + 1) div 2,
     Query1 = io_lib:format("select ~p, ~p", [N1, N2]),
-    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))),
-    sqlite3:close(ct).
+    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))).
 
 % create, read, update, delete
 %%====================================================================
