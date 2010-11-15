@@ -1,5 +1,6 @@
 REBAR=./rebar
 REBAR_COMPILE=$(REBAR) get-deps compile
+PLT=dialyzer/sqlite3.plt
 
 all: compile
 
@@ -15,12 +16,12 @@ clean:
 docs:
 	$(REBAR_COMPILE) doc
 
-ifeq ($(wildcard dialyzer/sqlite3.plt),)
 static:
-	$(REBAR_COMPILE) build_plt analyze
+	$(REBAR_COMPILE)
+ifeq ($(wildcard $(PLT)),)
+	dialyzer --build_plt --apps kernel stdlib erts --output_plt $(PLT) 
 else
-static:
-	$(REBAR_COMPILE) analyze
+	dialyzer --plt $(PLT) -r ebin
 endif
 
 .PHONY: all compile test clean docs static
