@@ -43,15 +43,11 @@
 %%--------------------------------------------------------------------
 %% @spec start_link(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc 
-%%   Opens a sqlite3 dbase creating one if necessary. The dbase must 
-%%   be called Db.db in the current path. start_link/1 can be use 
-%%   with stop/0, sql_exec/1, create_table/2, list_tables/0, 
-%%   table_info/1, write/2, read/2, delete/2 and drop_table/1. 
-%%   There can be only one start_link call per node.
-%%
-%%   To open multiple dbases on the same node use open/1 or open/2.
+%%   Opens the sqlite3 database in file Db.db in the working directory 
+%%   (creating this file if necessary). This is the same as open/1.
 %% @end
 %%--------------------------------------------------------------------
+-type option() :: {file, string()} | temporary | in_memory.
 -type result() :: {'ok', pid()} | 'ignore' | {'error', any()}.
 
 -spec start_link(atom()) -> result().
@@ -62,29 +58,23 @@ start_link(Db) ->
 %%--------------------------------------------------------------------
 %% @spec start_link(Db :: atom(), Options) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc 
-%%   Opens a sqlite3 dbase creating one if necessary. By default the 
-%%   dbase will be called Db.db in the current path. This can be changed 
-%%   by passing the option {db, DbFile :: String()}. DbFile must be the 
+%%   Opens a sqlite3 database creating one if necessary. By default the 
+%%   database will be called Db.db in the current path. This can be changed 
+%%   by passing the option {file, DbFile :: String()}. DbFile must be the 
 %%   full path to the sqlite3 db file. start_link/1 can be use with stop/0, 
 %%   sql_exec/1, create_table/2, list_tables/0, table_info/1, write/2, 
-%%   read/2, delete/2 and drop_table/1. There can be only one start_link 
-%%   call per node.
-%%
-%%   To open multiple dbases on the same node use open/1 or open/2.
+%%   read/2, delete/2 and drop_table/1. This is the same as open/2.
 %% @end
 %%--------------------------------------------------------------------
--spec start_link(atom(), [{atom(), any()}]) -> result().
+-spec start_link(atom(), [option()]) -> result().
 start_link(Db, Options) ->
     open(Db, Options).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc
-%%   Opens a sqlite3 dbase creating one if necessary. The dbase must be
-%%   called Db.db in the current path. Can be use to open multiple sqlite3
-%%   dbases per node. Must be use in conjunction with stop/1, sql_exec/2,
-%%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3
-%%   and drop_table/2.
+%%   Opens the sqlite3 database in file Db.db in the working directory 
+%%   (creating this file if necessary). This is the same as open/1.
 %% @end
 %%--------------------------------------------------------------------
 -spec open(atom()) -> result().
@@ -92,20 +82,22 @@ open(Db) ->
     open(Db, []).
 
 %%--------------------------------------------------------------------
-%% @spec open(Db :: atom(), Options :: [{atom(), any()}]) -> {ok, Pid :: pid()} | ignore | {error, Error}
+%% @spec open(Db :: atom(), Options :: [option()]) -> {ok, Pid :: pid()} | ignore | {error, Error}
+%% @type option() = {file, DbFile :: string()} | in_memory | temporary
+%%   
 %% @doc
-%%   Opens a sqlite3 dbase creating one if necessary. By default the dbase
+%%   Opens a sqlite3 database creating one if necessary. By default the database
 %%   will be called Db.db in the current path. This can be changed by
-%%   passing the option {db, DbFile :: String()}. DbFile must be the full
-%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 dbases
+%%   passing the option {file, DbFile :: string()}. DbFile must be the full
+%%   path to the sqlite3 db file. Can be use to open multiple sqlite3 databases
 %%   per node. Must be use in conjunction with stop/1, sql_exec/2,
 %%   create_table/3, list_tables/1, table_info/2, write/3, read/3, delete/3
 %%   and drop_table/2.
 %% @end
 %%--------------------------------------------------------------------
--spec open(atom(), [{atom(), any()}]) -> result().
+-spec open(atom(), [option()]) -> result().
 open(Db, Options) ->
-    Opts = case proplists:lookup(db, Options) of
+    Opts = case proplists:lookup(file, Options) of
                none ->
                    DbName = case proplists:is_defined(temporary, Options) of
                                 true -> 
@@ -118,8 +110,8 @@ open(Db, Options) ->
                                             "./" ++ atom_to_list(Db) ++ ".db"
                                     end
                             end,
-                   [{db, DbName} | Options];
-               {db, _} -> 
+                   [{file, DbName} | Options];
+               {file, _} -> 
                    Options
            end,
     gen_server:start_link({local, Db}, ?MODULE, Opts, []).
@@ -127,7 +119,7 @@ open(Db, Options) ->
 %%--------------------------------------------------------------------
 %% @spec close(Db :: atom()) -> ok
 %% @doc
-%%   Closes the Db sqlite3 dbase.
+%%   Closes the Db sqlite3 database.
 %% @end
 %%--------------------------------------------------------------------
 -spec close(atom()) -> 'ok'.
@@ -137,7 +129,7 @@ close(Db) ->
 %%--------------------------------------------------------------------
 %% @spec stop() -> ok
 %% @doc
-%%   Closes the sqlite3 dbase.
+%%   Closes the sqlite3 database.
 %% @end
 %%--------------------------------------------------------------------
 -spec stop() -> 'ok'.
@@ -157,7 +149,7 @@ sql_exec(SQL) ->
 %%--------------------------------------------------------------------
 %% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> any()
 %% @doc
-%%   Executes the Sql statement directly on the Db dbase. Returns the
+%%   Executes the Sql statement directly on the Db database. Returns the
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
@@ -267,7 +259,7 @@ write(Tbl, Data) ->
 %% @spec write(Db :: atom(), Tbl :: atom(), Data) -> term()
 %%         Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
-%%   Write Data into Tbl table in Db dbase. Value must be of the 
+%%   Write Data into Tbl table in Db database. Value must be of the 
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
@@ -321,7 +313,7 @@ update(Tbl, Key, Value, Data) ->
 %%        Result = {ok, ID} | Unknown
 %%        Unknown = term()
 %% @doc
-%%    Updates rows into Tbl table in Db dbase such that the Value
+%%    Updates rows into Tbl table in Db database such that the Value
 %%    matches the value in Key with Data. Returns ID of the first
 %%    updated record.
 %% @end
@@ -340,7 +332,7 @@ read_all(Db, Tbl) ->
     gen_server:call(Db, {read, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec read(Db :: atom(), Table :: atom(), Columns :: [atom()]) -> any()
+%% @spec read_all(Db :: atom(), Table :: atom(), Columns :: [atom()]) -> any()
 %% @doc
 %%   Reads Columns in all rows from Table in Db.
 %% @end
@@ -366,7 +358,7 @@ read(Tbl, Key) ->
 %% @spec read(Db :: atom(), Tbl :: atom(), Key) -> [any()]
 %%         Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Reads a row from Tbl table in Db dbase such that the Value 
+%%   Reads a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. ColValue must have the same type 
 %%   as determined from table_info/3.
 %% @end
@@ -382,7 +374,7 @@ read(Db, Tbl, {Column, Value}) ->
 %%        Key = {Column :: atom(), Value :: sql_value()}
 %%        Columns = [atom()]
 %% @doc
-%%    Reads a row from Tbl table in Db dbase such that the Value
+%%    Reads a row from Tbl table in Db database such that the Value
 %%    matches the value in Column. Value must have the same type as 
 %%    determined from table_info/3.
 %% @end
@@ -394,7 +386,7 @@ read(Db, Tbl, {Key, Value}, Columns) ->
 %% @spec delete(Tbl :: atom(), Key) -> any()
 %%        Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Delete a row from Tbl table in Db dbase such that the Value 
+%%   Delete a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. 
 %%   Value must have the same type as determined from table_info/3.
 %% @end
@@ -407,7 +399,7 @@ delete(Tbl, Key) ->
 %% @spec delete(Db :: atom(), Tbl :: atom(), Key) -> any()
 %%        Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
-%%   Delete a row from Tbl table in Db dbase such that the Value 
+%%   Delete a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. 
 %%   Value must have the same type as determined from table_info/3.
 %% @end
@@ -429,7 +421,7 @@ drop_table(Tbl) ->
 %%--------------------------------------------------------------------
 %% @spec drop_table(Db :: atom(), Tbl :: atom()) -> any()
 %% @doc
-%%   Drop the table Tbl from Db dbase.
+%%   Drop the table Tbl from Db database.
 %% @end
 %%--------------------------------------------------------------------
 -spec drop_table(atom(), atom()) -> any().
@@ -532,13 +524,11 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 
 -spec init([any()]) -> {'ok', #state{}} | {'stop', string()}.
 init(Options) ->
-    Dbase = proplists:get_value(db, Options),
-    io:format(user, "Dbase: ~p", [Dbase]),
+    DbFile = proplists:get_value(file, Options),
     PrivDir = get_priv_dir(),
     case erl_ddll:load(PrivDir, atom_to_list(?DRIVER_NAME)) of
       ok ->
-        io:format(user, "~p", [create_port_cmd(Dbase)]),
-        Port = open_port({spawn, create_port_cmd(Dbase)}, [binary]),
+        Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
         Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
@@ -704,8 +694,8 @@ get_priv_dir() ->
 -define(SQL_EXEC_COMMAND, 2).
 -define(SQL_CREATE_FUNCTION, 3).
 
-create_port_cmd(Dbase) ->
-    atom_to_list(?DRIVER_NAME) ++ " " ++ Dbase.
+create_port_cmd(DbFile) ->
+    atom_to_list(?DRIVER_NAME) ++ " " ++ DbFile.
 
 do_handle_call_sql_exec(SQL, State) ->
     Reply = do_sql_exec(SQL, State),
