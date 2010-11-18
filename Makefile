@@ -24,4 +24,7 @@ else
 	dialyzer --plt $(PLT) -r ebin
 endif
 
+cross_compile: clean
+	$(REBAR_COMPILE) -C rebar.cross_compile.config
+
 .PHONY: all compile test clean docs static
