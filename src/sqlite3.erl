@@ -26,7 +26,7 @@
 -export([drop_table/1, drop_table/2]).
 -export([begin_transaction/1, commit_transaction/1, rollback_transaction/1]).
 
--export([create_function/3]).
+%% -export([create_function/3]).
 
 -export([value_to_sql/1, value_to_sql_unsafe/1]).
 
@@ -429,16 +429,16 @@ drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
 
-%%--------------------------------------------------------------------
-%% @spec create_function(Db :: atom(), FunctionName :: atom(), Function :: function()) -> term()
-%% @doc
-%%   Creates function under name FunctionName.
-%%
-%% @end
-%%--------------------------------------------------------------------
--spec create_function(atom(), atom(), function()) -> any().
-create_function(Db, FunctionName, Function) ->
-    gen_server:call(Db, {create_function, FunctionName, Function}).
+%% %%--------------------------------------------------------------------
+%% %% @spec create_function(Db :: atom(), FunctionName :: atom(), Function :: function()) -> term()
+%% %% @doc
+%% %%   Creates function under name FunctionName.
+%% %%
+%% %% @end
+%% %%--------------------------------------------------------------------
+%% -spec create_function(atom(), atom(), function()) -> any().
+%% create_function(Db, FunctionName, Function) ->
+%%     gen_server:call(Db, {create_function, FunctionName, Function}).
 
 %%--------------------------------------------------------------------
 %% @spec begin_transaction(Db :: atom()) -> term()
