@@ -1,4 +1,5 @@
 #include "sqlite3_drv.h"
+#include "ei.h"
 
 // MSVC needs "__inline" instead of "inline" in C-source files.
 #if defined(_MSC_VER)

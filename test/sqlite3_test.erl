@@ -56,7 +56,7 @@ basic_functionality() ->
     Columns = ["id", "name", "age", "wage"],
     AllRows = [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 2000}],
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
-    TableInfo = [{id, integer, [primary_key]}, {name, text}, {age, integer}, {wage, integer}],
+    TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
     drop_all_tables(ct),
     ?assertEqual(
         [], 
@@ -73,6 +73,9 @@ basic_functionality() ->
         sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}])),
     ?assertEqual(
         {id, 2}, 
+        sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
+    ?assertEqual(
+        {error, "constraint failed"}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
     ?assertEqual(
         [{columns, Columns}, {rows, AllRows}], 
