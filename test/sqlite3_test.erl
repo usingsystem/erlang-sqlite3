@@ -56,16 +56,17 @@ basic_functionality() ->
     Columns = ["id", "name", "age", "wage"],
     AllRows = [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 2000}],
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
+    TableInfo = [{id, integer, [primary_key]}, {name, text}, {age, integer}, {wage, integer}],
     drop_all_tables(ct),
     ?assertEqual(
         [], 
         sqlite3:list_tables(ct)),
-    {ok, TableId} = sqlite3:create_table(ct, user, [{id, integer, [primary_key]}, {name, text}, {age, integer}, {wage, integer}]),
+    {ok, TableId} = sqlite3:create_table(ct, user, TableInfo),
     ?assertEqual(
         [user], 
         sqlite3:list_tables(ct)),
     ?assertEqual(
-        [{id, integer, [primary_key]}, {name, text}, {age, integer}, {wage, integer}], 
+        TableInfo, 
         sqlite3:table_info(ct, user)),
     ?assertEqual(
         {id, 1}, 

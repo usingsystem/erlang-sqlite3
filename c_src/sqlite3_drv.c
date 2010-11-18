@@ -115,15 +115,17 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
 
 static inline int return_error(sqlite3_drv_t *drv, const char *error,
     ErlDrvTermData **spec, int *term_count) {
-  *spec = (ErlDrvTermData *) calloc(7, sizeof(ErlDrvTermData));
-  (*spec)[0] = ERL_DRV_ATOM;
-  (*spec)[1] = drv->atom_error;
-  (*spec)[2] = ERL_DRV_STRING;
-  (*spec)[3] = (ErlDrvTermData) error;
-  (*spec)[4] = strlen(error);
-  (*spec)[5] = ERL_DRV_TUPLE;
-  (*spec)[6] = 2;
-  *term_count = 7;
+  *spec = (ErlDrvTermData *) malloc(9 * sizeof(ErlDrvTermData));
+  (*spec)[0] = ERL_DRV_PORT;
+  (*spec)[1] = driver_mk_port(drv->port);
+  (*spec)[2] = ERL_DRV_ATOM;
+  (*spec)[3] = drv->atom_error;
+  (*spec)[4] = ERL_DRV_STRING;
+  (*spec)[5] = (ErlDrvTermData) error;
+  (*spec)[6] = strlen(error);
+  (*spec)[7] = ERL_DRV_TUPLE;
+  (*spec)[8] = 3;
+  *term_count = 9;
   return 0;
 }
 
