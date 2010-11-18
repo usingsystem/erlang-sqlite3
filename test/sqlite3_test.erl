@@ -45,7 +45,7 @@ all_test_() ->
       ?FuncTest(large_number)]}.
 
 open_db() ->
-    sqlite3:open(ct).
+    sqlite3:open(ct, [in_memory]).
 
 close_db({ok, _Pid}) ->
     sqlite3:close(ct);
@@ -144,6 +144,16 @@ select_many_records() ->
     ?assertEqual(
         1024, 
         length(rows(sqlite3:sql_exec(ct, "select * from many_records;")))).
+
+%% concurrent_inserts_test() ->
+%%     sqlite3:open(concurrent, [in_memory]), %% doing this test not in memory is much slower!
+%%     drop_table_if_exists(concurrent, t),
+%%     sqlite3:create_table(concurrent, t, [{id, integer}]),
+%%     [spawn(fun () -> sqlite3:write(concurrent, t, [{id, X}]) end) || X <- lists:seq(1, 1024)],
+%%     ?assertEqual(
+%%         1024, 
+%%         length(rows(sqlite3:read_all(concurrent, t)))),
+%%     sqlite3:close(concurrent). %% doesn't pass at the moment!
 
 nonexistent_table_info() ->
     ?assertEqual(table_does_not_exist, sqlite3:table_info(ct, nonexistent)).
