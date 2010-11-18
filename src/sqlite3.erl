@@ -168,8 +168,8 @@ sql_exec(Db, SQL) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create_table(atom(), [{atom(), atom()}]) -> any().
-create_table(Tbl, Options) ->
-    create_table(?MODULE, Tbl, Options).
+create_table(Tbl, Columns) ->
+    create_table(?MODULE, Tbl, Columns).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Db :: atom(), Tbl :: atom(), Columns) -> any()
