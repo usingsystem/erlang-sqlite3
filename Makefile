@@ -11,7 +11,7 @@ test:
 	$(REBAR_COMPILE) skip_deps=true eunit
 
 clean:
-	-rm -rf deps ebin priv doc/* .eunit
+	-rm -rf deps ebin priv doc/* .eunit c_src/*.o
 
 docs:
 	$(REBAR_COMPILE) doc
