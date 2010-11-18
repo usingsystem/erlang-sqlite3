@@ -61,7 +61,7 @@ basic_functionality() ->
     ?assertEqual(
         [], 
         sqlite3:list_tables(ct)),
-    {ok, TableId} = sqlite3:create_table(ct, user, TableInfo),
+    ok = sqlite3:create_table(ct, user, TableInfo),
     ?assertEqual(
         [user], 
         sqlite3:list_tables(ct)),
@@ -93,13 +93,13 @@ basic_functionality() ->
         [{columns, Columns}, {rows, AllRows}], 
         sqlite3:read(ct, user, {wage, 2000})),
     ?assertEqual(
-        {ok, TableId}, 
+        ok, 
         sqlite3:delete(ct, user, {name, "marge"})),
     ?assertEqual(
         [{columns, Columns}, {rows, AbbyOnly}], 
         sqlite3:sql_exec(ct, "select * from user;")),
     ?assertEqual(
-        {ok, TableId}, 
+        ok, 
         sqlite3:drop_table(ct, user)).
 
 blob() ->

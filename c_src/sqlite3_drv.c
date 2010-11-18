@@ -382,18 +382,14 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 2] = ERL_DRV_TUPLE;
     dataset[term_count - 1] = 2;
   } else {
-    term_count += 6;
+    term_count += 2;
     if (term_count > term_allocated) {
       term_allocated =
         (term_count >= term_allocated*2) ? term_count : term_allocated*2;
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
-    dataset[term_count - 6] = ERL_DRV_ATOM;
-    dataset[term_count - 5] = drv->atom_ok;
-    dataset[term_count - 4] = ERL_DRV_INT;
-    dataset[term_count - 3] = next_row;
-    dataset[term_count - 2] = ERL_DRV_TUPLE;
-    dataset[term_count - 1] = 2;
+    dataset[term_count - 2] = ERL_DRV_ATOM;
+    dataset[term_count - 1] = drv->atom_ok;
   }
 
   term_count += 2;
