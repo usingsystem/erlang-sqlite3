@@ -57,7 +57,7 @@
 -spec start_link(atom()) -> result().
 
 start_link(Db) ->
-    open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
+    open(Db, []).
 
 %%--------------------------------------------------------------------
 %% @spec start_link(Db :: atom(), Options) -> {ok, Pid :: pid()} | ignore | {error, Error}
@@ -75,11 +75,7 @@ start_link(Db) ->
 %%--------------------------------------------------------------------
 -spec start_link(atom(), [{atom(), any()}]) -> result().
 start_link(Db, Options) ->
-    Opts = case proplists:get_value(db, Options) of
-               undefined -> [{db, "./" ++ atom_to_list(Db) ++ ".db"} | Options];
-               _ -> Options
-           end,
-    open(Db, Opts).
+    open(Db, Options).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
@@ -93,7 +89,7 @@ start_link(Db, Options) ->
 %%--------------------------------------------------------------------
 -spec open(atom()) -> result().
 open(Db) ->
-    open(Db, [{db, "./" ++ atom_to_list(Db) ++ ".db"}]).
+    open(Db, []).
 
 %%--------------------------------------------------------------------
 %% @spec open(Db :: atom(), Options :: [{atom(), any()}]) -> {ok, Pid :: pid()} | ignore | {error, Error}
@@ -109,7 +105,24 @@ open(Db) ->
 %%--------------------------------------------------------------------
 -spec open(atom(), [{atom(), any()}]) -> result().
 open(Db, Options) ->
-    gen_server:start_link({local, Db}, ?MODULE, Options, []).
+    Opts = case proplists:lookup(db, Options) of
+               none ->
+                   DbName = case proplists:is_defined(temporary, Options) of
+                                true -> 
+                                    "";
+                                false ->
+                                    case proplists:is_defined(in_memory, Options) of
+                                        true -> 
+                                            ":memory:";
+                                        false ->
+                                            "./" ++ atom_to_list(Db) ++ ".db"
+                                    end
+                            end,
+                   [{db, DbName} | Options];
+               {db, _} -> 
+                   Options
+           end,
+    gen_server:start_link({local, Db}, ?MODULE, Opts, []).
 
 %%--------------------------------------------------------------------
 %% @spec close(Db :: atom()) -> ok
@@ -520,9 +533,11 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 -spec init([any()]) -> {'ok', #state{}} | {'stop', string()}.
 init(Options) ->
     Dbase = proplists:get_value(db, Options),
+    io:format(user, "Dbase: ~p", [Dbase]),
     PrivDir = get_priv_dir(),
     case erl_ddll:load(PrivDir, atom_to_list(?DRIVER_NAME)) of
       ok ->
+        io:format(user, "~p", [create_port_cmd(Dbase)]),
         Port = open_port({spawn, create_port_cmd(Dbase)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
@@ -787,5 +802,4 @@ build_primary_key_constraint(Tail, Acc) ->
 %%--------------------------------------------------------------------
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
-
 -endif.
