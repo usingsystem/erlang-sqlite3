@@ -30,8 +30,10 @@ drop_table_if_exists(Db, Table) ->
     end.
 
 rows(SqlExecReply) ->
-    [{columns, _Columns}, {rows, Rows}] = SqlExecReply,
-    Rows.
+    case SqlExecReply of
+        [{columns, _Columns}, {rows, Rows}] -> Rows;
+        {error, Reason} -> {error, Reason}
+    end.
 
 all_test_() ->
     {setup,
@@ -109,10 +111,10 @@ parametrized() ->
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [{1, 1}, {2, "john"}]),
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?3, ?5)", [{3, 2}, {5, "joe"}]),
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (:id, @name)", [{":id", 3}, {'@name', <<"jack">>}]),
-    sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [4, "james"]),
+    sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [4294967295, "james"]),
     ?assertEqual(
         [{columns, ["id", "name"]}, 
-         {rows, [{1, <<"john">>}, {2, <<"joe">>}, {3, <<"jack">>}, {4, <<"james">>}]}], 
+         {rows, [{1, <<"john">>}, {2, <<"joe">>}, {3, <<"jack">>}, {4294967295, <<"james">>}]}], 
         sqlite3:read_all(ct, user1)),
     sqlite3:drop_table(ct, user1),
     sqlite3:create_table(ct, user1, [{i, integer}, {d, double}, {b, blob}]),
@@ -188,10 +190,13 @@ nonexistent_table_info() ->
     ?assertEqual(table_does_not_exist, sqlite3:table_info(ct, nonexistent)).
 
 large_number() ->
-    N1 = 4294967295,
-    N2 = (N1 + 1) div 2,
+    N1 = 9223372036854775807,
+    N2 = -9223372036854775808,
     Query1 = io_lib:format("select ~p, ~p", [N1, N2]),
-    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))).
+    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))),
+    Query2 = "select ?, ?",
+    ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query2, [N1, N2]))),
+    ?assertNot([{N1 + 1, N2 - 1}] == rows(sqlite3:sql_exec(ct, Query2, [N1 + 1, N2 - 1]))).
 
 % create, read, update, delete
 %%====================================================================

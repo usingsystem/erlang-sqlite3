@@ -191,11 +191,14 @@ static inline int decode_and_bind_param(
   double double_val;
   char* char_buf_val;
   switch (*type) {
+//  case ERL_SMALL_INTEGER_EXT:
+//    ei_decode_long(buffer, index, &long_val);
+//    result = sqlite3_bind_int(statement, param_index, long_val);
+//    break;
   case ERL_SMALL_INTEGER_EXT:
-    ei_decode_long(buffer, index, &long_val);
-    result = sqlite3_bind_int(statement, param_index, long_val);
-    break;
   case ERL_INTEGER_EXT:
+  case ERL_SMALL_BIG_EXT:
+  case ERL_LARGE_BIG_EXT:
     ei_decode_longlong(buffer, index, &int64_val);
     result = sqlite3_bind_int64(statement, param_index, int64_val);
     break;
