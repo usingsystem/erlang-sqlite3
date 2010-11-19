@@ -122,24 +122,21 @@ escaping() ->
         sqlite3:read_all(ct, escaping)).
 
 select_many_records() ->
+    N = 1024,
     drop_table_if_exists(ct, many_records),
     sqlite3:create_table(ct, many_records, [{id, integer}, {name, text}]),
-    sqlite3:write_many(ct, many_records, [[{id, X}, {name, "bar"}] || X <- lists:seq(1, 1024)]),
+    sqlite3:write_many(ct, many_records, [[{id, X}, {name, "bar"}] || X <- lists:seq(1, N)]),
     Columns = ["id", "name"],
     ?assertEqual(
         [{columns, Columns}, {rows, [{1, <<"bar">>}]}], 
         sqlite3:read(ct, many_records, {id, 1})),
+    [?assertEqual(
+         M, 
+         length(rows(sqlite3:sql_exec(
+             ct, io_lib:format("select * from many_records limit ~p;", [M])))))
+     || M <- [10, 100, 1000]],
     ?assertEqual(
-        10, 
-        length(rows(sqlite3:sql_exec(ct, "select * from many_records limit 10;")))),
-    ?assertEqual(
-        100, 
-        length(rows(sqlite3:sql_exec(ct, "select * from many_records limit 100;")))),
-    ?assertEqual(
-        1000, 
-        length(rows(sqlite3:sql_exec(ct, "select * from many_records limit 1000;")))),
-    ?assertEqual(
-        1024, 
+        N, 
         length(rows(sqlite3:sql_exec(ct, "select * from many_records;")))).
 
 %% note that inserts are actually serialized by gen_server
