@@ -18,6 +18,7 @@
 // Binary commands between Erlang VM and Driver
 #define CMD_SQL_EXEC 2
 // #define CMD_DEL 3
+#define CMD_SQL_BIND_AND_EXEC 4
 
 // Number of bytes for each key
 // (160 bits for SHA1 hash)
@@ -61,6 +62,7 @@ static void stop(ErlDrvData handle);
 static int control(ErlDrvData drv_data, unsigned int command, char *buf, 
                    int len, char **rbuf, int rlen);
 static int sql_exec(sqlite3_drv_t *drv, char *buf, int len);
+static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buf, int len);
 static void sql_exec_async(void *async_command);
 static void sql_free_async(void *async_command);
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);

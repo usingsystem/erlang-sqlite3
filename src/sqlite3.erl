@@ -733,7 +733,6 @@ exec(Port, {sql_exec, Cmd}) ->
 exec(Port, {sql_bind_and_exec, SQL, Params}) ->
   Bin = term_to_binary({iolist_to_binary(SQL), Params}),
   port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
-  io:format(user, "Sending sql_bind_and_exec to port", []),
   wait_result(Port).
 
 wait_result(Port) ->
