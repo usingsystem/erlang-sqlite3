@@ -8,7 +8,7 @@ compile:
 	$(REBAR_COMPILE)
 
 test:
-	$(REBAR) eunit
+	$(REBAR_COMPILE) eunit
 
 clean:
 	-rm -rf deps ebin priv doc/* .eunit c_src/*.o

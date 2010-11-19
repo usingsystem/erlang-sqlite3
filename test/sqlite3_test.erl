@@ -38,6 +38,7 @@ all_test_() ->
      fun open_db/0,
      fun close_db/1,
      [?FuncTest(basic_functionality),
+      ?FuncTest(parametrized),
       ?FuncTest(blob),
       ?FuncTest(escaping),
       ?FuncTest(select_many_records),
@@ -102,6 +103,14 @@ basic_functionality() ->
         ok, 
         sqlite3:drop_table(ct, user)).
 
+parametrized() ->
+    drop_table_if_exists(ct, user1),
+    sqlite3:create_table(ct, user1, [{id, integer}, {name, text}]),
+    sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [{1, 1}, {2, "john"}]),
+    ?assertEqual(
+        [{columns, ["id", "name"]}, {rows, [{1, <<"john">>}]}], 
+        sqlite3:sql_exec(ct, "select * from user1;")).
+
 blob() ->
     drop_table_if_exists(ct, blobs),
     sqlite3:create_table(ct, blobs, [{blob_col, blob}]),
@@ -139,21 +148,21 @@ select_many_records() ->
         N, 
         length(rows(sqlite3:sql_exec(ct, "select * from many_records;")))).
 
-%% note that inserts are actually serialized by gen_server
-concurrent_inserts_test() ->
-    N = 1024,
-    sqlite3:open(concurrent, [in_memory]), %% doing this test not in memory is much slower!
-    drop_table_if_exists(concurrent, t),
-    sqlite3:create_table(concurrent, t, [{id0, integer}]),
-    Self = self(),
-    [spawn(fun () ->
-               sqlite3:write(concurrent, t, [{id0, X}]),
-               Self ! {finished, N}
-           end) || X <- lists:seq(1, N)],
-    loop_concurrent_inserts(N),
-    ?assertEqual(
-        N, length(rows(sqlite3:read_all(concurrent, t)))),
-    sqlite3:close(concurrent).
+%% %% note that inserts are actually serialized by gen_server
+%% concurrent_inserts_test() ->
+%%     N = 1024,
+%%     sqlite3:open(concurrent, [in_memory]), %% doing this test not in memory is much slower!
+%%     drop_table_if_exists(concurrent, t),
+%%     sqlite3:create_table(concurrent, t, [{id0, integer}]),
+%%     Self = self(),
+%%     [spawn(fun () ->
+%%                sqlite3:write(concurrent, t, [{id0, X}]),
+%%                Self ! {finished, N}
+%%            end) || X <- lists:seq(1, N)],
+%%     loop_concurrent_inserts(N),
+%%     ?assertEqual(
+%%         N, length(rows(sqlite3:read_all(concurrent, t)))),
+%%     sqlite3:close(concurrent).
 
 loop_concurrent_inserts(0) ->
     ok;

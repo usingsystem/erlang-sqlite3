@@ -103,7 +103,6 @@ static void stop(ErlDrvData handle) {
 static int control(ErlDrvData drv_data, unsigned int command, char *buf,
     int len, char **rbuf, int rlen) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
-
   switch (command) {
   case CMD_SQL_EXEC:
     sql_exec(driver_data, buf, len);
@@ -422,11 +421,12 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
 
 // Unknown Command
 static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
-  // Return {error, unknown_command}
+  // Return {Port, error, unknown_command}
   ErlDrvTermData spec[] = {
+    ERL_DRV_PORT, driver_mk_port(drv->port),
     ERL_DRV_ATOM, drv->atom_error,
     ERL_DRV_ATOM, drv->atom_unknown_cmd,
-    ERL_DRV_TUPLE, 2
+    ERL_DRV_TUPLE, 3
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }

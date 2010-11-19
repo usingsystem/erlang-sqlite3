@@ -15,7 +15,7 @@
 -export([open/1, open/2]).
 -export([start_link/1, start_link/2]).
 -export([stop/0, close/1]).
--export([sql_exec/1, sql_exec/2]).
+-export([sql_exec/1, sql_exec/2, sql_exec/3]).
 
 -export([create_table/2, create_table/3, create_table/4]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
@@ -156,6 +156,18 @@ sql_exec(SQL) ->
 -spec sql_exec(atom(), iodata()) -> any().
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
+
+%%--------------------------------------------------------------------
+%% @spec sql_exec(Db :: atom(), Sql :: iodata(), Params) -> any()
+%%   Params = [sql_value() | {atom() | string() | integer(), sql_value()}]
+%% @doc
+%%   Executes the Sql statement with parameters Params directly on the Db 
+%%   database. Returns the result of the Sql call.
+%% @end
+%%--------------------------------------------------------------------
+-spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}]) -> any().
+sql_exec(Db, SQL, Params) ->
+    gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> any()
@@ -575,12 +587,13 @@ handle_call({table_info, Tbl}, _From, State) ->
             {reply, table_does_not_exist, State}
     end;
 handle_call({create_function, FunctionName, Function}, _From, #state{port = Port} = State) ->
-    % make sure we only get table info.
-    % SQL Injection warning
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
 handle_call({sql_exec, SQL}, _From, State) ->
     do_handle_call_sql_exec(SQL, State);
+handle_call({sql_bind_and_exec, SQL, Params}, _From, State) ->
+    Reply = do_sql_bind_and_exec(SQL, Params, State),
+    {reply, Reply, State};
 handle_call({create_table, Tbl, Columns}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
     do_handle_call_sql_exec(SQL, State);
@@ -693,6 +706,7 @@ get_priv_dir() ->
 
 -define(SQL_EXEC_COMMAND, 2).
 -define(SQL_CREATE_FUNCTION, 3).
+-define(SQL_BIND_AND_EXEC_COMMAND, 4).
 
 create_port_cmd(DbFile) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ DbFile.
@@ -705,17 +719,25 @@ do_sql_exec(SQL, #state{port = Port}) ->
     ?dbg("SQL: ~s~n", [SQL]),
     exec(Port, {sql_exec, SQL}).
 
+do_sql_bind_and_exec(SQL, Params, #state{port = Port}) ->
+    ?dbg("SQL: ~s; Parameters: ~p~n", [SQL, Params]),
+    exec(Port, {sql_bind_and_exec, SQL, Params}).
+
 exec(_Port, {create_function, _FunctionName, _Function}) ->
   error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
   %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
   %wait_result(Port);
 exec(Port, {sql_exec, Cmd}) ->
   port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
+  wait_result(Port);
+exec(Port, {sql_bind_and_exec, SQL, Params}) ->
+  Bin = term_to_binary({iolist_to_binary(SQL), Params}),
+  port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
+  io:format(user, "Sending sql_bind_and_exec to port", []),
   wait_result(Port).
 
 wait_result(Port) ->
   receive
-    %% Messages given at http://www.erlang.org/doc/reference_manual/ports.html
     {Port, error, Reason} ->
       error_logger:error_msg("sqlite3 driver error: ~s~n", [Reason]),
       % ?dbg("Error: ~p~n", [Reason]),
