@@ -125,9 +125,6 @@ select_many_records() ->
     drop_table_if_exists(ct, many_records),
     sqlite3:create_table(ct, many_records, [{id, integer}, {name, text}]),
     sqlite3:write_many(ct, many_records, [[{id, X}, {name, "bar"}] || X <- lists:seq(1, 1024)]),
-%%     sqlite3:begin_transaction(ct),
-%%     [sqlite3:write(ct, many_records, [{id, X}, {name, "bar"}]) || X <- lists:seq(1, 1024)], %% takes very long :(
-%%     sqlite3:commit_transaction(ct),
     Columns = ["id", "name"],
     ?assertEqual(
         [{columns, Columns}, {rows, [{1, <<"bar">>}]}], 
