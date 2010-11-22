@@ -36,7 +36,7 @@ DRIVER_INIT(basic_driver) {
 
 static int print_dataset(ErlDrvTermData *dataset, int term_count);
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr);
-static inline void free_ptr_list(ptr_list *list);
+static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *));
 
 // Driver Start
 static ErlDrvData start(ErlDrvPort port, char* cmd) {
@@ -77,6 +77,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->db = db;
   retval->key = 42; //FIXME: Just a magic number, make real key
 
+  retval->atom_blob = driver_mk_atom("blob");
   retval->atom_error = driver_mk_atom("error");
   retval->atom_columns = driver_mk_atom("columns");
   retval->atom_rows = driver_mk_atom("rows");
@@ -364,13 +365,16 @@ static void sql_free_async(void *_async_command) {
 
   async_command->driver_data->async_handle = 0;
 
-  free_ptr_list(async_command->ptrs);
-  for (i = 0; i < async_command->binaries_count; i++) {
-    driver_free_binary(async_command->binaries[i]);
-  }
-  if (async_command->binaries) {
-    free(async_command->binaries);
-  }
+  free_ptr_list(async_command->ptrs, &free);
+
+  free_ptr_list(async_command->binaries, &driver_free_binary);
+
+  // for (i = 0; i < async_command->binaries_count; i++) {
+  //   driver_free_binary(async_command->binaries[i]);
+  // }
+  // if (async_command->binaries) {
+  //   free(async_command->binaries);
+  // }
   if (async_command->statement) {
     sqlite3_finalize(async_command->statement);
   }
@@ -393,8 +397,7 @@ static void sql_exec_async(void *_async_command) {
 
   ptr_list *ptrs = NULL;
 
-  ErlDrvBinary **binaries = NULL;
-  int binaries_count = 0;
+  ptr_list *binaries = NULL;
   int i;
 
   column_count = sqlite3_column_count(statement);
@@ -475,16 +478,37 @@ static void sql_exec_async(void *_async_command) {
         dataset[term_count - 1] = (ErlDrvTermData) float_ptr;
         break;
       }
-      case SQLITE_BLOB:
+      case SQLITE_BLOB: {
+        int bytes = sqlite3_column_bytes(statement, i);
+        ErlDrvBinary* binary = driver_alloc_binary(bytes);
+        binary->orig_size = bytes;
+        memcpy(binary->orig_bytes,
+               sqlite3_column_blob(statement, i), bytes);
+        binaries = add_to_ptr_list(binaries, binary);
+
+        term_count += 8;
+        if (term_count > term_allocated) {
+          term_allocated =
+            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
+        dataset[term_count - 8] = ERL_DRV_ATOM;
+        dataset[term_count - 7] = drv->atom_blob;
+        dataset[term_count - 6] = ERL_DRV_BINARY;
+        dataset[term_count - 5] = (ErlDrvTermData) binary;
+        dataset[term_count - 4] = bytes;
+        dataset[term_count - 3] = 0;
+        dataset[term_count - 2] = ERL_DRV_TUPLE;
+        dataset[term_count - 1] = 2;
+        break;
+      }
       case SQLITE_TEXT: {
         int bytes = sqlite3_column_bytes(statement, i);
-        binaries_count++;
-        binaries =
-          realloc(binaries, sizeof(*binaries) * binaries_count);
-        binaries[binaries_count - 1] = driver_alloc_binary(bytes);
-        binaries[binaries_count - 1]->orig_size = bytes;
-        memcpy(binaries[binaries_count - 1]->orig_bytes,
+        ErlDrvBinary* binary = driver_alloc_binary(bytes);
+        binary->orig_size = bytes;
+        memcpy(binary->orig_bytes,
                sqlite3_column_blob(statement, i), bytes);
+        binaries = add_to_ptr_list(binaries, binary);
 
         term_count += 4;
         if (term_count > term_allocated) {
@@ -493,8 +517,7 @@ static void sql_exec_async(void *_async_command) {
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 4] = ERL_DRV_BINARY;
-        dataset[term_count - 3] =
-          (ErlDrvTermData) binaries[binaries_count - 1];
+        dataset[term_count - 3] = (ErlDrvTermData) binary;
         dataset[term_count - 2] = bytes;
         dataset[term_count - 1] = 0;
         break;
@@ -526,7 +549,6 @@ static void sql_exec_async(void *_async_command) {
   async_command->row_count = row_count;
   async_command->ptrs = ptrs;
   async_command->binaries = binaries;
-  async_command->binaries_count = binaries_count;
 
   if (next_row == SQLITE_BUSY) {
     return_error(drv, "SQLite3 database is busy", &async_command->dataset,
@@ -666,11 +688,11 @@ static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr) {
   }
 }
 
-static inline void free_ptr_list(ptr_list *list) {
+static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *)) {
   ptr_list* tail;
   while (list) {
     tail = list->tail;
-    free(list->head);
+    (*free_head)(list->head);
     free(list);
     list = tail;
   }

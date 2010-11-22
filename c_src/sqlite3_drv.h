@@ -36,6 +36,7 @@ typedef struct sqlite3_drv_t {
   struct sqlite3 *db;
   long async_handle;
   FILE *log;
+  ErlDrvTermData atom_blob;
   ErlDrvTermData atom_error;
   ErlDrvTermData atom_columns;
   ErlDrvTermData atom_rows;
@@ -52,8 +53,7 @@ typedef struct async_sqlite3_command {
   int term_count;
   int row_count;
   ptr_list *ptrs;
-  int binaries_count;
-  ErlDrvBinary **binaries;
+  ptr_list *binaries;
 } async_sqlite3_command;
 
 

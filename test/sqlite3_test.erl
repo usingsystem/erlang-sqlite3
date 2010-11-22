@@ -122,7 +122,7 @@ parametrized() ->
         [null, 1.0, {blob, <<1,0,0>>}]),
     ?assertEqual(
         [{columns, ["i", "d", "b"]}, 
-         {rows, [{null, 1.0, <<1,0,0>>}]}],
+         {rows, [{null, 1.0, {blob, <<1,0,0>>}}]}],
         sqlite3:read_all(ct, user1)).
 
 blob() ->
@@ -130,7 +130,7 @@ blob() ->
     sqlite3:create_table(ct, blobs, [{blob_col, blob}]),
     sqlite3:write(ct, blobs, [{blob_col, {blob, <<0,255,1,2>>}}]),
     ?assertEqual(
-        [{columns, ["blob_col"]}, {rows, [{<<0,255,1,2>>}]}], 
+        [{columns, ["blob_col"]}, {rows, [{{blob, <<0,255,1,2>>}}]}], 
         sqlite3:read_all(ct, blobs)).
 
 escaping() ->
