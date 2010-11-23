@@ -32,7 +32,7 @@ drop_table_if_exists(Db, Table) ->
 rows(SqlExecReply) ->
     case SqlExecReply of
         [{columns, _Columns}, {rows, Rows}] -> Rows;
-        {error, Reason} -> {error, Reason}
+        {error, Code, Reason} -> {error, Code, Reason}
     end.
 
 all_test_() ->
@@ -78,7 +78,7 @@ basic_functionality() ->
         {rowid, 2}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
     ?assertEqual(
-        {error, "constraint failed"}, 
+        {error, 19, "constraint failed"}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
     ?assertEqual(
         [{columns, Columns}, {rows, AllRows}], 

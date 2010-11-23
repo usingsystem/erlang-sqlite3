@@ -118,32 +118,34 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
   return 0;
 }
 
-static inline int return_error(sqlite3_drv_t *drv, const char *error,
-    ErlDrvTermData **spec, int *term_count) {
-  *spec = (ErlDrvTermData *) malloc(9 * sizeof(ErlDrvTermData));
+static inline int return_error(sqlite3_drv_t *drv, int error_code,
+    const char *error,  ErlDrvTermData **spec, int *term_count) {
+  *spec = (ErlDrvTermData *) malloc(11 * sizeof(ErlDrvTermData));
   (*spec)[0] = ERL_DRV_PORT;
   (*spec)[1] = driver_mk_port(drv->port);
   (*spec)[2] = ERL_DRV_ATOM;
   (*spec)[3] = drv->atom_error;
-  (*spec)[4] = ERL_DRV_STRING;
-  (*spec)[5] = (ErlDrvTermData) error;
-  (*spec)[6] = strlen(error);
-  (*spec)[7] = ERL_DRV_TUPLE;
-  (*spec)[8] = 3;
-  *term_count = 9;
+  (*spec)[4] = ERL_DRV_INT;
+  (*spec)[5] = error_code;
+  (*spec)[6] = ERL_DRV_STRING;
+  (*spec)[7] = (ErlDrvTermData) error;
+  (*spec)[8] = strlen(error);
+  (*spec)[9] = ERL_DRV_TUPLE;
+  (*spec)[10] = 4;
+  *term_count = 11;
   return 0;
 }
 
-static inline int output_error(sqlite3_drv_t *drv, const char *error) {
+static inline int output_error(sqlite3_drv_t *drv, int error_code, const char *error) {
   ErlDrvTermData *dataset;
   int term_count;
-  return_error(drv, error, &dataset, &term_count);
+  return_error(drv, error_code, error, &dataset, &term_count);
   driver_output_term(drv->port, dataset, term_count);
   return 0;
 }
 
 static inline int output_db_error(sqlite3_drv_t *drv) {
-  return output_error(drv, sqlite3_errmsg(drv->db));
+  return output_error(drv, sqlite3_errcode(drv->db), sqlite3_errmsg(drv->db));
 }
 
 static inline int sql_exec_statement(sqlite3_drv_t *drv, sqlite3_stmt *statement) {
@@ -215,7 +217,7 @@ static inline int decode_and_bind_param(
       result = sqlite3_bind_null(statement, param_index);
     }
     else {
-      output_error(drv, "Non-null atom as parameter");
+      output_error(drv, SQLITE_MISUSE, "Non-null atom as parameter");
       return 1;
     }
     break;
@@ -242,7 +244,7 @@ static inline int decode_and_bind_param(
     result = sqlite3_bind_blob(statement, param_index, char_buf_val, *size, &free);
     break;
   default:
-    output_error(drv, "bad parameter type");
+    output_error(drv, SQLITE_MISUSE, "bad parameter type");
     return 1;
   }
   if (result != SQLITE_OK) {
@@ -265,13 +267,13 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   ei_decode_version(buffer, &index, NULL);
   result = ei_decode_tuple_header(buffer, &index, &size);
   if (size != 2) {
-    return output_error(drv, "bad argument");
+    return output_error(drv, SQLITE_MISUSE, "bad argument");
   }
 
   // decode SQL statement
   ei_get_type(buffer, &index, &type, &size);
   if (type != ERL_BINARY_EXT) {
-    return output_error(drv, "bad argument");
+    return output_error(drv, SQLITE_MISUSE, "bad argument");
   }
 
   char *command = malloc(size * sizeof(char));
@@ -298,7 +300,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
         // param with name or explicit index
         param_indices_are_explicit = 1;
         if (size != 2) {
-          return output_error(drv, "bad argument");
+          return output_error(drv, SQLITE_MISUSE, "bad argument");
         }
         ei_decode_tuple_header(buffer, &index, &size);
         ei_get_type(buffer, &index, &type, &size);
@@ -323,7 +325,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
           break;
         case ERL_STRING_EXT:
           if (size >= MAXATOMLEN) {
-            return output_error(drv, "parameter name too long");
+            return output_error(drv, SQLITE_TOOBIG, "parameter name too long");
           }
           ei_decode_string(buffer, &index, param_name);
           // insert zero terminator
@@ -331,7 +333,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
           param_index = sqlite3_bind_parameter_index(statement, param_name);
           break;
         default:
-          return output_error(drv, "parameter index must be given as integer, atom, or string");
+          return output_error(drv, SQLITE_MISMATCH, "parameter index must be given as integer, atom, or string");
         }
         result = decode_and_bind_param(drv, buffer, &index, statement, param_index, &type, &size);
         if (result != SQLITE_OK) {
@@ -341,7 +343,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
       else {
         IMPLICIT_INDEX:
         if (param_indices_are_explicit) {
-          return output_error(drv,
+          return output_error(drv, SQLITE_MISUSE,
             "parameters without indices shouldn't follow indexed or named parameters");
         }
 
@@ -551,12 +553,12 @@ static void sql_exec_async(void *_async_command) {
   async_command->binaries = binaries;
 
   if (next_row == SQLITE_BUSY) {
-    return_error(drv, "SQLite3 database is busy", &async_command->dataset,
+    return_error(drv, SQLITE_BUSY, "SQLite3 database is busy", &async_command->dataset,
         &async_command->term_count);
     return;
   }
   if (next_row != SQLITE_DONE) {
-    return_error(drv, sqlite3_errmsg(drv->db), &async_command->dataset,
+    return_error(drv, next_row, sqlite3_errmsg(drv->db), &async_command->dataset,
         &async_command->term_count);
     return;
   }

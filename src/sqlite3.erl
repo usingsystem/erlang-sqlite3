@@ -737,10 +737,10 @@ exec(Port, {sql_bind_and_exec, SQL, Params}) ->
 
 wait_result(Port) ->
   receive
-    {Port, error, Reason} ->
+    {Port, error, Code, Reason} ->
       error_logger:error_msg("sqlite3 driver error: ~s~n", [Reason]),
       % ?dbg("Error: ~p~n", [Reason]),
-      {error, Reason};
+      {error, Code, Reason};
     {Port, Reply} ->
       % ?dbg("Reply: ~p~n", [Reply]),
       Reply;
