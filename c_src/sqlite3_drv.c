@@ -82,7 +82,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->atom_columns = driver_mk_atom("columns");
   retval->atom_rows = driver_mk_atom("rows");
   retval->atom_null = driver_mk_atom("null");
-  retval->atom_id = driver_mk_atom("id");
+  retval->atom_rowid = driver_mk_atom("rowid");
   retval->atom_ok = driver_mk_atom("ok");
   retval->atom_unknown_cmd = driver_mk_atom("unknown_command");
 
@@ -587,7 +587,7 @@ static void sql_exec_async(void *_async_command) {
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 6] = ERL_DRV_ATOM;
-    dataset[term_count - 5] = drv->atom_id;
+    dataset[term_count - 5] = drv->atom_rowid;
     dataset[term_count - 4] = ERL_DRV_INT;
     dataset[term_count - 3] = rowid;
     dataset[term_count - 2] = ERL_DRV_TUPLE;

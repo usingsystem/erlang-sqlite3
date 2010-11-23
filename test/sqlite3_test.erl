@@ -72,10 +72,10 @@ basic_functionality() ->
         TableInfo, 
         sqlite3:table_info(ct, user)),
     ?assertEqual(
-        {id, 1}, 
+        {rowid, 1}, 
         sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}])),
     ?assertEqual(
-        {id, 2}, 
+        {rowid, 2}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
     ?assertEqual(
         {error, "constraint failed"}, 

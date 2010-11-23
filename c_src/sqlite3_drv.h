@@ -41,7 +41,7 @@ typedef struct sqlite3_drv_t {
   ErlDrvTermData atom_columns;
   ErlDrvTermData atom_rows;
   ErlDrvTermData atom_null;
-  ErlDrvTermData atom_id;
+  ErlDrvTermData atom_rowid;
   ErlDrvTermData atom_ok;
   ErlDrvTermData atom_unknown_cmd;
 } sqlite3_drv_t;
