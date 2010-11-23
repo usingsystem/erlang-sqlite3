@@ -137,40 +137,40 @@ stop() ->
     close(?MODULE).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Sql :: iodata()) -> term()
+%% @spec sql_exec(Sql :: iodata()) -> sql_result()
 %% @doc
 %%   Executes the Sql statement directly.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec(iodata()) -> any().
+-spec sql_exec(iodata()) -> sql_result().
 sql_exec(SQL) ->
     sql_exec(?MODULE, SQL).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> any()
+%% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> sql_result()
 %% @doc
 %%   Executes the Sql statement directly on the Db database. Returns the
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec(atom(), iodata()) -> any().
+-spec sql_exec(atom(), iodata()) -> sql_result().
 sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Db :: atom(), Sql :: iodata(), Params) -> any()
+%% @spec sql_exec(Db :: atom(), Sql :: iodata(), Params) -> sql_result()
 %%   Params = [sql_value() | {atom() | string() | integer(), sql_value()}]
 %% @doc
 %%   Executes the Sql statement with parameters Params directly on the Db 
 %%   database. Returns the result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}]) -> any().
+-spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}]) -> sql_result().
 sql_exec(Db, SQL, Params) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> any()
+%% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> sql_non_query_result()
 %% @doc
 %%   Creates the Tbl table using TblInfo as the table structure. The
 %%   table structure is a list of {column name, column type} pairs.
@@ -179,12 +179,12 @@ sql_exec(Db, SQL, Params) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), [{atom(), atom()}]) -> any().
+-spec create_table(atom(), [{atom(), atom()}]) -> sql_non_query_result().
 create_table(Tbl, Columns) ->
     create_table(?MODULE, Tbl, Columns).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db :: atom(), Tbl :: atom(), Columns) -> any()
+%% @spec create_table(Db :: atom(), Tbl :: atom(), Columns) -> sql_non_query_result()
 %%     Columns = [{atom(), atom()}]
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure. 
@@ -194,12 +194,12 @@ create_table(Tbl, Columns) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), atom(), [{atom(), atom()}]) -> any().
+-spec create_table(atom(), atom(), [{atom(), atom()}]) -> sql_non_query_result().
 create_table(Db, Tbl, Columns) ->
     gen_server:call(Db, {create_table, Tbl, Columns}).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo, Constraints) -> any()
+%% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo, Constraints) -> sql_non_query_result()
 %%     Columns = [{atom(), atom()}]
 %%     Constraints = [term()]
 %% @doc
@@ -211,7 +211,7 @@ create_table(Db, Tbl, Columns) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), atom(), [{atom(), atom()}], [any()]) -> any().
+-spec create_table(atom(), atom(), [{atom(), atom()}], [any()]) -> sql_non_query_result().
 create_table(Db, Tbl, Columns, Constraints) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}).
 
@@ -256,50 +256,50 @@ table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec write(Tbl :: atom(), Data) -> any()
+%% @spec write(Tbl :: atom(), Data) -> sql_non_query_result()
 %%         Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
 %%   Write Data into Tbl table. Value must be of the same type as 
 %%   determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec write(atom(), [{atom(), sql_value()}]) -> any().
+-spec write(atom(), [{atom(), sql_value()}]) -> sql_non_query_result().
 write(Tbl, Data) ->
     write(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
-%% @spec write(Db :: atom(), Tbl :: atom(), Data) -> term()
+%% @spec write(Db :: atom(), Tbl :: atom(), Data) -> sql_non_query_result()
 %%         Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
 %%   Write Data into Tbl table in Db database. Value must be of the 
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write(atom(), atom(), [{atom(), sql_value()}]) -> any().
+-spec write(atom(), atom(), [{atom(), sql_value()}]) -> sql_non_query_result().
 write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec write_many(Tbl :: atom(), Data) -> any()
+%% @spec write_many(Tbl :: atom(), Data) -> sql_non_query_result()
 %%         Data = [[{Column :: atom(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl. Value must be of the 
 %%   same type as determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec write_many(atom(), [[{atom(), sql_value()}]]) -> any().
+-spec write_many(atom(), [[{atom(), sql_value()}]]) -> sql_non_query_result().
 write_many(Tbl, Data) ->
     write_many(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
-%% @spec write_many(Db :: atom(), Tbl :: atom(), Data) -> term()
+%% @spec write_many(Db :: atom(), Tbl :: atom(), Data) -> sql_non_query_result()
 %%         Data = [[{Column :: atom(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl in database Db. Value 
 %%   must be of the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write_many(atom(), atom(), [[{atom(), sql_value()}]]) -> any().
+-spec write_many(atom(), atom(), [[{atom(), sql_value()}]]) -> sql_non_query_result().
 write_many(Db, Tbl, Data) ->
     gen_server:call(Db, {write_many, Tbl, Data}).
 
@@ -307,11 +307,11 @@ write_many(Db, Tbl, Data) ->
 %% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> Result
 %%        Value = any()
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
-%%        Result = {ok, ID} | Unknown
+%%        Result = {ok, RowID} | Unknown
 %%        Unknown = term()
 %% @doc
 %%    Updates rows into Tbl table such that the Value matches the
-%%    value in Key with Data. Returns ID of the first updated
+%%    value in Key with Data. Returns RowID of the first updated
 %%    record.
 %% @end
 %%--------------------------------------------------------------------
@@ -334,27 +334,27 @@ update(Db, Tbl, Key, Value, Data) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec read_all(Db :: atom(), Table :: atom()) -> any()
+%% @spec read_all(Db :: atom(), Table :: atom()) -> sql_result()
 %% @doc
 %%   Reads all rows from Table in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec read_all(atom(), atom()) -> any().
+-spec read_all(atom(), atom()) -> sql_result().
 read_all(Db, Tbl) ->
     gen_server:call(Db, {read, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec read_all(Db :: atom(), Table :: atom(), Columns :: [atom()]) -> any()
+%% @spec read_all(Db :: atom(), Table :: atom(), Columns :: [atom()]) -> sql_result()
 %% @doc
 %%   Reads Columns in all rows from Table in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec read_all(atom(), atom(), [atom()]) -> any().
+-spec read_all(atom(), atom(), [atom()]) -> sql_result().
 read_all(Db, Tbl, Columns) ->
     gen_server:call(Db, {read, Tbl, Columns}).
 
 %%--------------------------------------------------------------------
-%% @spec read(Tbl :: atom(), Key) -> [any()]
+%% @spec read(Tbl :: atom(), Key) -> sql_result()
 %%         Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
 %%   Reads a row from Tbl table such that the Value matches the 
@@ -362,12 +362,12 @@ read_all(Db, Tbl, Columns) ->
 %%   from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec read(atom(), {atom(), any()}) -> any().
+-spec read(atom(), {atom(), sql_value()}) -> sql_result().
 read(Tbl, Key) ->
     read(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
-%% @spec read(Db :: atom(), Tbl :: atom(), Key) -> [any()]
+%% @spec read(Db :: atom(), Tbl :: atom(), Key) -> sql_result()
 %%         Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
 %%   Reads a row from Tbl table in Db database such that the Value 
@@ -375,7 +375,7 @@ read(Tbl, Key) ->
 %%   as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec read(atom(), atom(), {atom(), any()}) -> any().
+-spec read(atom(), atom(), {atom(), sql_value()}) -> sql_result().
 read(Db, Tbl, {Column, Value}) ->
     gen_server:call(Db, {read, Tbl, Column, Value}).
 
@@ -391,6 +391,7 @@ read(Db, Tbl, {Column, Value}) ->
 %%    determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
+-spec read(atom(), atom(), {atom(), sql_value()}, [atom()]) -> sql_result().
 read(Db, Tbl, {Key, Value}, Columns) ->
   gen_server:call(Db, {read, Tbl, Key, Value, Columns}).
 
@@ -403,12 +404,12 @@ read(Db, Tbl, {Key, Value}, Columns) ->
 %%   Value must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec delete(atom(), {atom(), any()}) -> any().
+-spec delete(atom(), {atom(), sql_value()}) -> sql_non_query_result().
 delete(Tbl, Key) ->
     delete(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
-%% @spec delete(Db :: atom(), Tbl :: atom(), Key) -> any()
+%% @spec delete(Db :: atom(), Tbl :: atom(), Key) -> sql_non_query_result()
 %%        Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
 %%   Delete a row from Tbl table in Db database such that the Value 
@@ -416,27 +417,27 @@ delete(Tbl, Key) ->
 %%   Value must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec delete(atom(), atom(), {atom(), any()}) -> any().
+-spec delete(atom(), atom(), {atom(), any()}) -> sql_non_query_result().
 delete(Db, Tbl, Key) ->
     gen_server:call(Db, {delete, Tbl, Key}).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Tbl :: atom()) -> any()
+%% @spec drop_table(Tbl :: atom()) -> sql_non_query_result()
 %% @doc
 %%   Drop the table Tbl.
 %% @end
 %%--------------------------------------------------------------------
--spec drop_table(atom()) -> any().
+-spec drop_table(atom()) -> sql_non_query_result().
 drop_table(Tbl) ->
     drop_table(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Db :: atom(), Tbl :: atom()) -> any()
+%% @spec drop_table(Db :: atom(), Tbl :: atom()) -> sql_non_query_result()
 %% @doc
 %%   Drop the table Tbl from Db database.
 %% @end
 %%--------------------------------------------------------------------
--spec drop_table(atom(), atom()) -> any().
+-spec drop_table(atom(), atom()) -> sql_non_query_result().
 drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
@@ -453,34 +454,34 @@ drop_table(Db, Tbl) ->
 %%     gen_server:call(Db, {create_function, FunctionName, Function}).
 
 %%--------------------------------------------------------------------
-%% @spec begin_transaction(Db :: atom()) -> term()
+%% @spec begin_transaction(Db :: atom()) -> sql_non_query_result()
 %% @doc
 %%   Begins a transaction in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec begin_transaction(atom()) -> any().
+-spec begin_transaction(atom()) -> sql_non_query_result().
 begin_transaction(Db) ->
     SQL = "BEGIN;",
     sql_exec(Db, SQL).
 
 %%--------------------------------------------------------------------
-%% @spec commit_transaction(Db :: atom()) -> term()
+%% @spec commit_transaction(Db :: atom()) -> sql_non_query_result()
 %% @doc
 %%   Commits the current transaction in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec commit_transaction(atom()) -> any().
+-spec commit_transaction(atom()) -> sql_non_query_result().
 commit_transaction(Db) ->
     SQL = "COMMIT;",
     sql_exec(Db, SQL).
 
 %%--------------------------------------------------------------------
-%% @spec rollback_transaction(Db :: atom()) -> term()
+%% @spec rollback_transaction(Db :: atom()) -> sql_non_query_result()
 %% @doc
 %%   Rolls back the current transaction in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec rollback_transaction(atom()) -> any().
+-spec rollback_transaction(atom()) -> sql_non_query_result().
 rollback_transaction(Db) ->
     SQL = "ROLLBACK;",
     sql_exec(Db, SQL).
@@ -747,7 +748,7 @@ wait_result(Port) ->
     {'EXIT', Port, Reason} ->
       error_logger:error_msg("sqlite3 driver port closed with reason ~p~n", [Reason]),
       % ?dbg("Error: ~p~n", [Reason]),
-      {error, Reason}
+      {error, -1, Reason}
   end.
 
 parse_table_info(Info) ->
@@ -805,6 +806,19 @@ build_primary_key_constraint(Tail, Acc) ->
 %% 
 %% Values accepted in SQL statements include numbers, atom 'null',
 %% and io:iolist().
+%% @end
+%% @type sqlite_error() = {'error', integer(), string()}.
+%% 
+%% Errors are reported by their SQLite result code 
+%% (http://www.sqlite.org/c3ref/c_busy_recovery.html) and a string containing 
+%% English-language text that describes the error.
+%% @end
+%% @type sql_non_query_result() = ok | sqlite_error().
+%% The result returned by functions which call the database but don't return
+%% any records.
+%% @end
+%% @type sql_result() = sql_non_query_result() | [{columns, [string()]} | {rows, [tuple()]}].
+%% The result returned by functions which query the database.
 %% @end
 %%--------------------------------------------------------------------
 

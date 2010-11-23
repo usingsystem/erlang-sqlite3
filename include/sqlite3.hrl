@@ -21,3 +21,7 @@
 
 -define(NULL_ATOM, null).
 -type(sql_value() :: number() | ?NULL_ATOM | iodata() | {blob, binary()}).
+
+-type(sqlite_error() :: {error, integer(), string()}).
+-type(sql_non_query_result() :: ok | sqlite_error()).
+-type(sql_result() :: sql_non_query_result() | [{columns, [string()]} | {rows, [tuple()]}]).
