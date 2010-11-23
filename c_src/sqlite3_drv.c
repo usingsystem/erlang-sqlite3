@@ -50,12 +50,12 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   }
 
   fprintf(retval->log,
-      "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
+          "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
 
   const char *db_name = strstr(cmd, " ");
   if (!db_name) {
     fprintf(retval->log,
-        "ERROR: DB name should be passed at command line\n");
+            "ERROR: DB name should be passed at command line\n");
     db_name = DB_PATH;
   } else {
     ++db_name; // move to first character after ' '
@@ -103,7 +103,7 @@ static void stop(ErlDrvData handle) {
 
 // Handle input from Erlang VM
 static int control(ErlDrvData drv_data, unsigned int command, char *buf,
-    int len, char **rbuf, int rlen) {
+                   int len, char **rbuf, int rlen) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
   switch (command) {
   case CMD_SQL_EXEC:
@@ -118,8 +118,9 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
   return 0;
 }
 
-static inline int return_error(sqlite3_drv_t *drv, int error_code,
-    const char *error,  ErlDrvTermData **spec, int *term_count) {
+static inline int return_error(
+    sqlite3_drv_t *drv, int error_code, const char *error,
+    ErlDrvTermData **spec, int *term_count) {
   *spec = (ErlDrvTermData *) malloc(11 * sizeof(ErlDrvTermData));
   (*spec)[0] = ERL_DRV_PORT;
   (*spec)[1] = driver_mk_port(drv->port);
@@ -136,7 +137,8 @@ static inline int return_error(sqlite3_drv_t *drv, int error_code,
   return 0;
 }
 
-static inline int output_error(sqlite3_drv_t *drv, int error_code, const char *error) {
+static inline int output_error(
+    sqlite3_drv_t *drv, int error_code, const char *error) {
   ErlDrvTermData *dataset;
   int term_count;
   return_error(drv, error_code, error, &dataset, &term_count);
@@ -150,7 +152,7 @@ static inline int output_db_error(sqlite3_drv_t *drv) {
 
 static inline int sql_exec_statement(sqlite3_drv_t *drv, sqlite3_stmt *statement) {
   async_sqlite3_command *async_command =
-    (async_sqlite3_command *) calloc(1, sizeof(async_sqlite3_command));
+      (async_sqlite3_command *) calloc(1, sizeof(async_sqlite3_command));
   async_command->driver_data = drv;
   async_command->statement = statement;
 
@@ -158,9 +160,8 @@ static inline int sql_exec_statement(sqlite3_drv_t *drv, sqlite3_stmt *statement
   // fflush(drv->log);
 
   if (sqlite3_threadsafe()) {
-    drv->async_handle =
-      driver_async(drv->port, &drv->key, sql_exec_async,
-             async_command, sql_free_async);
+    drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async,
+                                     async_command, sql_free_async);
   } else {
     sql_exec_async(async_command);
     ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
@@ -186,7 +187,8 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 }
 
 static inline int decode_and_bind_param(
-    sqlite3_drv_t *drv, char *buffer, int *index, sqlite3_stmt *statement, int param_index, int *type, int *size) {
+    sqlite3_drv_t *drv, char *buffer, int *index,
+    sqlite3_stmt *statement, int param_index, int *type, int *size) {
   int result;
   ei_get_type(buffer, index, type, size);
   long long_val;
@@ -194,10 +196,10 @@ static inline int decode_and_bind_param(
   double double_val;
   char* char_buf_val;
   switch (*type) {
-//  case ERL_SMALL_INTEGER_EXT:
-//    ei_decode_long(buffer, index, &long_val);
-//    result = sqlite3_bind_int(statement, param_index, long_val);
-//    break;
+  //  case ERL_SMALL_INTEGER_EXT:
+  //    ei_decode_long(buffer, index, &long_val);
+  //    result = sqlite3_bind_int(statement, param_index, long_val);
+  //    break;
   case ERL_SMALL_INTEGER_EXT:
   case ERL_INTEGER_EXT:
   case ERL_SMALL_BIG_EXT:
@@ -211,6 +213,7 @@ static inline int decode_and_bind_param(
     result = sqlite3_bind_double(statement, param_index, double_val);
     break;
   case ERL_ATOM_EXT:
+    // include space for null separator
     char_buf_val = malloc((*size + 1) * sizeof(char));
     ei_decode_atom(buffer, index, char_buf_val);
     if (strncmp(char_buf_val, "null", 5) == 0) {
@@ -222,7 +225,8 @@ static inline int decode_and_bind_param(
     }
     break;
   case ERL_STRING_EXT:
-    char_buf_val = malloc((*size + 1) * sizeof(char)); // space for null separator
+    // include space for null separator
+    char_buf_val = malloc((*size + 1) * sizeof(char));
     ei_decode_string(buffer, index, char_buf_val);
     result = sqlite3_bind_text(statement, param_index, char_buf_val, *size, &free);
     break;
@@ -292,7 +296,6 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
   while (index < buffer_size) {
     ei_decode_list_header(buffer, &index, &cur_list_size);
-    // note the finish condition; the last element is the tail and we shouldn't decode it!
     for (i = 0; i < cur_list_size; i++) {
       ei_get_type(buffer, &index, &type, &size);
       if (type == ERL_SMALL_TUPLE_EXT) {
@@ -333,9 +336,12 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
           param_index = sqlite3_bind_parameter_index(statement, param_name);
           break;
         default:
-          return output_error(drv, SQLITE_MISMATCH, "parameter index must be given as integer, atom, or string");
+          return output_error(
+              drv, SQLITE_MISMATCH,
+              "parameter index must be given as integer, atom, or string");
         }
-        result = decode_and_bind_param(drv, buffer, &index, statement, param_index, &type, &size);
+        result = decode_and_bind_param(
+            drv, buffer, &index, statement, param_index, &type, &size);
         if (result != SQLITE_OK) {
           return result; // error has already been output
         }
@@ -343,11 +349,13 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
       else {
         IMPLICIT_INDEX:
         if (param_indices_are_explicit) {
-          return output_error(drv, SQLITE_MISUSE,
-            "parameters without indices shouldn't follow indexed or named parameters");
+          return output_error(
+              drv, SQLITE_MISUSE,
+              "parameters without indices shouldn't follow indexed or named parameters");
         }
 
-        result = decode_and_bind_param(drv, buffer, &index, statement, param_index, &type, &size);
+        result = decode_and_bind_param(
+            drv, buffer, &index, statement, param_index, &type, &size);
         if (result != SQLITE_OK) {
           return result; // error has already been output
         }
@@ -362,7 +370,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
 static void sql_free_async(void *_async_command) {
   int i;
   async_sqlite3_command *async_command =
-    (async_sqlite3_command *) _async_command;
+      (async_sqlite3_command *) _async_command;
   free(async_command->dataset);
 
   async_command->driver_data->async_handle = 0;
@@ -385,7 +393,7 @@ static void sql_free_async(void *_async_command) {
 
 static void sql_exec_async(void *_async_command) {
   async_sqlite3_command *async_command =
-    (async_sqlite3_command *) _async_command;
+      (async_sqlite3_command *) _async_command;
   int term_count = async_command->term_count;
   int term_allocated = term_count <= 4 ? 4 : term_count;
   ErlDrvTermData *dataset = malloc(sizeof(*dataset) * term_allocated);
@@ -407,7 +415,7 @@ static void sql_exec_async(void *_async_command) {
   term_count += 2;
   if (term_count > term_allocated) {
     term_allocated =
-      (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
     dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
   }
   dataset[term_count - 2] = ERL_DRV_PORT;
@@ -418,7 +426,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 2 + column_count * 3 + 1 + 2 + 2 + 2;
     if (term_count > term_allocated) {
       term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[base] = ERL_DRV_ATOM;
@@ -458,7 +466,7 @@ static void sql_exec_async(void *_async_command) {
         term_count += 2;
         if (term_count > term_allocated) {
           term_allocated =
-            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 2] = ERL_DRV_INT64;
@@ -473,7 +481,7 @@ static void sql_exec_async(void *_async_command) {
         term_count += 2;
         if (term_count > term_allocated) {
           term_allocated =
-            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 2] = ERL_DRV_FLOAT;
@@ -491,7 +499,7 @@ static void sql_exec_async(void *_async_command) {
         term_count += 8;
         if (term_count > term_allocated) {
           term_allocated =
-            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 8] = ERL_DRV_ATOM;
@@ -515,7 +523,7 @@ static void sql_exec_async(void *_async_command) {
         term_count += 4;
         if (term_count > term_allocated) {
           term_allocated =
-            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 4] = ERL_DRV_BINARY;
@@ -528,7 +536,7 @@ static void sql_exec_async(void *_async_command) {
         term_count += 2;
         if (term_count > term_allocated) {
           term_allocated =
-            (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 2] = ERL_DRV_ATOM;
@@ -540,7 +548,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 2;
     if (term_count > term_allocated) {
       term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 2] = ERL_DRV_TUPLE;
@@ -553,13 +561,13 @@ static void sql_exec_async(void *_async_command) {
   async_command->binaries = binaries;
 
   if (next_row == SQLITE_BUSY) {
-    return_error(drv, SQLITE_BUSY, "SQLite3 database is busy", &async_command->dataset,
-        &async_command->term_count);
+    return_error(drv, SQLITE_BUSY, "SQLite3 database is busy",
+                 &async_command->dataset, &async_command->term_count);
     return;
   }
   if (next_row != SQLITE_DONE) {
-    return_error(drv, next_row, sqlite3_errmsg(drv->db), &async_command->dataset,
-        &async_command->term_count);
+    return_error(drv, next_row, sqlite3_errmsg(drv->db),
+                 &async_command->dataset, &async_command->term_count);
     return;
   }
 
@@ -567,7 +575,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 3+2+3;
     if (term_count > term_allocated) {
       term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 8] = ERL_DRV_NIL;
@@ -585,7 +593,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 6;
     if (term_count > term_allocated) {
       term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 6] = ERL_DRV_ATOM;
@@ -598,7 +606,7 @@ static void sql_exec_async(void *_async_command) {
     term_count += 2;
     if (term_count > term_allocated) {
       term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 2] = ERL_DRV_ATOM;
@@ -608,7 +616,7 @@ static void sql_exec_async(void *_async_command) {
   term_count += 2;
   if (term_count > term_allocated) {
     term_allocated =
-      (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
     dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
   }
   dataset[term_count - 2] = ERL_DRV_TUPLE;
@@ -622,7 +630,7 @@ static void sql_exec_async(void *_async_command) {
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
   async_sqlite3_command *async_command =
-    (async_sqlite3_command *) thread_data;
+      (async_sqlite3_command *) thread_data;
   sqlite3_drv_t *drv = async_command->driver_data;
 
   int res = driver_output_term(drv->port,
@@ -637,10 +645,10 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
 static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   // Return {Port, error, unknown_command}
   ErlDrvTermData spec[] = {
-    ERL_DRV_PORT, driver_mk_port(drv->port),
-    ERL_DRV_ATOM, drv->atom_error,
-    ERL_DRV_ATOM, drv->atom_unknown_cmd,
-    ERL_DRV_TUPLE, 3
+      ERL_DRV_PORT, driver_mk_port(drv->port),
+      ERL_DRV_ATOM, drv->atom_error,
+      ERL_DRV_ATOM, drv->atom_unknown_cmd,
+      ERL_DRV_TUPLE, 3
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
@@ -664,12 +672,12 @@ static int print_dataset(ErlDrvTermData *dataset, int term_count) {
     case ERL_DRV_FLOAT:
       printf("int64: %p:%f\n", (void *) newData, *(double *) newData);
       break;
-    //  case ERL_DRV_TUPLE:
-    //    printf("tuple of size %d\n", (int) newData);
-    //    break;
-    //  case ERL_DRV_LIST:
-    //    printf("list of length %d\n", (int) newData);
-    //    break;
+      //  case ERL_DRV_TUPLE:
+      //    printf("tuple of size %d\n", (int) newData);
+      //    break;
+      //  case ERL_DRV_LIST:
+      //    printf("list of length %d\n", (int) newData);
+      //    break;
     default:
       break;
     }
