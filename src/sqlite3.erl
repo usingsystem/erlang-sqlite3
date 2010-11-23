@@ -309,8 +309,7 @@ write_many(Db, Tbl, Data) ->
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
 %%    Updates rows into Tbl table such that the Value matches the
-%%    value in Key with Data. Returns RowID of the first updated
-%%    record.
+%%    value in Key with Data.
 %% @end
 %%--------------------------------------------------------------------
 -spec update(atom(), {atom(), sql_value()}, [{atom(), sql_value()}]) -> sql_non_query_result().
@@ -323,8 +322,7 @@ update(Tbl, {Key, Value}, Data) ->
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
 %%    Updates rows into Tbl table in Db database such that the Value
-%%    matches the value in Key with Data. Returns ID of the first
-%%    updated record.
+%%    matches the value in Key with Data.
 %% @end
 %%--------------------------------------------------------------------
 -spec update(atom(), atom(), {atom(), sql_value()}, [{atom(), sql_value()}]) -> sql_non_query_result().
