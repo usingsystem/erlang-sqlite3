@@ -20,7 +20,7 @@
 -export([create_table/2, create_table/3, create_table/4]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3, write_many/2, write_many/3]).
--export([update/4, update/5]).
+-export([update/3, update/4]).
 -export([read_all/2, read_all/3, read/2, read/3, read/4]).
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
@@ -304,33 +304,31 @@ write_many(Db, Tbl, Data) ->
     gen_server:call(Db, {write_many, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> Result
+%% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> sql_non_query_result()
 %%        Value = any()
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
-%%        Result = {ok, RowID} | Unknown
-%%        Unknown = term()
 %% @doc
 %%    Updates rows into Tbl table such that the Value matches the
 %%    value in Key with Data. Returns RowID of the first updated
 %%    record.
 %% @end
 %%--------------------------------------------------------------------
-update(Tbl, Key, Value, Data) ->
-  update(?MODULE, Tbl, Key, Value, Data).
+-spec update(atom(), {atom(), sql_value()}, [{atom(), sql_value()}]) -> sql_non_query_result().
+update(Tbl, {Key, Value}, Data) ->
+  update(?MODULE, Tbl, {Key, Value}, Data).
 
 %%--------------------------------------------------------------------
-%% @spec update(Db :: atom(), Tbl :: atom(), Key :: atom(), Value, Data) -> Result
+%% @spec update(Db :: atom(), Tbl :: atom(), Key :: atom(), Value, Data) -> sql_non_query_result()
 %%        Value = sql_value()
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
-%%        Result = {ok, ID} | Unknown
-%%        Unknown = term()
 %% @doc
 %%    Updates rows into Tbl table in Db database such that the Value
 %%    matches the value in Key with Data. Returns ID of the first
 %%    updated record.
 %% @end
 %%--------------------------------------------------------------------
-update(Db, Tbl, Key, Value, Data) ->
+-spec update(atom(), atom(), {atom(), sql_value()}, [{atom(), sql_value()}]) -> sql_non_query_result().
+update(Db, Tbl, {Key, Value}, Data) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------

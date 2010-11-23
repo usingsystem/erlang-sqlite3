@@ -99,7 +99,10 @@ basic_functionality() ->
         ok, 
         sqlite3:delete(ct, user, {name, "marge"})),
     ?assertEqual(
-        [{columns, Columns}, {rows, AbbyOnly}], 
+        ok, 
+        sqlite3:update(ct, user, {name, "abby"}, [{wage, 3000}])),
+    ?assertEqual(
+        [{columns, Columns}, {rows, [{1, <<"abby">>, 20, 3000}]}], 
         sqlite3:sql_exec(ct, "select * from user;")),
     ?assertEqual(
         ok, 
