@@ -37,6 +37,7 @@ DRIVER_INIT(basic_driver) {
 static int print_dataset(ErlDrvTermData *dataset, int term_count);
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr);
 static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *));
+static inline int max(int a, int b);
 
 // Driver Start
 static ErlDrvData start(ErlDrvPort port, char* cmd) {
@@ -395,7 +396,7 @@ static void sql_exec_async(void *_async_command) {
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) _async_command;
   int term_count = async_command->term_count;
-  int term_allocated = term_count <= 4 ? 4 : term_count;
+  int term_allocated = max(4, term_count);
   ErlDrvTermData *dataset = malloc(sizeof(*dataset) * term_allocated);
   int row_count = async_command->row_count;
   sqlite3_drv_t *drv = async_command->driver_data;
@@ -414,8 +415,7 @@ static void sql_exec_async(void *_async_command) {
 
   term_count += 2;
   if (term_count > term_allocated) {
-    term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+    term_allocated = max(term_count, term_allocated*2);
     dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
   }
   dataset[term_count - 2] = ERL_DRV_PORT;
@@ -425,8 +425,7 @@ static void sql_exec_async(void *_async_command) {
     int base = term_count;
     term_count += 2 + column_count * 3 + 1 + 2 + 2 + 2;
     if (term_count > term_allocated) {
-      term_allocated =
-          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      term_allocated = max(term_count, term_allocated*2);
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[base] = ERL_DRV_ATOM;
@@ -465,8 +464,7 @@ static void sql_exec_async(void *_async_command) {
 
         term_count += 2;
         if (term_count > term_allocated) {
-          term_allocated =
-              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          term_allocated = max(term_count, term_allocated*2);
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 2] = ERL_DRV_INT64;
@@ -480,8 +478,7 @@ static void sql_exec_async(void *_async_command) {
 
         term_count += 2;
         if (term_count > term_allocated) {
-          term_allocated =
-              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          term_allocated = max(term_count, term_allocated*2);
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 2] = ERL_DRV_FLOAT;
@@ -498,8 +495,7 @@ static void sql_exec_async(void *_async_command) {
 
         term_count += 8;
         if (term_count > term_allocated) {
-          term_allocated =
-              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          term_allocated = max(term_count, term_allocated*2);
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 8] = ERL_DRV_ATOM;
@@ -522,8 +518,7 @@ static void sql_exec_async(void *_async_command) {
 
         term_count += 4;
         if (term_count > term_allocated) {
-          term_allocated =
-              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          term_allocated = max(term_count, term_allocated*2);
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 4] = ERL_DRV_BINARY;
@@ -535,8 +530,7 @@ static void sql_exec_async(void *_async_command) {
       case SQLITE_NULL: {
         term_count += 2;
         if (term_count > term_allocated) {
-          term_allocated =
-              (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+          term_allocated = max(term_count, term_allocated*2);
           dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
         }
         dataset[term_count - 2] = ERL_DRV_ATOM;
@@ -547,8 +541,7 @@ static void sql_exec_async(void *_async_command) {
     }
     term_count += 2;
     if (term_count > term_allocated) {
-      term_allocated =
-          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      term_allocated = max(term_count, term_allocated*2);
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 2] = ERL_DRV_TUPLE;
@@ -574,8 +567,7 @@ static void sql_exec_async(void *_async_command) {
   if (column_count > 0) {
     term_count += 3+2+3;
     if (term_count > term_allocated) {
-      term_allocated =
-          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      term_allocated = max(term_count, term_allocated*2);
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 8] = ERL_DRV_NIL;
@@ -592,8 +584,7 @@ static void sql_exec_async(void *_async_command) {
     sqlite3_int64 rowid = sqlite3_last_insert_rowid(drv->db);
     term_count += 6;
     if (term_count > term_allocated) {
-      term_allocated =
-          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      term_allocated = max(term_count, term_allocated*2);
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 6] = ERL_DRV_ATOM;
@@ -605,8 +596,7 @@ static void sql_exec_async(void *_async_command) {
   } else {
     term_count += 2;
     if (term_count > term_allocated) {
-      term_allocated =
-          (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+      term_allocated = max(term_count, term_allocated*2);
       dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
     }
     dataset[term_count - 2] = ERL_DRV_ATOM;
@@ -615,8 +605,7 @@ static void sql_exec_async(void *_async_command) {
 
   term_count += 2;
   if (term_count > term_allocated) {
-    term_allocated =
-        (term_count >= term_allocated*2) ? term_count : term_allocated*2;
+    term_allocated = max(term_count, term_allocated*2);
     dataset = realloc(dataset, sizeof(*dataset) * term_allocated);
   }
   dataset[term_count - 2] = ERL_DRV_TUPLE;
@@ -706,4 +695,8 @@ static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *)) {
     free(list);
     list = tail;
   }
+}
+
+static inline int max(int a, int b) {
+  return a >= b ? a : b;
 }
