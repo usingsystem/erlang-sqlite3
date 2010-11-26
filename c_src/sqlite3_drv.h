@@ -1,9 +1,10 @@
 #include <erl_driver.h>
+#include <erl_interface.h>
 #include <ei.h>
 #include <stdio.h>
 #include <string.h>
 #include <sqlite3.h>
-#include <erl_interface.h>
+#include <assert.h>
 
 #if SQLITE_VERSION_NUMBER < 3006001
 #error "SQLite3 of version 3.6.1 minumum required"

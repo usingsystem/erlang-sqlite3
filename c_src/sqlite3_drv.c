@@ -1,6 +1,4 @@
 #include "sqlite3_drv.h"
-#include "ei.h"
-#include "assert.h"
 
 // MSVC needs "__inline" instead of "inline" in C-source files.
 #if defined(_MSC_VER)
@@ -27,14 +25,16 @@ static ErlDrvEntry basic_driver_entry = {
     ERL_DRV_EXTENDED_MARKER, /* ERL_DRV_EXTENDED_MARKER */
     ERL_DRV_EXTENDED_MAJOR_VERSION, /* ERL_DRV_EXTENDED_MAJOR_VERSION */
     ERL_DRV_EXTENDED_MAJOR_VERSION, /* ERL_DRV_EXTENDED_MINOR_VERSION */
-    ERL_DRV_FLAG_USE_PORT_LOCKING /* ERL_DRV_FLAGs */
+    ERL_DRV_FLAG_USE_PORT_LOCKING, /* ERL_DRV_FLAGs */
+    NULL /* handle2 */,
+    NULL /* process_exit */,
+    NULL /* stop_select */
 };
 
 DRIVER_INIT(basic_driver) {
   return &basic_driver_entry;
 }
 
-static int print_dataset(ErlDrvTermData *dataset, int term_count);
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr);
 static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *));
 static inline int max(int a, int b);
@@ -103,8 +103,9 @@ static void stop(ErlDrvData handle) {
 }
 
 // Handle input from Erlang VM
-static int control(ErlDrvData drv_data, unsigned int command, char *buf,
-                   int len, char **rbuf, int rlen) {
+static int control(
+    ErlDrvData drv_data, unsigned int command, char *buf,
+    int len, char **rbuf, int rlen) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
   switch (command) {
   case CMD_SQL_EXEC:
@@ -151,7 +152,8 @@ static inline int output_db_error(sqlite3_drv_t *drv) {
   return output_error(drv, sqlite3_errcode(drv->db), sqlite3_errmsg(drv->db));
 }
 
-static inline int sql_exec_statement(sqlite3_drv_t *drv, sqlite3_stmt *statement) {
+static inline int sql_exec_statement(
+    sqlite3_drv_t *drv, sqlite3_stmt *statement) {
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) calloc(1, sizeof(async_sqlite3_command));
   async_command->driver_data = drv;
@@ -377,7 +379,6 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
 }
 
 static void sql_free_async(void *_async_command) {
-  int i;
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) _async_command;
   free(async_command->dataset);
@@ -389,12 +390,6 @@ static void sql_free_async(void *_async_command) {
   free_ptr_list(async_command->binaries,
                 (void (*)(void *)) &driver_free_binary);
 
-  // for (i = 0; i < async_command->binaries_count; i++) {
-  //   driver_free_binary(async_command->binaries[i]);
-  // }
-  // if (async_command->binaries) {
-  //   free(async_command->binaries);
-  // }
   if (async_command->statement) {
     sqlite3_finalize(async_command->statement);
   }
@@ -410,9 +405,7 @@ static void sql_exec_async(void *_async_command) {
   int row_count = async_command->row_count;
   sqlite3_drv_t *drv = async_command->driver_data;
 
-  int result, next_row, column_count;
-  char *error = NULL;
-  char *rest = NULL;
+  int next_row, column_count;
   sqlite3_stmt *statement = async_command->statement;
 
   ptr_list *ptrs = NULL;
@@ -634,6 +627,7 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
   int res = driver_output_term(drv->port,
                                async_command->dataset,
                                async_command->term_count);
+  (void) res; // suppress unused warning
   // fprintf(drv->log, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
   // fflush(drv->log);
   sql_free_async(async_command);
@@ -649,39 +643,6 @@ static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
       ERL_DRV_TUPLE, 3
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-}
-
-static int print_dataset(ErlDrvTermData *dataset, int term_count) {
-  ErlDrvTermData lastData = *dataset;
-  ErlDrvTermData newData;
-  int i;
-  printf("dataset (%d terms):\n", term_count);
-  for (i = 1; i < term_count; i++) {
-    dataset++;
-    newData = *dataset;
-    switch (lastData) {
-    case ERL_DRV_INT:
-      printf("int: %ld\n", (ErlDrvSInt) newData);
-      break;
-    case ERL_DRV_INT64:
-      printf("int64: %p:%lld\n", (void *) newData,
-             *(ErlDrvSInt64 *) newData);
-      break;
-    case ERL_DRV_FLOAT:
-      printf("int64: %p:%f\n", (void *) newData, *(double *) newData);
-      break;
-      //  case ERL_DRV_TUPLE:
-      //    printf("tuple of size %d\n", (int) newData);
-      //    break;
-      //  case ERL_DRV_LIST:
-      //    printf("list of length %d\n", (int) newData);
-      //    break;
-    default:
-      break;
-    }
-    lastData = newData;
-  }
-  return 0;
 }
 
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr) {
