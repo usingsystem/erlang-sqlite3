@@ -191,11 +191,12 @@ static inline int decode_and_bind_param(
     sqlite3_drv_t *drv, char *buffer, int *index,
     sqlite3_stmt *statement, int param_index, int *type, int *size) {
   int result;
-  ei_get_type(buffer, index, type, size);
-  long long_val;
   sqlite3_int64 int64_val;
   double double_val;
   char* char_buf_val;
+  long bin_size;
+
+  ei_get_type(buffer, index, type, size);
   switch (*type) {
   //  case ERL_SMALL_INTEGER_EXT:
   //    ei_decode_long(buffer, index, &long_val);
@@ -233,7 +234,8 @@ static inline int decode_and_bind_param(
     break;
   case ERL_BINARY_EXT:
     char_buf_val = malloc(*size * sizeof(char));
-    ei_decode_binary(buffer, index, char_buf_val, size);
+    ei_decode_binary(buffer, index, char_buf_val, &bin_size);
+    // assert(bin_size == *size)
     result = sqlite3_bind_text(statement, param_index, char_buf_val, *size, &free);
     break;
   case ERL_SMALL_TUPLE_EXT:
@@ -245,7 +247,8 @@ static inline int decode_and_bind_param(
     ei_get_type(buffer, index, type, size);
     assert (*type == ERL_BINARY_EXT);
     char_buf_val = malloc(*size * sizeof(char));
-    ei_decode_binary(buffer, index, char_buf_val, size);
+    ei_decode_binary(buffer, index, char_buf_val, &bin_size);
+    // assert(bin_size == *size)
     result = sqlite3_bind_blob(statement, param_index, char_buf_val, *size, &free);
     break;
   default:
@@ -265,6 +268,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   int type, size;
   char *rest = NULL;
   sqlite3_stmt *statement;
+  long bin_size;
 
   // fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
   // fflush(drv->log);
@@ -282,7 +286,8 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   }
 
   char *command = malloc(size * sizeof(char));
-  ei_decode_binary(buffer, &index, command, &size);
+  ei_decode_binary(buffer, &index, command, &bin_size);
+  // assert(bin_size == size)
   // printf("size: %d, command: %.*s\n", size, size, command);
   result = sqlite3_prepare_v2(drv->db, command, size, &statement,
                               (const char **) &rest);
@@ -294,6 +299,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
 
   // decoding parameters
   int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0;
+  long param_index_long;
   char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
   while (index < buffer_size) {
     ei_decode_list_header(buffer, &index, &cur_list_size);
@@ -311,7 +317,9 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
         // first element of tuple is int (index), atom, or string (name)
         switch (type) {
         case ERL_SMALL_INTEGER_EXT:
-          ei_decode_long(buffer, &index, &param_index);
+        case ERL_INTEGER_EXT:
+          ei_decode_long(buffer, &index, &param_index_long);
+          param_index = param_index_long;
           break;
         case ERL_ATOM_EXT:
           ei_decode_atom(buffer, &index, param_name);
@@ -378,7 +386,8 @@ static void sql_free_async(void *_async_command) {
 
   free_ptr_list(async_command->ptrs, &free);
 
-  free_ptr_list(async_command->binaries, &driver_free_binary);
+  free_ptr_list(async_command->binaries,
+                (void (*)(void *)) &driver_free_binary);
 
   // for (i = 0; i < async_command->binaries_count; i++) {
   //   driver_free_binary(async_command->binaries[i]);
