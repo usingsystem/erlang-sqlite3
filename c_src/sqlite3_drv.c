@@ -639,8 +639,9 @@ static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   ErlDrvTermData spec[] = {
       ERL_DRV_PORT, driver_mk_port(drv->port),
       ERL_DRV_ATOM, drv->atom_error,
+      ERL_DRV_INT, -1,
       ERL_DRV_ATOM, drv->atom_unknown_cmd,
-      ERL_DRV_TUPLE, 3
+      ERL_DRV_TUPLE, 4
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
