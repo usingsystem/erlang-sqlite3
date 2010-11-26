@@ -809,7 +809,7 @@ build_primary_key_constraint(Tail, Acc) ->
 %% (http://www.sqlite.org/c3ref/c_busy_recovery.html) and a string containing 
 %% English-language text that describes the error.
 %% @end
-%% @type sql_non_query_result() = ok | sqlite_error().
+%% @type sql_non_query_result() = ok | sqlite_error() | {rowid, integer()}.
 %% The result returned by functions which call the database but don't return
 %% any records.
 %% @end
