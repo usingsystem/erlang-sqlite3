@@ -38,6 +38,7 @@ DRIVER_INIT(basic_driver) {
 static inline ptr_list *add_to_ptr_list(ptr_list *list, void *value_ptr);
 static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *));
 static inline int max(int a, int b);
+static inline int sql_is_insert(const char *sql);
 
 // Driver Start
 static ErlDrvData start(ErlDrvPort port, char* cmd) {
@@ -582,7 +583,7 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 3] = ERL_DRV_NIL;
     dataset[term_count - 2] = ERL_DRV_LIST;
     dataset[term_count - 1] = 3;
-  } else if (strcasestr(sqlite3_sql(statement), "INSERT")) {
+  } else if (sql_is_insert(sqlite3_sql(statement))) {
     sqlite3_int64 rowid = sqlite3_last_insert_rowid(drv->db);
     term_count += 6;
     if (term_count > term_allocated) {
@@ -670,4 +671,15 @@ static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *)) {
 
 static inline int max(int a, int b) {
   return a >= b ? a : b;
+}
+
+static inline int sql_is_insert(const char *sql) {
+  // neither strcasestr nor strnicmp are portable, so have to do this
+  int i;
+  char *insert = "insert";
+  for (i = 0; i < 6; i++) {
+    if ((tolower(sql[i]) != insert[i]) && (sql[i] != ' '))
+      return 0;
+  }
+  return 1;
 }
