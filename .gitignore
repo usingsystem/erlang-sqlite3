@@ -1,4 +1,4 @@
-doc
+
 sqlite3.plt
 .svn
 */.svn
@@ -11,3 +11,4 @@ erl_crash.dump
 *.orig
 ebin
 priv
+TEST*.xml
