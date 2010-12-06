@@ -540,7 +540,7 @@ init(Options) ->
         Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
-        Msg = io_lib:format("Error loading ~p: ~p", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
+        Msg = io_lib:format("Error loading ~p: ~s", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
         {stop, lists:flatten(Msg)}
     end.
 
