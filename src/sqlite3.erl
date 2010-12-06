@@ -540,7 +540,8 @@ init(Options) ->
         Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
       {error, Error} ->
-        Msg = io_lib:format("Error loading ~p: ~s", [?DRIVER_NAME, erl_ddll:format_error(Error)]),
+        Msg = io_lib:format("Error loading ~p: ~s", 
+                            [?DRIVER_NAME, erl_ddll:format_error(Error)]),
         {stop, lists:flatten(Msg)}
     end.
 
@@ -662,7 +663,7 @@ handle_info(_Info, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
-%% @spec terminate(Reason, State) -> void()
+%% @spec terminate(Reason, State) -> term()
 %% @doc This function is called by a gen_server when it is about to
 %% terminate. It should be the opposite of Module:init/1 and do any necessary
 %% cleaning up. When it returns, the gen_server terminates with Reason.
@@ -670,13 +671,22 @@ handle_info(_Info, State) ->
 %% @end
 %% @hidden
 %%--------------------------------------------------------------------
--spec terminate(atom(), tuple()) -> atom().
-terminate(normal, #state{port = Port}) ->
-    port_command(Port, term_to_binary({close, nop})),
-    port_close(Port),
-    ok;
-terminate(_Reason, _State) ->
-    ok.
+-spec terminate(atom(), tuple()) -> term().
+terminate(_Reason, #state{port = Port}) ->
+    case Port of
+        undefined ->
+            pass;
+        _ ->
+            port_command(Port, term_to_binary({close, nop})),
+            port_close(Port)
+    end,
+    case erl_ddll:unload(?DRIVER_NAME) of
+        ok -> 
+            ok;
+        {error, ErrorDesc} ->
+            error_logger:error_msg("Error unloading sqlite3 driver: ~s~n", 
+                                   [erl_ddll:format_error(ErrorDesc)])
+    end.
 
 %%--------------------------------------------------------------------
 %% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
