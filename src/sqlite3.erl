@@ -539,6 +539,9 @@ init(Options) ->
       ok ->
         Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
         {ok, #state{port = Port, ops = Options}};
+      {error, permanent} -> %% already loaded!
+        Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
+        {ok, #state{port = Port, ops = Options}};            
       {error, Error} ->
         Msg = io_lib:format("Error loading ~p: ~s", 
                             [?DRIVER_NAME, erl_ddll:format_error(Error)]),
@@ -683,10 +686,13 @@ terminate(_Reason, #state{port = Port}) ->
     case erl_ddll:unload(?DRIVER_NAME) of
         ok -> 
             ok;
+        {error, permanent} ->
+            ok; %% FIXME is this the correct behavior?
         {error, ErrorDesc} ->
             error_logger:error_msg("Error unloading sqlite3 driver: ~s~n", 
                                    [erl_ddll:format_error(ErrorDesc)])
-    end.
+    end,
+    ok.
 
 %%--------------------------------------------------------------------
 %% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
