@@ -168,11 +168,11 @@ bin_to_hex(Binary) -> << <<(half_byte_to_hex(X)):8>> || <<X:4>> <= Binary>>.
 %%--------------------------------------------------------------------
 -spec update_set_sql([{atom(), sql_value()}]) -> iolist().
 update_set_sql(Data) ->
-  ColValueToSqlFun =
-    fun({Col, Value}) ->
-        [atom_to_list(Col), " = ", value_to_sql(Value)]
-    end,
-  map_intersperse(ColValueToSqlFun, Data, ", ").
+    ColValueToSqlFun =
+        fun({Col, Value}) ->
+                [atom_to_list(Col), " = ", value_to_sql(Value)]
+        end,
+    map_intersperse(ColValueToSqlFun, Data, ", ").
 
 %%--------------------------------------------------------------------
 %% @spec read_cols_sql(Columns::[atom()]) -> iolist()
@@ -182,7 +182,7 @@ update_set_sql(Data) ->
 %%--------------------------------------------------------------------
 -spec read_cols_sql([atom()]) -> iolist().
 read_cols_sql(Columns) ->
-  map_intersperse(fun atom_to_list/1, Columns, ", ").
+    map_intersperse(fun atom_to_list/1, Columns, ", ").
 
 %%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl :: atom(), ColumnData) -> iolist()
@@ -356,7 +356,8 @@ sql_number(NumberStr) ->
 
 -spec sql_string(string()) -> binary().
 sql_string(StringWithEscapedQuotes) ->
-    Res1 = re:replace(StringWithEscapedQuotes, "''", "'", [global, {return, binary}]),
+    Res1 = re:replace(StringWithEscapedQuotes, "''", "'", 
+                      [global, {return, binary}]),
     binary_part(Res1, 0, byte_size(Res1) - 1).
 
 -spec sql_blob(string()) -> binary().
@@ -386,8 +387,12 @@ constraint_sql(Constraint) ->
 -spec table_constraint_sql(any()) -> iolist().
 table_constraint_sql(TableConstraint) ->
     case TableConstraint of
-        {primary_key, Columns} -> ["PRIMARY KEY(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
-        {unique, Columns} -> ["UNIQUE(", map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"]
+        {primary_key, Columns} -> 
+            ["PRIMARY KEY(", 
+             map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
+        {unique, Columns} -> 
+            ["UNIQUE(", 
+             map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"]
         %% TODO: foreign key
     end.
 
@@ -409,8 +414,8 @@ indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
--define(FLAT(X), iolist_to_binary(X)).
--define(assertFlat(Expected, Value), ?assertEqual(iolist_to_binary(Expected), iolist_to_binary(Value))).
+-define(assertFlat(Expected, Value), 
+        ?assertEqual(iolist_to_binary(Expected), iolist_to_binary(Value))).
 
 quote_test() ->
     ?assertFlat("'abc'", value_to_sql("abc")),
@@ -422,7 +427,9 @@ create_table_sql_test() ->
         create_table_sql(user, [{id, integer, [primary_key]}, {name, text}])),
     ?assertFlat(
         "CREATE TABLE user (id INTEGER, name TEXT, PRIMARY KEY(id));",
-        create_table_sql(user, [{id, integer}, {name, text}], [{primary_key, [id]}])).
+        create_table_sql(user, 
+                         [{id, integer}, {name, text}], 
+                         [{primary_key, [id]}])).
 
 update_sql_test() ->
     ?assertFlat(

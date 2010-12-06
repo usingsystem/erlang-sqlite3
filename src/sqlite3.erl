@@ -51,7 +51,6 @@
 -type result() :: {'ok', pid()} | 'ignore' | {'error', any()}.
 
 -spec start_link(atom()) -> result().
-
 start_link(Db) ->
     open(Db, []).
 
@@ -314,7 +313,7 @@ write_many(Db, Tbl, Data) ->
 %%--------------------------------------------------------------------
 -spec update(atom(), {atom(), sql_value()}, [{atom(), sql_value()}]) -> sql_non_query_result().
 update(Tbl, {Key, Value}, Data) ->
-  update(?MODULE, Tbl, {Key, Value}, Data).
+    update(?MODULE, Tbl, {Key, Value}, Data).
 
 %%--------------------------------------------------------------------
 %% @spec update(Db :: atom(), Tbl :: atom(), Key :: atom(), Value, Data) -> sql_non_query_result()
@@ -389,7 +388,7 @@ read(Db, Tbl, {Column, Value}) ->
 %%--------------------------------------------------------------------
 -spec read(atom(), atom(), {atom(), sql_value()}, [atom()]) -> sql_result().
 read(Db, Tbl, {Key, Value}, Columns) ->
-  gen_server:call(Db, {read, Tbl, Key, Value, Columns}).
+    gen_server:call(Db, {read, Tbl, Key, Value, Columns}).
 
 %%--------------------------------------------------------------------
 %% @spec delete(Tbl :: atom(), Key) -> any()
@@ -536,16 +535,16 @@ init(Options) ->
     DbFile = proplists:get_value(file, Options),
     PrivDir = get_priv_dir(),
     case erl_ddll:load(PrivDir, atom_to_list(?DRIVER_NAME)) of
-      ok ->
-        Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
-        {ok, #state{port = Port, ops = Options}};
-      {error, permanent} -> %% already loaded!
-        Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
-        {ok, #state{port = Port, ops = Options}};            
-      {error, Error} ->
-        Msg = io_lib:format("Error loading ~p: ~s", 
-                            [?DRIVER_NAME, erl_ddll:format_error(Error)]),
-        {stop, lists:flatten(Msg)}
+        ok ->
+            Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
+            {ok, #state{port = Port, ops = Options}};
+        {error, permanent} -> %% already loaded!
+            Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
+            {ok, #state{port = Port, ops = Options}};            
+        {error, Error} ->
+            Msg = io_lib:format("Error loading ~p: ~s", 
+                                [?DRIVER_NAME, erl_ddll:format_error(Error)]),
+            {stop, lists:flatten(Msg)}
     end.
 
 %%--------------------------------------------------------------------
@@ -737,31 +736,33 @@ do_sql_bind_and_exec(SQL, Params, #state{port = Port}) ->
     exec(Port, {sql_bind_and_exec, SQL, Params}).
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
-  error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
-  %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
-  %wait_result(Port);
+    error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
+%port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
+%wait_result(Port);
 exec(Port, {sql_exec, Cmd}) ->
-  port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
-  wait_result(Port);
+    port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
+    wait_result(Port);
 exec(Port, {sql_bind_and_exec, SQL, Params}) ->
-  Bin = term_to_binary({iolist_to_binary(SQL), Params}),
-  port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
-  wait_result(Port).
+    Bin = term_to_binary({iolist_to_binary(SQL), Params}),
+    port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
+    wait_result(Port).
 
 wait_result(Port) ->
-  receive
-    {Port, error, Code, Reason} ->
-      error_logger:error_msg("sqlite3 driver error: ~s~n", [Reason]),
-      % ?dbg("Error: ~p~n", [Reason]),
-      {error, Code, Reason};
-    {Port, Reply} ->
-      % ?dbg("Reply: ~p~n", [Reply]),
-      Reply;
-    {'EXIT', Port, Reason} ->
-      error_logger:error_msg("sqlite3 driver port closed with reason ~p~n", [Reason]),
-      % ?dbg("Error: ~p~n", [Reason]),
-      {error, -1, Reason}
-  end.
+    receive
+        {Port, error, Code, Reason} ->
+            error_logger:error_msg("sqlite3 driver error: ~s~n", 
+                                   [Reason]),
+            % ?dbg("Error: ~p~n", [Reason]),
+            {error, Code, Reason};
+        {Port, Reply} ->
+            % ?dbg("Reply: ~p~n", [Reply]),
+            Reply;
+        {'EXIT', Port, Reason} ->
+            error_logger:error_msg("sqlite3 driver port closed with reason ~p~n", 
+                                   [Reason]),
+            % ?dbg("Error: ~p~n", [Reason]),
+            {error, -1, Reason}
+    end.
 
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
