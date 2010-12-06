@@ -77,7 +77,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   // Set the state for the driver
   retval->port = port;
   retval->db = db;
-  retval->key = 42; //FIXME: Just a magic number, make real key
+  retval->key = (unsigned int) port;
 
   retval->atom_blob = driver_mk_atom("blob");
   retval->atom_error = driver_mk_atom("error");
