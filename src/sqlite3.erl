@@ -719,6 +719,12 @@ get_priv_dir() ->
 -define(SQL_EXEC_COMMAND, 2).
 -define(SQL_CREATE_FUNCTION, 3).
 -define(SQL_BIND_AND_EXEC_COMMAND, 4).
+-define(CMD_PREPARE, 5).
+-define(CMD_PREPARED_BIND, 6).
+-define(CMD_PREPARED_STEP, 7).
+-define(CMD_PREPARED_RESET, 8).
+-define(CMD_PREPARED_CLEAR_BINDINGS, 9).
+-define(CMD_PREPARED_FINALIZE, 10).
 
 create_port_cmd(DbFile) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ DbFile.

@@ -88,6 +88,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->atom_null = driver_mk_atom("null");
   retval->atom_rowid = driver_mk_atom("rowid");
   retval->atom_ok = driver_mk_atom("ok");
+  retval->atom_done = driver_mk_atom("done");
   retval->atom_unknown_cmd = driver_mk_atom("unknown_command");
 
   fflush(retval->log);
@@ -97,10 +98,17 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
 // Driver Stop
 static void stop(ErlDrvData handle) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) handle;
+  unsigned int i;
 
+  if (driver_data->prepared_commands) {
+    for (i = 0; i < driver_data->prepared_count; i++) {
+      sql_free_async(driver_data->prepared_commands[i]);
+    }
+    driver_free(driver_data->prepared_commands);
+  }
   sqlite3_close(driver_data->db);
   fclose(driver_data->log);
-  driver_data->log = 0;
+  driver_data->log = NULL;
 
   driver_free(driver_data);
 }
@@ -116,6 +124,24 @@ static int control(
     break;
   case CMD_SQL_BIND_AND_EXEC:
     sql_bind_and_exec(driver_data, buf, len);
+    break;
+  case CMD_PREPARE:
+    prepare(driver_data, buf, len);
+    break;
+  case CMD_PREPARED_BIND:
+    prepared_bind(driver_data, buf, len);
+    break;
+  case CMD_PREPARED_STEP:
+    prepared_step(driver_data, buf, len);
+    break;
+  case CMD_PREPARED_RESET:
+    prepared_reset(driver_data, buf, len);
+    break;
+  case CMD_PREPARED_CLEAR_BINDINGS:
+    prepared_clear_bindings(driver_data, buf, len);
+    break;
+  case CMD_PREPARED_FINALIZE:
+    prepared_finalize(driver_data, buf, len);
     break;
   default:
     unknown(driver_data, buf, len);
@@ -155,14 +181,30 @@ static inline int output_db_error(sqlite3_drv_t *drv) {
   return output_error(drv, sqlite3_errcode(drv->db), sqlite3_errmsg(drv->db));
 }
 
+static inline int output_ok(sqlite3_drv_t *drv) {
+  // Return {Port, ok}
+  ErlDrvTermData spec[] = {
+      ERL_DRV_PORT, driver_mk_port(drv->port),
+      ERL_DRV_ATOM, drv->atom_ok,
+      ERL_DRV_TUPLE, 2
+  };
+  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+}
+
+static inline async_sqlite3_command *make_async_command(
+    sqlite3_drv_t *drv, sqlite3_stmt *statement) {
+  async_sqlite3_command *result =
+      (async_sqlite3_command *) driver_alloc(sizeof(async_sqlite3_command));
+  memset(result, 0, sizeof(async_sqlite3_command));
+
+  result->driver_data = drv;
+  result->statement = statement;
+  return result;
+}
+
 static inline int sql_exec_statement(
     sqlite3_drv_t *drv, sqlite3_stmt *statement) {
-  async_sqlite3_command *async_command =
-      (async_sqlite3_command *) driver_alloc(sizeof(async_sqlite3_command));
-  memset(async_command, 0, sizeof(async_sqlite3_command));
-
-  async_command->driver_data = drv;
-  async_command->statement = statement;
+  async_sqlite3_command *async_command = make_async_command(drv, statement);
 
 #ifdef DEBUG
   fprintf(drv->log, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
@@ -199,32 +241,32 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 }
 
 static inline int decode_and_bind_param(
-    sqlite3_drv_t *drv, char *buffer, int *index,
-    sqlite3_stmt *statement, int param_index, int *type, int *size) {
+    sqlite3_drv_t *drv, char *buffer, int *p_index,
+    sqlite3_stmt *statement, int param_index, int *p_type, int *p_size) {
   int result;
   sqlite3_int64 int64_val;
   double double_val;
   char* char_buf_val;
   long bin_size;
 
-  ei_get_type(buffer, index, type, size);
-  switch (*type) {
+  ei_get_type(buffer, p_index, p_type, p_size);
+  switch (*p_type) {
   case ERL_SMALL_INTEGER_EXT:
   case ERL_INTEGER_EXT:
   case ERL_SMALL_BIG_EXT:
   case ERL_LARGE_BIG_EXT:
-    ei_decode_longlong(buffer, index, &int64_val);
+    ei_decode_longlong(buffer, p_index, &int64_val);
     result = sqlite3_bind_int64(statement, param_index, int64_val);
     break;
   case ERL_FLOAT_EXT:
   case NEW_FLOAT_EXT: // what's the difference?
-    ei_decode_double(buffer, index, &double_val);
+    ei_decode_double(buffer, p_index, &double_val);
     result = sqlite3_bind_double(statement, param_index, double_val);
     break;
   case ERL_ATOM_EXT:
     // include space for null separator
-    char_buf_val = driver_alloc((*size + 1) * sizeof(char));
-    ei_decode_atom(buffer, index, char_buf_val);
+    char_buf_val = driver_alloc((*p_size + 1) * sizeof(char));
+    ei_decode_atom(buffer, p_index, char_buf_val);
     if (strncmp(char_buf_val, "null", 5) == 0) {
       result = sqlite3_bind_null(statement, param_index);
     }
@@ -235,28 +277,28 @@ static inline int decode_and_bind_param(
     break;
   case ERL_STRING_EXT:
     // include space for null separator
-    char_buf_val = driver_alloc((*size + 1) * sizeof(char));
-    ei_decode_string(buffer, index, char_buf_val);
-    result = sqlite3_bind_text(statement, param_index, char_buf_val, *size, &driver_free);
+    char_buf_val = driver_alloc((*p_size + 1) * sizeof(char));
+    ei_decode_string(buffer, p_index, char_buf_val);
+    result = sqlite3_bind_text(statement, param_index, char_buf_val, *p_size, &driver_free);
     break;
   case ERL_BINARY_EXT:
-    char_buf_val = driver_alloc(*size * sizeof(char));
-    ei_decode_binary(buffer, index, char_buf_val, &bin_size);
-    // assert(bin_size == *size)
-    result = sqlite3_bind_text(statement, param_index, char_buf_val, *size, &driver_free);
+    char_buf_val = driver_alloc(*p_size * sizeof(char));
+    ei_decode_binary(buffer, p_index, char_buf_val, &bin_size);
+    // assert(bin_size == *p_size)
+    result = sqlite3_bind_text(statement, param_index, char_buf_val, *p_size, &driver_free);
     break;
   case ERL_SMALL_TUPLE_EXT:
     // assume this is {blob, Blob}
-    ei_get_type(buffer, index, type, size);
-    ei_decode_tuple_header(buffer, index, size);
-    assert (*size == 2);
-    ei_skip_term(buffer, index); // skipped the atom 'blob'
-    ei_get_type(buffer, index, type, size);
-    assert (*type == ERL_BINARY_EXT);
-    char_buf_val = driver_alloc(*size * sizeof(char));
-    ei_decode_binary(buffer, index, char_buf_val, &bin_size);
-    // assert(bin_size == *size)
-    result = sqlite3_bind_blob(statement, param_index, char_buf_val, *size, &driver_free);
+    ei_get_type(buffer, p_index, p_type, p_size);
+    ei_decode_tuple_header(buffer, p_index, p_size);
+    assert (*p_size == 2);
+    ei_skip_term(buffer, p_index); // skipped the atom 'blob'
+    ei_get_type(buffer, p_index, p_type, p_size);
+    assert (*p_type == ERL_BINARY_EXT);
+    char_buf_val = driver_alloc(*p_size * sizeof(char));
+    ei_decode_binary(buffer, p_index, char_buf_val, &bin_size);
+    // assert(bin_size == *p_size)
+    result = sqlite3_bind_blob(statement, param_index, char_buf_val, *p_size, &driver_free);
     break;
   default:
     output_error(drv, SQLITE_MISUSE, "bad parameter type");
@@ -269,6 +311,87 @@ static inline int decode_and_bind_param(
   return SQLITE_OK;
 }
 
+static int bind_parameters(
+    sqlite3_drv_t *drv, char *buffer, int buffer_size, int *p_index,
+    sqlite3_stmt *statement, int *p_type, int *p_size) {
+  // decoding parameters
+  int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0, result;
+  long param_index_long;
+  char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
+  while (*p_index < buffer_size) {
+    ei_decode_list_header(buffer, p_index, &cur_list_size);
+    for (i = 0; i < cur_list_size; i++) {
+      ei_get_type(buffer, p_index, p_type, p_size);
+      if (*p_type == ERL_SMALL_TUPLE_EXT) {
+        int old_index = *p_index;
+        // param with name or explicit index
+        param_indices_are_explicit = 1;
+        if (*p_size != 2) {
+          return output_error(drv, SQLITE_MISUSE, "bad argument");
+        }
+        ei_decode_tuple_header(buffer, p_index, p_size);
+        ei_get_type(buffer, p_index, p_type, p_size);
+        // first element of tuple is int (index), atom, or string (name)
+        switch (*p_type) {
+        case ERL_SMALL_INTEGER_EXT:
+        case ERL_INTEGER_EXT:
+          ei_decode_long(buffer, p_index, &param_index_long);
+          param_index = param_index_long;
+          break;
+        case ERL_ATOM_EXT:
+          ei_decode_atom(buffer, p_index, param_name);
+          // insert zero terminator
+          param_name[*p_size] = '\0';
+          if (strncmp(param_name, "blob", 5) == 0) {
+            // this isn't really a parameter name!
+            *p_index = old_index;
+            param_indices_are_explicit = 0;
+            goto IMPLICIT_INDEX; // yuck
+          }
+          else {
+            param_index = sqlite3_bind_parameter_index(statement, param_name);
+          }
+          break;
+        case ERL_STRING_EXT:
+          if (*p_size >= MAXATOMLEN) {
+            return output_error(drv, SQLITE_TOOBIG, "parameter name too long");
+          }
+          ei_decode_string(buffer, p_index, param_name);
+          // insert zero terminator
+          param_name[*p_size] = '\0';
+          param_index = sqlite3_bind_parameter_index(statement, param_name);
+          break;
+        default:
+          return output_error(
+              drv, SQLITE_MISMATCH,
+              "parameter index must be given as integer, atom, or string");
+        }
+        result = decode_and_bind_param(
+            drv, buffer, p_index, statement, param_index, p_type, p_size);
+        if (result != SQLITE_OK) {
+          return result; // error has already been output
+        }
+      }
+      else {
+        IMPLICIT_INDEX:
+        if (param_indices_are_explicit) {
+          return output_error(
+              drv, SQLITE_MISUSE,
+              "parameters without indices shouldn't follow indexed or named parameters");
+        }
+
+        result = decode_and_bind_param(
+            drv, buffer, p_index, statement, param_index, p_type, p_size);
+        if (result != SQLITE_OK) {
+          return result; // error has already been output
+        }
+        ++param_index;
+      }
+    }
+  }
+  return result;
+}
+
 static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
   int result;
   int index = 0;
@@ -278,7 +401,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   long bin_size;
 
 #ifdef DEBUG
-  fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
+  fprintf(drv->log, "Preexec: %.*s\n", buffer_size, buffer);
   fflush(drv->log);
 #endif
 
@@ -305,83 +428,12 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
     return output_db_error(drv);
   }
 
-  // decoding parameters
-  int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0;
-  long param_index_long;
-  char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
-  while (index < buffer_size) {
-    ei_decode_list_header(buffer, &index, &cur_list_size);
-    for (i = 0; i < cur_list_size; i++) {
-      ei_get_type(buffer, &index, &type, &size);
-      if (type == ERL_SMALL_TUPLE_EXT) {
-        int old_index = index;
-        // param with name or explicit index
-        param_indices_are_explicit = 1;
-        if (size != 2) {
-          return output_error(drv, SQLITE_MISUSE, "bad argument");
-        }
-        ei_decode_tuple_header(buffer, &index, &size);
-        ei_get_type(buffer, &index, &type, &size);
-        // first element of tuple is int (index), atom, or string (name)
-        switch (type) {
-        case ERL_SMALL_INTEGER_EXT:
-        case ERL_INTEGER_EXT:
-          ei_decode_long(buffer, &index, &param_index_long);
-          param_index = param_index_long;
-          break;
-        case ERL_ATOM_EXT:
-          ei_decode_atom(buffer, &index, param_name);
-          // insert zero terminator
-          param_name[size] = '\0';
-          if (strncmp(param_name, "blob", 5) == 0) {
-            // this isn't really a parameter name!
-            index = old_index;
-            param_indices_are_explicit = 0;
-            goto IMPLICIT_INDEX; // yuck
-          }
-          else {
-            param_index = sqlite3_bind_parameter_index(statement, param_name);
-          }
-          break;
-        case ERL_STRING_EXT:
-          if (size >= MAXATOMLEN) {
-            return output_error(drv, SQLITE_TOOBIG, "parameter name too long");
-          }
-          ei_decode_string(buffer, &index, param_name);
-          // insert zero terminator
-          param_name[size] = '\0';
-          param_index = sqlite3_bind_parameter_index(statement, param_name);
-          break;
-        default:
-          return output_error(
-              drv, SQLITE_MISMATCH,
-              "parameter index must be given as integer, atom, or string");
-        }
-        result = decode_and_bind_param(
-            drv, buffer, &index, statement, param_index, &type, &size);
-        if (result != SQLITE_OK) {
-          return result; // error has already been output
-        }
-      }
-      else {
-        IMPLICIT_INDEX:
-        if (param_indices_are_explicit) {
-          return output_error(
-              drv, SQLITE_MISUSE,
-              "parameters without indices shouldn't follow indexed or named parameters");
-        }
-
-        result = decode_and_bind_param(
-            drv, buffer, &index, statement, param_index, &type, &size);
-        if (result != SQLITE_OK) {
-          return result; // error has already been output
-        }
-        ++param_index;
-      }
-    }
+  result = bind_parameters(drv, buffer, buffer_size, &index, statement, &type, &size);
+  if (result == SQLITE_OK) {
+    return sql_exec_statement(drv, statement);
+  } else {
+    return result; // error has already been output
   }
-
-  return sql_exec_statement(drv, statement);
 }
 
 static void sql_free_async(void *_async_command) {
@@ -406,17 +458,16 @@ static void sql_exec_async(void *_async_command) {
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) _async_command;
   int term_count = async_command->term_count;
-  int term_allocated = max(4, term_count);
-  ErlDrvTermData *dataset = driver_alloc(sizeof(*dataset) * term_allocated);
+  int term_allocated = async_command->term_allocated;
+  ErlDrvTermData *dataset = async_command->dataset;
   int row_count = async_command->row_count;
   sqlite3_drv_t *drv = async_command->driver_data;
 
   int next_row, column_count;
   sqlite3_stmt *statement = async_command->statement;
 
-  ptr_list *ptrs = NULL;
-
-  ptr_list *binaries = NULL;
+  ptr_list *ptrs = async_command->ptrs;
+  ptr_list *binaries = async_command->binaries;
   int i;
 
   column_count = sqlite3_column_count(statement);
@@ -633,6 +684,166 @@ static void sql_exec_async(void *_async_command) {
 #endif
 }
 
+static void sql_step_async(void *_async_command) {
+  async_sqlite3_command *async_command =
+      (async_sqlite3_command *) _async_command;
+  int term_count = 0;
+  int term_allocated = 0;
+  ErlDrvTermData *dataset = NULL;
+  sqlite3_drv_t *drv = async_command->driver_data;
+
+  int column_count;
+  sqlite3_stmt *statement = async_command->statement;
+
+  ptr_list *ptrs = async_command->ptrs;
+  ptr_list *binaries = async_command->binaries;
+  int i;
+  int result;
+
+  switch(result = sqlite3_step(statement)) {
+  case SQLITE_ROW:
+    column_count = sqlite3_column_count(statement);
+    term_count += 2;
+    if (term_count > term_allocated) {
+      term_allocated = max(term_count, term_allocated*2);
+      dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
+    dataset[term_count - 2] = ERL_DRV_PORT;
+    dataset[term_count - 1] = driver_mk_port(drv->port);
+
+    for (i = 0; i < column_count; i++) {
+#ifdef DEBUG
+      fprintf(drv->log, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
+      fflush(drv->log);
+#endif
+      switch (sqlite3_column_type(statement, i)) {
+      case SQLITE_INTEGER: {
+        ErlDrvSInt64 *int64_ptr = driver_alloc(sizeof(ErlDrvSInt64));
+        *int64_ptr = (ErlDrvSInt64) sqlite3_column_int64(statement, i);
+        ptrs = add_to_ptr_list(ptrs, int64_ptr);
+
+        term_count += 2;
+        if (term_count > term_allocated) {
+          term_allocated = max(term_count, term_allocated*2);
+          dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
+        dataset[term_count - 2] = ERL_DRV_INT64;
+        dataset[term_count - 1] = (ErlDrvTermData) int64_ptr;
+        break;
+      }
+      case SQLITE_FLOAT: {
+        double *float_ptr = driver_alloc(sizeof(double));
+        *float_ptr = sqlite3_column_double(statement, i);
+        ptrs = add_to_ptr_list(ptrs, float_ptr);
+
+        term_count += 2;
+        if (term_count > term_allocated) {
+          term_allocated = max(term_count, term_allocated*2);
+          dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
+        dataset[term_count - 2] = ERL_DRV_FLOAT;
+        dataset[term_count - 1] = (ErlDrvTermData) float_ptr;
+        break;
+      }
+      case SQLITE_BLOB: {
+        int bytes = sqlite3_column_bytes(statement, i);
+        ErlDrvBinary* binary = driver_alloc_binary(bytes);
+        binary->orig_size = bytes;
+        memcpy(binary->orig_bytes,
+               sqlite3_column_blob(statement, i), bytes);
+        binaries = add_to_ptr_list(binaries, binary);
+
+        term_count += 8;
+        if (term_count > term_allocated) {
+          term_allocated = max(term_count, term_allocated*2);
+          dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
+        dataset[term_count - 8] = ERL_DRV_ATOM;
+        dataset[term_count - 7] = drv->atom_blob;
+        dataset[term_count - 6] = ERL_DRV_BINARY;
+        dataset[term_count - 5] = (ErlDrvTermData) binary;
+        dataset[term_count - 4] = bytes;
+        dataset[term_count - 3] = 0;
+        dataset[term_count - 2] = ERL_DRV_TUPLE;
+        dataset[term_count - 1] = 2;
+        break;
+      }
+      case SQLITE_TEXT: {
+        int bytes = sqlite3_column_bytes(statement, i);
+        ErlDrvBinary* binary = driver_alloc_binary(bytes);
+        binary->orig_size = bytes;
+        memcpy(binary->orig_bytes,
+               sqlite3_column_blob(statement, i), bytes);
+        binaries = add_to_ptr_list(binaries, binary);
+
+        term_count += 4;
+        if (term_count > term_allocated) {
+          term_allocated = max(term_count, term_allocated*2);
+          dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
+        dataset[term_count - 4] = ERL_DRV_BINARY;
+        dataset[term_count - 3] = (ErlDrvTermData) binary;
+        dataset[term_count - 2] = bytes;
+        dataset[term_count - 1] = 0;
+        break;
+      }
+      case SQLITE_NULL: {
+        term_count += 2;
+        if (term_count > term_allocated) {
+          term_allocated = max(term_count, term_allocated*2);
+          dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+        }
+        dataset[term_count - 2] = ERL_DRV_ATOM;
+        dataset[term_count - 1] = drv->atom_null;
+        break;
+      }
+      }
+    }
+    term_count += 2;
+    if (term_count > term_allocated) {
+      term_allocated = max(term_count, term_allocated*2);
+      dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
+    dataset[term_count - 2] = ERL_DRV_TUPLE;
+    dataset[term_count - 1] = column_count;
+
+    async_command->ptrs = ptrs;
+    async_command->binaries = binaries;
+    break;
+  case SQLITE_DONE:
+    term_count += 2;
+    if (term_count > term_allocated) {
+      term_allocated = max(term_count, term_allocated*2);
+      dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+    }
+    dataset[term_count - 2] = ERL_DRV_ATOM;
+    dataset[term_count - 1] = drv->atom_done;
+    break;
+  case SQLITE_BUSY:
+    return_error(drv, SQLITE_BUSY, "SQLite3 database is busy",
+                 &dataset, &term_count);
+  default:
+    return_error(drv, result, sqlite3_errmsg(drv->db),
+                 &dataset, &term_count);
+  }
+
+  term_count += 2;
+  if (term_count > term_allocated) {
+    term_allocated = max(term_count, term_allocated*2);
+    dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
+  }
+  dataset[term_count - 2] = ERL_DRV_TUPLE;
+  dataset[term_count - 1] = 2;
+
+  driver_free(async_command->dataset);
+  async_command->dataset = dataset;
+  async_command->term_count = term_count;
+#ifdef DEBUG
+  fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
+  fflush(drv->log);
+#endif
+}
+
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) thread_data;
@@ -647,6 +858,180 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
   fflush(drv->log);
 #endif
   sql_free_async(async_command);
+}
+
+static int prepare(sqlite3_drv_t *drv, char *command, int command_size) {
+  int result;
+  char *rest = NULL;
+  sqlite3_stmt *statement;
+
+#ifdef DEBUG
+  fprintf(drv->log, "Preparing statement: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
+  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
+                              (const char **) &rest);
+  if (result != SQLITE_OK) {
+    return output_db_error(drv);
+  }
+
+  if (drv->prepared_count >= drv->prepared_alloc) {
+    drv->prepared_alloc =
+        (drv->prepared_alloc != 0) ? 2*drv->prepared_alloc : 4;
+    drv->prepared_commands =
+        driver_realloc(drv->prepared_commands,
+                       drv->prepared_alloc * sizeof(async_sqlite3_command *));
+  }
+  drv->prepared_commands[drv->prepared_count] = make_async_command(drv, statement);
+  drv->prepared_count++;
+
+  ErlDrvTermData spec[] = {
+      ERL_DRV_PORT, driver_mk_port(drv->port),
+      ERL_DRV_UINT, drv->prepared_count - 1
+  };
+  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+}
+
+static int prepared_bind(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
+  int result;
+  long long_prepared_index;
+  int index = 0, type, size;
+
+#ifdef DEBUG
+  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", buffer_size, buffer);
+  fflush(drv->log);
+#endif
+
+  ei_decode_version(buffer, &index, NULL);
+  ei_decode_long(buffer, &index, &long_prepared_index);
+  unsigned int prepared_index = (unsigned int) long_prepared_index;
+
+  if (prepared_index >= drv->prepared_count) {
+    return output_error(drv, SQLITE_MISUSE,
+                        "Trying to reset non-existent prepared statement");
+  }
+
+  sqlite3_stmt *statement =
+      drv->prepared_commands[prepared_index]->statement;
+  result =
+      bind_parameters(drv, buffer, buffer_size, &index, statement, &type, &size);
+  if (result == SQLITE_OK) {
+    return output_ok(drv);
+  } else {
+    return result; // error has already been output
+  }
+}
+
+static int prepared_step(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
+  int result;
+  long long_prepared_index;
+  int index = 0;
+  char *rest = NULL;
+
+#ifdef DEBUG
+  fprintf(drv->log, "Evaluating prepared statement: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
+
+  ei_decode_version(buffer, &index, NULL);
+  ei_decode_long(buffer, &index, &long_prepared_index);
+  unsigned int prepared_index = (unsigned int) long_prepared_index;
+
+  if (prepared_index >= drv->prepared_count) {
+    return output_error(drv, SQLITE_MISUSE,
+                        "Trying to evaluate non-existent prepared statement");
+  }
+
+  async_sqlite3_command *async_command = drv->prepared_commands[prepared_index];
+
+  if (sqlite3_threadsafe()) {
+    drv->async_handle = driver_async(drv->port, &drv->key, sql_step_async,
+                                     async_command, sql_free_async);
+  } else {
+    sql_exec_async(async_command);
+    ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
+    sql_free_async(async_command);
+  }
+  return 0;
+}
+
+static int prepared_reset(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
+  long long_prepared_index;
+  int index = 0;
+
+#ifdef DEBUG
+  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
+
+  ei_decode_version(buffer, &index, NULL);
+  ei_decode_long(buffer, &index, &long_prepared_index);
+  unsigned int prepared_index = (unsigned int) long_prepared_index;
+
+  if (prepared_index >= drv->prepared_count) {
+    return output_error(drv, SQLITE_MISUSE,
+                        "Trying to reset non-existent prepared statement");
+  }
+
+  // don't bother about error code, any errors should already be shown by step
+  sqlite3_stmt *statement =
+        drv->prepared_commands[prepared_index]->statement;
+  sqlite3_reset(statement);
+  return output_ok(drv);
+}
+
+static int prepared_clear_bindings(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
+  long long_prepared_index;
+  int index = 0;
+
+#ifdef DEBUG
+  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
+
+  ei_decode_version(buffer, &index, NULL);
+  ei_decode_long(buffer, &index, &long_prepared_index);
+  unsigned int prepared_index = (unsigned int) long_prepared_index;
+
+  if (prepared_index >= drv->prepared_count) {
+    return output_error(drv, SQLITE_MISUSE,
+                        "Trying to clear bindings of non-existent prepared statement");
+  }
+
+  sqlite3_stmt *statement =
+        drv->prepared_commands[prepared_index]->statement;
+  sqlite3_clear_bindings(statement);
+  return output_ok(drv);
+}
+
+static int prepared_finalize(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
+  long long_prepared_index;
+  int index = 0;
+
+#ifdef DEBUG
+  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
+
+  ei_decode_version(buffer, &index, NULL);
+  ei_decode_long(buffer, &index, &long_prepared_index);
+  unsigned int prepared_index = (unsigned int) long_prepared_index;
+
+  if (prepared_index >= drv->prepared_count) {
+    return output_error(drv, SQLITE_MISUSE,
+                        "Trying to finalize non-existent prepared statement");
+  }
+
+  // finalize the statement and make sure it isn't accidentally executed again
+  sql_free_async(drv->prepared_commands[prepared_index]);
+  drv->prepared_commands[prepared_index] = NULL;
+
+  // if the statement is at the end of the array, space can be reused;
+  // otherwise don't bother
+  if (prepared_index == drv->prepared_count - 1) {
+    drv->prepared_count--;
+  }
+  return output_ok(drv);
 }
 
 // Unknown Command
