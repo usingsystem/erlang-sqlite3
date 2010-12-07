@@ -16,7 +16,7 @@
 -export([start_link/1, start_link/2]).
 -export([stop/0, close/1]).
 -export([sql_exec/1, sql_exec/2, sql_exec/3]).
-
+-export([prepare/2, bind/3, next/2, reset/2, clear_bindings/2, finalize/2]).
 -export([create_table/2, create_table/3, create_table/4]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3, write_many/2, write_many/3]).
@@ -35,7 +35,7 @@
          terminate/2, code_change/3]).
 
 -define('DRIVER_NAME', 'sqlite3_drv').
--record(state, {port, ops = []}).
+-record(state, {port, ops = [], refs = dict:new()}).
 
 %%====================================================================
 %% API
@@ -167,6 +167,30 @@ sql_exec(Db, SQL) ->
 -spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}]) -> sql_result().
 sql_exec(Db, SQL, Params) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
+
+-spec prepare(atom(), iodata()) -> {ok, reference()} | sqlite_error().
+prepare(Db, SQL) ->
+    gen_server:call(Db, {prepare, SQL}).
+
+-spec bind(atom(), reference(), sql_params()) -> sql_non_query_result().
+bind(Db, Ref, Params) ->
+    gen_server:call(Db, {bind, Ref, Params}).
+
+-spec next(atom(), reference()) -> tuple() | done | sqlite_error().
+next(Db, Ref) ->
+    gen_server:call(Db, {next, Ref}).
+
+-spec reset(atom(), reference()) -> sql_non_query_result().
+reset(Db, Ref) ->
+    gen_server:call(Db, {reset, Ref}).
+
+-spec clear_bindings(atom(), reference()) -> sql_non_query_result().
+clear_bindings(Db, Ref) ->
+    gen_server:call(Db, {clear_bindings, Ref}).
+
+-spec finalize(atom(), reference()) -> sql_non_query_result().
+finalize(Db, Ref) ->
+    gen_server:call(Db, {finalize, Ref}).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> sql_non_query_result()
@@ -632,8 +656,46 @@ handle_call({delete, Tbl, {Key, Value}}, _From, State) ->
 handle_call({drop_table, Tbl}, _From, State) ->
     SQL = sqlite3_lib:drop_table_sql(Tbl),
     do_handle_call_sql_exec(SQL, State);
+handle_call({prepare, SQL}, _From, State = #state{port = Port, refs = Refs}) ->
+    case exec(Port, {prepare, SQL}) of
+        Index when is_integer(Index) ->
+            Ref = erlang:make_ref(),
+            Reply = {ok, Ref},
+            NewState = State#state{refs = dict:append(Ref, Index, Refs)};
+        Error ->
+            Reply = Error,
+            NewState = State
+    end,
+    {reply, Reply, NewState};
+handle_call({bind, Ref, Params}, _From, State = #state{port = Port, refs = Refs}) ->
+    Index = dict:fetch(Ref, Refs),
+    Reply = exec(Port, {bind, Index, Params}),
+    {reply, Reply, State};
+handle_call({next, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
+    Index = dict:fetch(Ref, Refs),
+    Reply = exec(Port, {next, Index}),
+    {reply, Reply, State};
+handle_call({reset, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
+    Index = dict:fetch(Ref, Refs),
+    Reply = exec(Port, {reset, Index}),
+    {reply, Reply, State};
+handle_call({clear_bindings, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
+    Index = dict:fetch(Ref, Refs),
+    Reply = exec(Port, {clear_bindings, Index}),
+    {reply, Reply, State};
+handle_call({finalize, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
+    Index = dict:fetch(Ref, Refs),
+    case exec(Port, {finalize, Index}) of
+        ok ->
+            Reply = ok,
+            NewState = dict:erase(Ref, Refs);
+        Error ->
+            Reply = Error,
+            NewState = State
+    end,
+    {reply, Reply, NewState};
 handle_call(_Request, _From, State) ->
-    Reply = ok,
+    Reply = unknown_request,
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -719,12 +781,12 @@ get_priv_dir() ->
 -define(SQL_EXEC_COMMAND, 2).
 -define(SQL_CREATE_FUNCTION, 3).
 -define(SQL_BIND_AND_EXEC_COMMAND, 4).
--define(CMD_PREPARE, 5).
--define(CMD_PREPARED_BIND, 6).
--define(CMD_PREPARED_STEP, 7).
--define(CMD_PREPARED_RESET, 8).
--define(CMD_PREPARED_CLEAR_BINDINGS, 9).
--define(CMD_PREPARED_FINALIZE, 10).
+-define(PREPARE, 5).
+-define(PREPARED_BIND, 6).
+-define(PREPARED_STEP, 7).
+-define(PREPARED_RESET, 8).
+-define(PREPARED_CLEAR_BINDINGS, 9).
+-define(PREPARED_FINALIZE, 10).
 
 create_port_cmd(DbFile) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ DbFile.
@@ -745,12 +807,29 @@ exec(_Port, {create_function, _FunctionName, _Function}) ->
     error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
 %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
 %wait_result(Port);
-exec(Port, {sql_exec, Cmd}) ->
-    port_control(Port, ?SQL_EXEC_COMMAND, Cmd),
+exec(Port, {sql_exec, SQL}) ->
+    port_control(Port, ?SQL_EXEC_COMMAND, SQL),
     wait_result(Port);
 exec(Port, {sql_bind_and_exec, SQL, Params}) ->
     Bin = term_to_binary({iolist_to_binary(SQL), Params}),
     port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
+    wait_result(Port);
+exec(Port, {prepare, SQL}) ->
+    port_control(Port, ?PREPARE, SQL),
+    wait_result(Port);
+exec(Port, {bind, Index, Params}) ->
+    Bin = term_to_binary({Index, Params}),
+    port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
+    wait_result(Port);
+exec(Port, {Cmd, Index}) when is_integer(Index) ->
+    CmdCode = case Cmd of
+                  next -> ?PREPARED_STEP;
+                  reset -> ?PREPARED_RESET;
+                  clear_bindings -> ?PREPARED_CLEAR_BINDINGS;
+                  finalize -> ?PREPARED_FINALIZE
+              end,
+    Bin = term_to_binary(Index),
+    port_control(Port, CmdCode, Bin),
     wait_result(Port).
 
 wait_result(Port) ->
