@@ -43,7 +43,7 @@ static inline int sql_is_insert(const char *sql);
 // Driver Start
 static ErlDrvData start(ErlDrvPort port, char* cmd) {
   sqlite3_drv_t* retval = (sqlite3_drv_t*) driver_alloc(sizeof(sqlite3_drv_t));
-  struct sqlite3 *db = 0;
+  struct sqlite3 *db = NULL;
   int status = 0;
 
   retval->log = fopen("/tmp/erlang-sqlite3-drv.log", "a+");
