@@ -77,7 +77,9 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   // Set the state for the driver
   retval->port = port;
   retval->db = db;
-  retval->key = (unsigned int) port;
+  retval->key = 42;
+  // FIXME Any way to get canonical path to the DB?
+  // We need to ensure equal keys for different paths to the same file
 
   retval->atom_blob = driver_mk_atom("blob");
   retval->atom_error = driver_mk_atom("error");
