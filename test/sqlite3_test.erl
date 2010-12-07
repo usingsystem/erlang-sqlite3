@@ -201,6 +201,23 @@ large_number() ->
     ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query2, [N1, N2]))),
     ?assertNot([{N1 + 1, N2 - 1}] == rows(sqlite3:sql_exec(ct, Query2, [N1 + 1, N2 - 1]))).
 
+prepared_test() ->
+    Columns = ["id", "name", "age", "wage"],
+    Abby = {1, <<"abby">>, 20, 2000},
+    Marge = {2, <<"marge">>, 30, 2000},
+    AllRows = [Abby, Marge],
+    TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
+    sqlite3:open(prepared, [in_memory]),
+    ok = sqlite3:create_table(prepared, user, TableInfo),
+    sqlite3:write(prepared, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
+    sqlite3:write(prepared, user, [{name, "marge"}, {age, 30}, {wage, 2000}]),
+    {ok, Ref} = sqlite3:prepare(prepared, "SELECT * FROM user"),
+    ?assertEqual(Abby, sqlite3:next(prepared, Ref)),
+    ?assertEqual(Marge, sqlite3:next(prepared, Ref)),
+    ?assertEqual(done, sqlite3:next(prepared, Ref)),
+    ?assertEqual(ok, sqlite3:finalize(prepared, Ref)),
+    sqlite3:close(prepared).
+
 % create, read, update, delete
 %%====================================================================
 %% Internal functions
