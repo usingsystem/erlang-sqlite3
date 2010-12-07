@@ -661,7 +661,7 @@ handle_call({prepare, SQL}, _From, State = #state{port = Port, refs = Refs}) ->
         Index when is_integer(Index) ->
             Ref = erlang:make_ref(),
             Reply = {ok, Ref},
-            NewState = State#state{refs = dict:append(Ref, Index, Refs)};
+            NewState = State#state{refs = dict:store(Ref, Index, Refs)};
         Error ->
             Reply = Error,
             NewState = State
