@@ -46,7 +46,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   struct sqlite3 *db = NULL;
   int status = 0;
 
-  retval->log = fopen("/tmp/erlang-sqlite3-drv.log", "a+");
+  retval->log = fopen(LOG_PATH, "a+");
   if (!retval->log) {
     fprintf(stderr, "Can't create log file\n");
   }
@@ -164,8 +164,10 @@ static inline int sql_exec_statement(
   async_command->driver_data = drv;
   async_command->statement = statement;
 
-  // fprintf(drv->log, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
-  // fflush(drv->log);
+#ifdef DEBUG
+  fprintf(drv->log, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
+  fflush(drv->log);
+#endif
 
   if (sqlite3_threadsafe()) {
     drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async,
@@ -183,8 +185,10 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   char *rest = NULL;
   sqlite3_stmt *statement;
 
-  // fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
-  // fflush(drv->log);
+#ifdef DEBUG
+  fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
                               (const char **) &rest);
   if (result != SQLITE_OK) {
@@ -205,10 +209,6 @@ static inline int decode_and_bind_param(
 
   ei_get_type(buffer, index, type, size);
   switch (*type) {
-  //  case ERL_SMALL_INTEGER_EXT:
-  //    ei_decode_long(buffer, index, &long_val);
-  //    result = sqlite3_bind_int(statement, param_index, long_val);
-  //    break;
   case ERL_SMALL_INTEGER_EXT:
   case ERL_INTEGER_EXT:
   case ERL_SMALL_BIG_EXT:
@@ -277,8 +277,10 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   sqlite3_stmt *statement;
   long bin_size;
 
-  // fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
-  // fflush(drv->log);
+#ifdef DEBUG
+  fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
+  fflush(drv->log);
+#endif
 
   ei_decode_version(buffer, &index, NULL);
   result = ei_decode_tuple_header(buffer, &index, &size);
@@ -295,7 +297,6 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   char *command = driver_alloc(size * sizeof(char));
   ei_decode_binary(buffer, &index, command, &bin_size);
   // assert(bin_size == size)
-  // printf("size: %d, command: %.*s\n", size, size, command);
   result = sqlite3_prepare_v2(drv->db, command, size, &statement,
                               (const char **) &rest);
   driver_free(command);
@@ -439,8 +440,10 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 1] = drv->atom_columns;
     for (i = 0; i < column_count; i++) {
       char *column_name = (char *) sqlite3_column_name(statement, i);
-      // fprintf(drv->log, "Column: %s\n", column_name);
-      // fflush(drv->log);
+#ifdef DEBUG
+      fprintf(drv->log, "Column: %s\n", column_name);
+      fflush(drv->log);
+#endif
 
       dataset[base + 2 + (i * 3)] = ERL_DRV_STRING;
       dataset[base + 2 + (i * 3) + 1] = (ErlDrvTermData) column_name;
@@ -456,13 +459,17 @@ static void sql_exec_async(void *_async_command) {
     dataset[base + 2 + column_count * 3 + 6] = drv->atom_rows;
   }
 
-  // fprintf(drv->log, "Exec: %s\n", sqlite3_sql(statement));
-  // fflush(drv->log);
+#ifdef DEBUG
+  fprintf(drv->log, "Exec: %s\n", sqlite3_sql(statement));
+  fflush(drv->log);
+#endif
 
   while ((next_row = sqlite3_step(statement)) == SQLITE_ROW) {
     for (i = 0; i < column_count; i++) {
-      // fprintf(drv->log, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
-      // fflush(drv->log);
+#ifdef DEBUG
+      fprintf(drv->log, "Column %d type: %d\n", i, sqlite3_column_type(statement, i));
+      fflush(drv->log);
+#endif
       switch (sqlite3_column_type(statement, i)) {
       case SQLITE_INTEGER: {
         ErlDrvSInt64 *int64_ptr = driver_alloc(sizeof(ErlDrvSInt64));
@@ -620,8 +627,10 @@ static void sql_exec_async(void *_async_command) {
 
   async_command->dataset = dataset;
   async_command->term_count = term_count;
-  // fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
-  // fflush(drv->log);
+#ifdef DEBUG
+  fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
+  fflush(drv->log);
+#endif
 }
 
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
@@ -633,8 +642,10 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
                                async_command->dataset,
                                async_command->term_count);
   (void) res; // suppress unused warning
-  // fprintf(drv->log, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
-  // fflush(drv->log);
+#ifdef DEBUG
+  fprintf(drv->log, "Total term count: %p %d, rows count: %d (%d)\n", async_command->statement, async_command->term_count, async_command->row_count, res);
+  fflush(drv->log);
+#endif
   sql_free_async(async_command);
 }
 
