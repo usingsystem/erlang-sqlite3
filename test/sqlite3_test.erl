@@ -202,6 +202,7 @@ large_number() ->
     ?assertNot([{N1 + 1, N2 - 1}] == rows(sqlite3:sql_exec(ct, Query2, [N1 + 1, N2 - 1]))).
 
 prepared_test() ->
+    Columns = ["id", "name", "age", "wage"],
     Abby = {1, <<"abby">>, 20, 2000},
     Marge = {2, <<"marge">>, 30, 2000},
     TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
@@ -210,6 +211,7 @@ prepared_test() ->
     sqlite3:write(prepared, user, [{name, "abby"}, {age, 20}, {wage, 2000}]),
     sqlite3:write(prepared, user, [{name, "marge"}, {age, 30}, {wage, 2000}]),
     {ok, Ref} = sqlite3:prepare(prepared, "SELECT * FROM user"),
+    ?assertEqual(Columns, sqlite3:columns(prepared, Ref)),
     ?assertEqual(Abby, sqlite3:next(prepared, Ref)),
     ?assertEqual(ok, sqlite3:reset(prepared, Ref)),
     ?assertEqual(Abby, sqlite3:next(prepared, Ref)),

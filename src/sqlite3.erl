@@ -16,7 +16,8 @@
 -export([start_link/1, start_link/2]).
 -export([stop/0, close/1]).
 -export([sql_exec/1, sql_exec/2, sql_exec/3]).
--export([prepare/2, bind/3, next/2, reset/2, clear_bindings/2, finalize/2]).
+-export([prepare/2, bind/3, next/2, reset/2, clear_bindings/2, finalize/2,
+         columns/2]).
 -export([create_table/2, create_table/3, create_table/4]).
 -export([list_tables/0, list_tables/1, table_info/1, table_info/2]).
 -export([write/2, write/3, write_many/2, write_many/3]).
@@ -191,6 +192,10 @@ clear_bindings(Db, Ref) ->
 -spec finalize(atom(), reference()) -> sql_non_query_result().
 finalize(Db, Ref) ->
     gen_server:call(Db, {finalize, Ref}).
+
+-spec columns(atom(), reference()) -> sql_non_query_result().
+columns(Db, Ref) ->
+    gen_server:call(Db, {columns, Ref}).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> sql_non_query_result()
@@ -785,6 +790,7 @@ get_priv_dir() ->
 -define(PREPARED_RESET, 8).
 -define(PREPARED_CLEAR_BINDINGS, 9).
 -define(PREPARED_FINALIZE, 10).
+-define(PREPARED_COLUMNS, 11).
 
 create_port_cmd(DbFile) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ DbFile.
@@ -824,7 +830,8 @@ exec(Port, {Cmd, Index}) when is_integer(Index) ->
                   next -> ?PREPARED_STEP;
                   reset -> ?PREPARED_RESET;
                   clear_bindings -> ?PREPARED_CLEAR_BINDINGS;
-                  finalize -> ?PREPARED_FINALIZE
+                  finalize -> ?PREPARED_FINALIZE;
+                  columns -> ?PREPARED_COLUMNS
               end,
     Bin = term_to_binary(Index),
     port_control(Port, CmdCode, Bin),

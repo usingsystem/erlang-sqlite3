@@ -26,6 +26,7 @@
 #define CMD_PREPARED_RESET 8
 #define CMD_PREPARED_CLEAR_BINDINGS 9
 #define CMD_PREPARED_FINALIZE 10
+#define CMD_PREPARED_COLUMNS 11
 
 // Number of bytes for each key
 // (160 bits for SHA1 hash)
@@ -82,6 +83,7 @@ static int prepared_step(sqlite3_drv_t *drv, char *buf, int len);
 static int prepared_reset(sqlite3_drv_t *drv, char *buf, int len);
 static int prepared_clear_bindings(sqlite3_drv_t *drv, char *buf, int len);
 static int prepared_finalize(sqlite3_drv_t *drv, char *buf, int len);
+static int prepared_columns(sqlite3_drv_t *drv, char *buf, int len);
 static void sql_exec_async(void *async_command);
 static void sql_free_async(void *async_command);
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);
