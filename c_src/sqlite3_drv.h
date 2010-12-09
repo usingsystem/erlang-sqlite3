@@ -36,8 +36,6 @@ typedef struct ptr_list {
   struct ptr_list *tail;
 } ptr_list;
 
-struct async_sqlite3_command;
-
 // Define struct to hold state across calls
 typedef struct sqlite3_drv_t {
   ErlDrvPort port;
@@ -45,7 +43,7 @@ typedef struct sqlite3_drv_t {
   struct sqlite3 *db;
   long async_handle;
   FILE *log;
-  struct async_sqlite3_command **prepared_commands;
+  sqlite3_stmt **prepared_stmts;
   unsigned int prepared_count;
   unsigned int prepared_alloc;
   ErlDrvTermData atom_blob;
@@ -68,6 +66,7 @@ typedef struct async_sqlite3_command {
   int row_count;
   ptr_list *ptrs;
   ptr_list *binaries;
+  int finalize_statement_on_free;
 } async_sqlite3_command;
 
 

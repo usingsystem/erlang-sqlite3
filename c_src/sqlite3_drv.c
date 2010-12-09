@@ -100,11 +100,11 @@ static void stop(ErlDrvData handle) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) handle;
   unsigned int i;
 
-  if (driver_data->prepared_commands) {
+  if (driver_data->prepared_stmts) {
     for (i = 0; i < driver_data->prepared_count; i++) {
-      sql_free_async(driver_data->prepared_commands[i]);
+      sqlite3_finalize(driver_data->prepared_stmts[i]);
     }
-    driver_free(driver_data->prepared_commands);
+    driver_free(driver_data->prepared_stmts);
   }
   sqlite3_close(driver_data->db);
   fclose(driver_data->log);
@@ -217,7 +217,6 @@ static inline int sql_exec_statement(
   } else {
     sql_exec_async(async_command);
     ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
-    sql_free_async(async_command);
   }
   return 0;
 }
@@ -448,8 +447,9 @@ static void sql_free_async(void *_async_command) {
   free_ptr_list(async_command->binaries,
                 (void (*)(void *)) &driver_free_binary);
 
-  if (async_command->statement) {
+  if (async_command->finalize_statement_on_free && async_command->statement) {
     sqlite3_finalize(async_command->statement);
+    async_command->statement = NULL;
   }
   driver_free(async_command);
 }
@@ -457,17 +457,17 @@ static void sql_free_async(void *_async_command) {
 static void sql_exec_async(void *_async_command) {
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) _async_command;
-  int term_count = async_command->term_count;
-  int term_allocated = async_command->term_allocated;
-  ErlDrvTermData *dataset = async_command->dataset;
-  int row_count = async_command->row_count;
+  int term_count = 0;
+  int term_allocated = 0;
+  ErlDrvTermData *dataset = NULL;
+  int row_count = 0;
   sqlite3_drv_t *drv = async_command->driver_data;
 
   int next_row, column_count;
   sqlite3_stmt *statement = async_command->statement;
 
-  ptr_list *ptrs = async_command->ptrs;
-  ptr_list *binaries = async_command->binaries;
+  ptr_list *ptrs = NULL;
+  ptr_list *binaries = NULL;
   int i;
 
   column_count = sqlite3_column_count(statement);
@@ -614,6 +614,7 @@ static void sql_exec_async(void *_async_command) {
 
     row_count++;
   }
+  async_command->finalize_statement_on_free = 1;
   async_command->row_count = row_count;
   async_command->ptrs = ptrs;
   async_command->binaries = binaries;
@@ -695,8 +696,8 @@ static void sql_step_async(void *_async_command) {
   int column_count;
   sqlite3_stmt *statement = async_command->statement;
 
-  ptr_list *ptrs = async_command->ptrs;
-  ptr_list *binaries = async_command->binaries;
+  ptr_list *ptrs = NULL;
+  ptr_list *binaries = NULL;
   int i;
   int result;
 
@@ -811,20 +812,28 @@ static void sql_step_async(void *_async_command) {
     async_command->binaries = binaries;
     break;
   case SQLITE_DONE:
-    term_count += 2;
+    term_count += 4;
     if (term_count > term_allocated) {
       term_allocated = max(term_count, term_allocated*2);
       dataset = driver_realloc(dataset, sizeof(*dataset) * term_allocated);
     }
+    dataset[term_count - 4] = ERL_DRV_PORT;
+    dataset[term_count - 3] = driver_mk_port(drv->port);
     dataset[term_count - 2] = ERL_DRV_ATOM;
     dataset[term_count - 1] = drv->atom_done;
+    sqlite3_reset(statement);
     break;
   case SQLITE_BUSY:
     return_error(drv, SQLITE_BUSY, "SQLite3 database is busy",
                  &dataset, &term_count);
+    sqlite3_reset(statement);
+    goto POPULATE_COMMAND;
+    break;
   default:
     return_error(drv, result, sqlite3_errmsg(drv->db),
                  &dataset, &term_count);
+    sqlite3_reset(statement);
+    goto POPULATE_COMMAND;
   }
 
   term_count += 2;
@@ -835,9 +844,12 @@ static void sql_step_async(void *_async_command) {
   dataset[term_count - 2] = ERL_DRV_TUPLE;
   dataset[term_count - 1] = 2;
 
-  driver_free(async_command->dataset);
+POPULATE_COMMAND:
   async_command->dataset = dataset;
   async_command->term_count = term_count;
+  async_command->ptrs = ptrs;
+  async_command->binaries = binaries;
+  async_command->row_count = 1;
 #ifdef DEBUG
   fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
   fflush(drv->log);
@@ -878,11 +890,11 @@ static int prepare(sqlite3_drv_t *drv, char *command, int command_size) {
   if (drv->prepared_count >= drv->prepared_alloc) {
     drv->prepared_alloc =
         (drv->prepared_alloc != 0) ? 2*drv->prepared_alloc : 4;
-    drv->prepared_commands =
-        driver_realloc(drv->prepared_commands,
-                       drv->prepared_alloc * sizeof(async_sqlite3_command *));
+    drv->prepared_stmts =
+        driver_realloc(drv->prepared_stmts,
+                       drv->prepared_alloc * sizeof(sqlite3_stmt *));
   }
-  drv->prepared_commands[drv->prepared_count] = make_async_command(drv, statement);
+  drv->prepared_stmts[drv->prepared_count] = statement;
   drv->prepared_count++;
 
   ErlDrvTermData spec[] = {
@@ -912,8 +924,7 @@ static int prepared_bind(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
                         "Trying to reset non-existent prepared statement");
   }
 
-  sqlite3_stmt *statement =
-      drv->prepared_commands[prepared_index]->statement;
+  sqlite3_stmt *statement = drv->prepared_stmts[prepared_index];
   result =
       bind_parameters(drv, buffer, buffer_size, &index, statement, &type, &size);
   if (result == SQLITE_OK) {
@@ -943,7 +954,8 @@ static int prepared_step(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
                         "Trying to evaluate non-existent prepared statement");
   }
 
-  async_sqlite3_command *async_command = drv->prepared_commands[prepared_index];
+  sqlite3_stmt *statement = drv->prepared_stmts[prepared_index];
+  async_sqlite3_command *async_command = make_async_command(drv, statement);
 
   if (sqlite3_threadsafe()) {
     drv->async_handle = driver_async(drv->port, &drv->key, sql_step_async,
@@ -951,7 +963,6 @@ static int prepared_step(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
   } else {
     sql_exec_async(async_command);
     ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
-    sql_free_async(async_command);
   }
   return 0;
 }
@@ -975,8 +986,7 @@ static int prepared_reset(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
   }
 
   // don't bother about error code, any errors should already be shown by step
-  sqlite3_stmt *statement =
-        drv->prepared_commands[prepared_index]->statement;
+  sqlite3_stmt *statement = drv->prepared_stmts[prepared_index];
   sqlite3_reset(statement);
   return output_ok(drv);
 }
@@ -999,8 +1009,7 @@ static int prepared_clear_bindings(sqlite3_drv_t *drv, char *buffer, int buffer_
                         "Trying to clear bindings of non-existent prepared statement");
   }
 
-  sqlite3_stmt *statement =
-        drv->prepared_commands[prepared_index]->statement;
+  sqlite3_stmt *statement = drv->prepared_stmts[prepared_index];
   sqlite3_clear_bindings(statement);
   return output_ok(drv);
 }
@@ -1024,8 +1033,8 @@ static int prepared_finalize(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   }
 
   // finalize the statement and make sure it isn't accidentally executed again
-  sql_free_async(drv->prepared_commands[prepared_index]);
-  drv->prepared_commands[prepared_index] = NULL;
+  sqlite3_finalize(drv->prepared_stmts[prepared_index]);
+  drv->prepared_stmts[prepared_index] = NULL;
 
   // if the statement is at the end of the array, space can be reused;
   // otherwise don't bother
