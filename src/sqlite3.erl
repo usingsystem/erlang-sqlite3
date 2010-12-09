@@ -671,18 +671,6 @@ handle_call({bind, Ref, Params}, _From, State = #state{port = Port, refs = Refs}
     Index = dict:fetch(Ref, Refs),
     Reply = exec(Port, {bind, Index, Params}),
     {reply, Reply, State};
-handle_call({next, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
-    Index = dict:fetch(Ref, Refs),
-    Reply = exec(Port, {next, Index}),
-    {reply, Reply, State};
-handle_call({reset, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
-    Index = dict:fetch(Ref, Refs),
-    Reply = exec(Port, {reset, Index}),
-    {reply, Reply, State};
-handle_call({clear_bindings, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
-    Index = dict:fetch(Ref, Refs),
-    Reply = exec(Port, {clear_bindings, Index}),
-    {reply, Reply, State};
 handle_call({finalize, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
     Index = dict:fetch(Ref, Refs),
     case exec(Port, {finalize, Index}) of
@@ -694,6 +682,16 @@ handle_call({finalize, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
             NewState = State
     end,
     {reply, Reply, NewState};
+handle_call({Cmd, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
+    Reply = case dict:find(Ref, Refs) of
+                {ok, Index} ->
+                    exec(Port, {Cmd, Index});
+                error ->
+                    {error, -1, 
+                     "Bad reference to prepared statement; it is already finalized or doesn't exist"}
+            end,
+    {reply, Reply, State};
+        
 handle_call(_Request, _From, State) ->
     Reply = unknown_request,
     {reply, Reply, State}.
