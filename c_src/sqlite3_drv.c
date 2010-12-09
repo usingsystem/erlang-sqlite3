@@ -80,6 +80,10 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   retval->key = 42;
   // FIXME Any way to get canonical path to the DB?
   // We need to ensure equal keys for different paths to the same file
+  retval->async_handle = 0;
+  retval->prepared_stmts = NULL;
+  retval->prepared_count = 0;
+  retval->prepared_alloc = 0;
 
   retval->atom_blob = driver_mk_atom("blob");
   retval->atom_error = driver_mk_atom("error");
