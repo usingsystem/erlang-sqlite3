@@ -202,10 +202,8 @@ large_number() ->
     ?assertNot([{N1 + 1, N2 - 1}] == rows(sqlite3:sql_exec(ct, Query2, [N1 + 1, N2 - 1]))).
 
 prepared_test() ->
-    Columns = ["id", "name", "age", "wage"],
     Abby = {1, <<"abby">>, 20, 2000},
     Marge = {2, <<"marge">>, 30, 2000},
-    AllRows = [Abby, Marge],
     TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
     sqlite3:open(prepared, [in_memory]),
     ok = sqlite3:create_table(prepared, user, TableInfo),
