@@ -688,7 +688,7 @@ handle_call({finalize, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
     case exec(Port, {finalize, Index}) of
         ok ->
             Reply = ok,
-            NewState = dict:erase(Ref, Refs);
+            NewState = State#state{refs = dict:erase(Ref, Refs)};
         Error ->
             Reply = Error,
             NewState = State
