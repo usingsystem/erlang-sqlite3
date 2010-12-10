@@ -26,6 +26,7 @@
 -export([delete/2, delete/3]).
 -export([drop_table/1, drop_table/2]).
 -export([begin_transaction/1, commit_transaction/1, rollback_transaction/1]).
+-export([vacuum/0, vacuum/1]).
 
 %% -export([create_function/3]).
 
@@ -465,6 +466,25 @@ drop_table(Tbl) ->
 drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
+%%--------------------------------------------------------------------
+%% @spec vacuum() -> sql_non_query_result()
+%% @doc
+%%   Vacuum the default database.
+%% @end
+%%--------------------------------------------------------------------
+-spec vacuum() -> sql_non_query_result().
+vacuum() ->
+    gen_server:call(?MODULE, vacuum).
+
+%%--------------------------------------------------------------------
+%% @spec vacuum(Db :: atom()) -> sql_non_query_result()
+%% @doc
+%%   Vacuum the Db database.
+%% @end
+%%--------------------------------------------------------------------
+-spec vacuum(atom()) -> sql_non_query_result().
+vacuum(Db) ->
+    gen_server:call(Db, vacuum).
 
 %% %%--------------------------------------------------------------------
 %% %% @spec create_function(Db :: atom(), FunctionName :: atom(), Function :: function()) -> term()
@@ -696,7 +716,9 @@ handle_call({Cmd, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
                      "Bad reference to prepared statement; it is already finalized or doesn't exist"}
             end,
     {reply, Reply, State};
-        
+handle_call(vacuum, _From, State) ->
+    SQL = "VACUUM;",
+    do_handle_call_sql_exec(SQL, State);
 handle_call(_Request, _From, State) ->
     Reply = unknown_request,
     {reply, Reply, State}.
