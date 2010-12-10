@@ -333,7 +333,8 @@ static int bind_parameters(
         // param with name or explicit index
         param_indices_are_explicit = 1;
         if (*p_size != 2) {
-          return output_error(drv, SQLITE_MISUSE, "bad argument");
+          return output_error(drv, SQLITE_MISUSE,
+                              "tuple should contain index or name, and value");
         }
         ei_decode_tuple_header(buffer, p_index, p_size);
         ei_get_type(buffer, p_index, p_type, p_size);
@@ -440,13 +441,16 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   ei_decode_version(buffer, &index, NULL);
   result = ei_decode_tuple_header(buffer, &index, &size);
   if (size != 2) {
-    return output_error(drv, SQLITE_MISUSE, "bad argument");
+    return output_error(drv, SQLITE_MISUSE,
+                        "Expected a tuple of SQL command and params");
   }
 
   // decode SQL statement
   ei_get_type(buffer, &index, &type, &size);
+  // TODO support any iolists
   if (type != ERL_BINARY_EXT) {
-    return output_error(drv, SQLITE_MISUSE, "bad argument");
+    return output_error(drv, SQLITE_MISUSE,
+                        "SQL should be sent as an Erlang binary");
   }
 
   char *command = driver_alloc(size * sizeof(char));
