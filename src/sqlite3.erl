@@ -823,7 +823,7 @@ exec(Port, {prepare, SQL}) ->
     wait_result(Port);
 exec(Port, {bind, Index, Params}) ->
     Bin = term_to_binary({Index, Params}),
-    port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
+    port_control(Port, ?PREPARED_BIND, Bin),
     wait_result(Port);
 exec(Port, {Cmd, Index}) when is_integer(Index) ->
     CmdCode = case Cmd of

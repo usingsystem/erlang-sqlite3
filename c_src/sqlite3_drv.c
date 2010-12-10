@@ -122,6 +122,7 @@ static int control(
     ErlDrvData drv_data, unsigned int command, char *buf,
     int len, char **rbuf, int rlen) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
+  int i;
   switch (command) {
   case CMD_SQL_EXEC:
     sql_exec(driver_data, buf, len);
@@ -946,12 +947,14 @@ static int prepared_bind(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
 #endif
 
   ei_decode_version(buffer, &index, NULL);
+  ei_decode_tuple_header(buffer, &index, &size);
+  // assert(size == 2);
   ei_decode_long(buffer, &index, &long_prepared_index);
   unsigned int prepared_index = (unsigned int) long_prepared_index;
 
   if (prepared_index >= drv->prepared_count) {
     return output_error(drv, SQLITE_MISUSE,
-                        "Trying to reset non-existent prepared statement");
+                        "Trying to bind non-existent prepared statement");
   }
 
   sqlite3_stmt *statement = drv->prepared_stmts[prepared_index];
