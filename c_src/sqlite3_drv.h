@@ -1,3 +1,8 @@
+// cl.exe defines macro _WIN32, but erl_interface.h checks for __WIN32__
+#ifdef _WIN32
+#define __WIN32__
+#endif
+
 #include <erl_driver.h>
 #include <erl_interface.h>
 #include <ei.h>
