@@ -12,3 +12,7 @@ erl_crash.dump
 ebin
 priv
 TEST*.xml
+*.exp
+*.lib
+*.obj
+*.dll
