@@ -3,6 +3,8 @@
 #define __WIN32__
 #endif
 
+#define _CRT_SECURE_NO_WARNINGS // secure functions aren't cross-platform
+
 #include <erl_driver.h>
 #include <erl_interface.h>
 #include <ei.h>

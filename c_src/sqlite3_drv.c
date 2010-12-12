@@ -134,7 +134,6 @@ static int control(
     ErlDrvData drv_data, unsigned int command, char *buf,
     int len, char **rbuf, int rlen) {
   sqlite3_drv_t* driver_data = (sqlite3_drv_t*) drv_data;
-  int i;
   switch (command) {
   case CMD_SQL_EXEC:
     sql_exec(driver_data, buf, len);
@@ -334,7 +333,7 @@ static int bind_parameters(
     sqlite3_drv_t *drv, char *buffer, int buffer_size, int *p_index,
     sqlite3_stmt *statement, int *p_type, int *p_size) {
   // decoding parameters
-  int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0, result;
+  int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0, result = 0;
   long param_index_long;
   char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
   while (*p_index < buffer_size) {
@@ -689,7 +688,9 @@ static void sql_exec_async(void *_async_command) {
     dataset[term_count - 2] = ERL_DRV_LIST;
     dataset[term_count - 1] = 3;
   } else if (sql_is_insert(sqlite3_sql(statement))) {
-    sqlite3_int64 rowid = sqlite3_last_insert_rowid(drv->db);
+    ErlDrvSInt64 *rowid_ptr = driver_alloc(sizeof(ErlDrvSInt64));
+    *rowid_ptr = (ErlDrvSInt64) sqlite3_last_insert_rowid(drv->db);
+    ptrs = add_to_ptr_list(ptrs, rowid_ptr);
     term_count += 6;
     if (term_count > term_allocated) {
       term_allocated = max(term_count, term_allocated*2);
@@ -697,8 +698,8 @@ static void sql_exec_async(void *_async_command) {
     }
     dataset[term_count - 6] = ERL_DRV_ATOM;
     dataset[term_count - 5] = drv->atom_rowid;
-    dataset[term_count - 4] = ERL_DRV_INT;
-    dataset[term_count - 3] = rowid;
+    dataset[term_count - 4] = ERL_DRV_INT64;
+    dataset[term_count - 3] = (ErlDrvTermData) rowid_ptr;
     dataset[term_count - 2] = ERL_DRV_TUPLE;
     dataset[term_count - 1] = 2;
   } else {
@@ -1025,11 +1026,9 @@ static int prepared_columns(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
 }
 
 static int prepared_step(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
-  int result;
   unsigned int prepared_index;
   long long_prepared_index;
   int index = 0;
-  char *rest = NULL;
   sqlite3_stmt *statement;
   async_sqlite3_command *async_command;
 
@@ -1148,7 +1147,7 @@ static int unknown(sqlite3_drv_t *drv, char *command, int command_size) {
   ErlDrvTermData spec[] = {
       ERL_DRV_PORT, driver_mk_port(drv->port),
       ERL_DRV_ATOM, drv->atom_error,
-      ERL_DRV_INT, -1,
+      ERL_DRV_INT, (ErlDrvTermData) ((ErlDrvSInt) -1),
       ERL_DRV_ATOM, drv->atom_unknown_cmd,
       ERL_DRV_TUPLE, 4
   };
