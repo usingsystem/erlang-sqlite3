@@ -16,3 +16,4 @@ TEST*.xml
 *.lib
 *.obj
 *.dll
+rebar.cross_compile.config
