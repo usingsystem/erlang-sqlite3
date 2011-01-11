@@ -1006,19 +1006,18 @@ static int prepared_columns(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
 
   statement = drv->prepared_stmts[prepared_index];
 
-  term_count += 2;
+  term_count += 4;
   if (term_count > term_allocated) {
     term_allocated = max(term_count, term_allocated*2);
     dataset = driver_realloc(dataset, sizeof(ErlDrvTermData) * term_allocated);
   }
-  dataset[term_count - 2] = ERL_DRV_PORT;
-  dataset[term_count - 1] = driver_mk_port(drv->port);
+  dataset[term_count - 4] = ERL_DRV_PORT;
+  dataset[term_count - 3] = driver_mk_port(drv->port);
 
   column_count = sqlite3_column_count(statement);
 
   get_columns(
       drv, statement, column_count, 2, &term_count, &term_allocated, &dataset);
-  term_count += 2;
   dataset[term_count - 2] = ERL_DRV_TUPLE;
   dataset[term_count - 1] = 2;
 
