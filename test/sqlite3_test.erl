@@ -205,7 +205,6 @@ prepared_test() ->
     Columns = ["id", "name", "age", "wage"],
     Abby = {1, <<"abby">>, 20, 2000},
     Marge = {2, <<"marge">>, 30, 2000},
-    Null = {3, null, 40, 3000},
     TableInfo = [{id, integer, [primary_key]}, {name, text, [unique]}, {age, integer}, {wage, integer}],
     sqlite3:open(prepared, [in_memory]),
     ok = sqlite3:create_table(prepared, user, TableInfo),
