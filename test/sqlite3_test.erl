@@ -77,6 +77,7 @@ basic_functionality() ->
     ?assertEqual(
         {rowid, 2}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
+    ?debugMsg("Error message \"sqlite3 driver error: constraint failed\" should be shown..."),
     ?assertEqual(
         {error, 19, "constraint failed"}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
@@ -198,6 +199,7 @@ large_number() ->
     Query1 = io_lib:format("select ~p, ~p", [N1, N2]),
     ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query1))),
     Query2 = "select ?, ?",
+    ?debugMsg("Error message \"sqlite3 driver error: bind or column index out of range\" should be shown..."),
     ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query2, [N1, N2]))),
     ?assertNot([{N1 + 1, N2 - 1}] == rows(sqlite3:sql_exec(ct, Query2, [N1 + 1, N2 - 1]))).
 
