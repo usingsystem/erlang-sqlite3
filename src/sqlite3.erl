@@ -333,7 +333,7 @@ write_many(Db, Tbl, Data) ->
     gen_server:call(Db, {write_many, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec update(Tbl :: atom(), Key :: atom(), Value, Data) -> sql_non_query_result()
+%% @spec update(Tbl :: atom(), {Key :: atom(), Value}, Data) -> sql_non_query_result()
 %%        Value = any()
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
@@ -346,7 +346,7 @@ update(Tbl, {Key, Value}, Data) ->
     update(?MODULE, Tbl, {Key, Value}, Data).
 
 %%--------------------------------------------------------------------
-%% @spec update(Db :: atom(), Tbl :: atom(), Key :: atom(), Value, Data) -> sql_non_query_result()
+%% @spec update(Db :: atom(), Tbl :: atom(), {Key :: atom(), Value}, Data) -> sql_non_query_result()
 %%        Value = sql_value()
 %%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
