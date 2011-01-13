@@ -1,12 +1,14 @@
 REBAR=./rebar
 REBAR_DEBUG=$(REBAR) -C rebar.debug.config
 REBAR_COMPILE=$(REBAR) get-deps compile
+REBAR_DEBUG_COMPILE=$(REBAR_DEBUG) get-deps compile
 LAST_CONFIG:=$(shell cat config.tmp)
 PLT=dialyzer/sqlite3.plt
 
 all: config_normal compile
 
-debug: config_debug compile
+debug: config_debug
+	$(REBAR_DEBUG_COMPILE) 
 
 compile:
 	$(REBAR_COMPILE)
@@ -21,7 +23,7 @@ docs:
 	$(REBAR_COMPILE) doc
 
 static: config_debug
-	$(REBAR_DEBUG) get-deps compile
+	$(REBAR_DEBUG_COMPILE)
 ifeq ($(wildcard $(PLT)),)
 	dialyzer --build_plt --apps kernel stdlib erts --output_plt $(PLT) 
 else
@@ -32,7 +34,7 @@ cross_compile: config_cross
 	$(REBAR_COMPILE) -C rebar.cross_compile.config
 
 valgrind: config_debug
-	$(REBAR_DEBUG) get-deps compile
+	$(REBAR_DEBUG_COMPILE)
 	valgrind --tool=memcheck --leak-check=yes --num-callers=20 ./test.sh
 
 ifeq ($(LAST_CONFIG),normal)
