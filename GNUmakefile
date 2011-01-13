@@ -6,9 +6,11 @@ PLT=dialyzer/sqlite3.plt
 
 all: config_normal compile
 
+debug: config_debug compile
+
 compile:
 	$(REBAR_COMPILE)
-
+	
 test:
 	$(REBAR_COMPILE) eunit
 
@@ -29,7 +31,7 @@ endif
 cross_compile: config_cross
 	$(REBAR_COMPILE) -C rebar.cross_compile.config
 
-valgrind: clean
+valgrind: config_debug
 	$(REBAR_DEBUG) get-deps compile
 	valgrind --tool=memcheck --leak-check=yes --num-callers=20 ./test.sh
 
