@@ -1,4 +1,3 @@
-
 sqlite3.plt
 .svn
 */.svn
@@ -17,3 +16,4 @@ TEST*.xml
 *.obj
 *.dll
 rebar.cross_compile.config
+config.tmp
