@@ -17,3 +17,5 @@ TEST*.xml
 *.dll
 rebar.cross_compile.config
 config.tmp
+*.beam
+*.so
