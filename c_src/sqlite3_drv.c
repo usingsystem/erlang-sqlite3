@@ -162,6 +162,9 @@ static int control(
   case CMD_PREPARED_COLUMNS:
     prepared_columns(driver_data, buf, len);
     break;
+  case CMD_SQL_EXEC_SCRIPT:
+    sql_exec_script(driver_data, buf, len);
+    break;
   default:
     unknown(driver_data, buf, len);
   }
@@ -193,7 +196,7 @@ static inline int output_error(
   int term_count;
   return_error(drv, error_code, error, &dataset, &term_count);
   driver_output_term(drv->port, dataset, term_count);
-  return 0;
+  return 1;
 }
 
 static inline int output_db_error(sqlite3_drv_t *drv) {
@@ -257,6 +260,32 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   }
 
   return sql_exec_statement(drv, statement);
+}
+
+static int sql_exec_script(sqlite3_drv_t *drv, char *command, int command_size) {
+  int result;
+  const char *rest = command;
+  const char *end = command + command_size;
+  sqlite3_stmt *statement;
+
+  // printf("SQL: %.*s\n", command_size, command);
+
+  while (rest < end) {
+    result = sqlite3_prepare_v2(drv->db, command, end - command, &statement, &rest);
+    command = (char *) rest; // won't actually mutate!
+    if (result != SQLITE_OK) {
+      return output_db_error(drv);
+    } else if (statement == NULL) {
+      return output_error(drv, SQLITE_MISUSE, "empty statement");
+    }
+
+    result = sql_exec_statement(drv, statement);
+    if (result) {
+      // there was an error, bail out
+      return result;
+    }
+  }
+  return result;
 }
 
 static inline int decode_and_bind_param(

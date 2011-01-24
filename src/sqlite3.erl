@@ -15,7 +15,8 @@
 -export([open/1, open/2]).
 -export([start_link/1, start_link/2]).
 -export([stop/0, close/1]).
--export([sql_exec/1, sql_exec/2, sql_exec/3]).
+-export([sql_exec/1, sql_exec/2, sql_exec/3, 
+         sql_exec_script/2]).
 -export([prepare/2, bind/3, next/2, reset/2, clear_bindings/2, finalize/2,
          columns/2]).
 -export([create_table/2, create_table/3, create_table/4]).
@@ -169,6 +170,17 @@ sql_exec(Db, SQL) ->
 -spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}]) -> sql_result().
 sql_exec(Db, SQL, Params) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
+
+%%--------------------------------------------------------------------
+%% @spec sql_exec_script(Db :: atom(), Sql :: iodata()) -> sql_non_query_result()
+%% @doc
+%%   Executes the Sql script (consisting of semicolon-separated statements) 
+%%   directly on the Db database. Returns 'ok' if there were no errors. 
+%% @end
+%%--------------------------------------------------------------------
+-spec sql_exec_script(atom(), iodata()) -> sql_non_query_result().
+sql_exec_script(Db, SQL) ->
+    gen_server:call(Db, {sql_exec_script, SQL}).
 
 -spec prepare(atom(), iodata()) -> {ok, reference()} | sqlite_error().
 prepare(Db, SQL) ->
@@ -643,6 +655,9 @@ handle_call({sql_exec, SQL}, _From, State) ->
 handle_call({sql_bind_and_exec, SQL, Params}, _From, State) ->
     Reply = do_sql_bind_and_exec(SQL, Params, State),
     {reply, Reply, State};
+handle_call({sql_exec_script, SQL}, _From, State) ->
+    Reply = do_sql_exec_script(SQL, State),
+    {reply, Reply, State};
 handle_call({create_table, Tbl, Columns}, _From, State) ->
     SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
     do_handle_call_sql_exec(SQL, State);
@@ -813,6 +828,7 @@ get_priv_dir() ->
 -define(PREPARED_CLEAR_BINDINGS, 9).
 -define(PREPARED_FINALIZE, 10).
 -define(PREPARED_COLUMNS, 11).
+-define(SQL_EXEC_SCRIPT, 12).
 
 create_port_cmd(DbFile) ->
     atom_to_list(?DRIVER_NAME) ++ " " ++ DbFile.
@@ -829,6 +845,10 @@ do_sql_bind_and_exec(SQL, Params, #state{port = Port}) ->
     ?dbg("SQL: ~s; Parameters: ~p~n", [SQL, Params]),
     exec(Port, {sql_bind_and_exec, SQL, Params}).
 
+do_sql_exec_script(SQL, #state{port = Port}) ->
+    ?dbg("SQL: ~s~n", [SQL]),
+    exec(Port, {sql_exec_script, SQL}).
+
 exec(_Port, {create_function, _FunctionName, _Function}) ->
     error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);
 %port_control(Port, ?SQL_CREATE_FUNCTION, list_to_binary(Cmd)),
@@ -839,6 +859,9 @@ exec(Port, {sql_exec, SQL}) ->
 exec(Port, {sql_bind_and_exec, SQL, Params}) ->
     Bin = term_to_binary({iolist_to_binary(SQL), Params}),
     port_control(Port, ?SQL_BIND_AND_EXEC_COMMAND, Bin),
+    wait_result(Port);
+exec(Port, {sql_exec_script, SQL}) ->
+    port_control(Port, ?SQL_EXEC_SCRIPT, SQL),
     wait_result(Port);
 exec(Port, {prepare, SQL}) ->
     port_control(Port, ?PREPARE, SQL),

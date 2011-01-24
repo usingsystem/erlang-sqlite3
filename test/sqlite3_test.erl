@@ -233,6 +233,25 @@ prepared_test() ->
     ?assertEqual(ok, sqlite3:finalize(prepared, Ref2)),
     sqlite3:close(prepared).
 
+script_test() ->
+    sqlite3:open(script, [in_memory]),
+    Script = string:join(
+                 ["CREATE TABLE person(",
+                  "id INTEGER",
+                  ");",
+                  "  ",
+                  "-- Comment",
+                  "",
+                  "INSERT INTO person (id) VALUES (1);",
+                  "INSERT INTO person (id) VALUES (2);",
+                  "   "
+                 ], "\n"),
+    ?assertEqual(ok, sqlite3:sql_exec_script(script, Script)),
+    ?assertEqual(
+        [{columns,["id"]},{rows,[{1},{2}]}], 
+        sqlite3:read_all(script, person)),
+    sqlite3:close(script).
+
 % create, read, update, delete
 %%====================================================================
 %% Internal functions
