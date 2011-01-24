@@ -251,7 +251,7 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 #endif
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
                               (const char **) &rest);
-  if (result != SQLITE_OK) {
+  if ((result != SQLITE_OK) || (statement == NULL)) {
     return output_db_error(drv);
   }
 
@@ -473,7 +473,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
                               (const char **) &rest);
   driver_free(command);
 
-  if (result != SQLITE_OK) {
+  if ((result != SQLITE_OK) || (statement == NULL)) {
     return output_db_error(drv);
   }
 
@@ -927,7 +927,7 @@ static int prepare(sqlite3_drv_t *drv, char *command, int command_size) {
 #endif
   result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
                               (const char **) &rest);
-  if (result != SQLITE_OK) {
+  if ((result != SQLITE_OK) || (statement == NULL)) {
     return output_db_error(drv);
   }
 
