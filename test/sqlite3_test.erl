@@ -61,6 +61,10 @@ basic_functionality() ->
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
     TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
     drop_all_tables(ct),
+    ?debugMsg("Error message \"sqlite3 driver error: empty statement\" should be shown..."),
+    ?assertEqual(
+        {error, 21, "empty statement"},
+        sqlite3:sql_exec(ct, "-- Comment")),
     ?assertEqual(
         [], 
         sqlite3:list_tables(ct)),
