@@ -172,13 +172,16 @@ sql_exec(Db, SQL, Params) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec_script(Db :: atom(), Sql :: iodata()) -> sql_non_query_result()
+%% @spec sql_exec_script(Db :: atom(), Sql :: iodata()) -> [sql_result()]
 %% @doc
 %%   Executes the Sql script (consisting of semicolon-separated statements) 
-%%   directly on the Db database. Returns 'ok' if there were no errors. 
+%%   directly on the Db database. Returns the list of their results (same as
+%%   if sql_exec/2 was called for all of them in order, but more efficient). 
+%%   Note that any whitespace or comments after the last semicolon will be 
+%%   considered an empty statement and produce the corresponding error.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec_script(atom(), iodata()) -> sql_non_query_result().
+-spec sql_exec_script(atom(), iodata()) -> [sql_result()].
 sql_exec_script(Db, SQL) ->
     gen_server:call(Db, {sql_exec_script, SQL}).
 
@@ -862,7 +865,7 @@ exec(Port, {sql_bind_and_exec, SQL, Params}) ->
     wait_result(Port);
 exec(Port, {sql_exec_script, SQL}) ->
     port_control(Port, ?SQL_EXEC_SCRIPT, SQL),
-    wait_result(Port);
+    many_results_loop(Port);
 exec(Port, {prepare, SQL}) ->
     port_control(Port, ?PREPARE, SQL),
     wait_result(Port);
@@ -899,6 +902,17 @@ wait_result(Port) ->
             {error, -1, Reason}
     end.
 
+many_results_loop(Port) ->
+    do_many_results_loop(Port, []).
+
+do_many_results_loop(Port, Acc) ->
+    case wait_result(Port) of
+        done ->
+            lists:reverse(Acc);
+        Reply ->
+            do_many_results_loop(Port, [Reply | Acc])
+    end.
+    
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
     Cols = string:tokens(Tail, ","),

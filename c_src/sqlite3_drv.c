@@ -213,6 +213,16 @@ static inline int output_ok(sqlite3_drv_t *drv) {
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
 }
 
+static inline int output_done(sqlite3_drv_t *drv) {
+  // Return {Port, ok}
+  ErlDrvTermData spec[] = {
+      ERL_DRV_PORT, driver_mk_port(drv->port),
+      ERL_DRV_ATOM, drv->atom_done,
+      ERL_DRV_TUPLE, 2
+  };
+  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+}
+
 static inline async_sqlite3_command *make_async_command(
     sqlite3_drv_t *drv, sqlite3_stmt *statement) {
   async_sqlite3_command *result =
@@ -268,23 +278,24 @@ static int sql_exec_script(sqlite3_drv_t *drv, char *command, int command_size) 
   const char *end = command + command_size;
   sqlite3_stmt *statement;
 
-  // printf("SQL: %.*s\n", command_size, command);
-
   while (rest < end) {
     result = sqlite3_prepare_v2(drv->db, command, end - command, &statement, &rest);
     command = (char *) rest; // won't actually mutate!
     if (result != SQLITE_OK) {
-      return output_db_error(drv);
+      output_db_error(drv);
+      break;
     } else if (statement == NULL) {
-      return output_error(drv, SQLITE_MISUSE, "empty statement");
+      output_error(drv, SQLITE_MISUSE, "empty statement");
+      break;
     }
 
     result = sql_exec_statement(drv, statement);
     if (result) {
       // there was an error, bail out
-      return result;
+      break;
     }
   }
+  output_done(drv);
   return result;
 }
 
