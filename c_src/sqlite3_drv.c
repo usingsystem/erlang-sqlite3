@@ -242,7 +242,7 @@ static inline int sql_exec_statement(
 
 static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   int result;
-  const char *rest = NULL;
+  const char *rest;
   sqlite3_stmt *statement;
 
 #ifdef DEBUG
@@ -440,7 +440,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   int result;
   int index = 0;
   int type, size;
-  const char *rest = NULL;
+  const char *rest;
   sqlite3_stmt *statement;
   long bin_size;
   char *command;
@@ -915,7 +915,7 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
 
 static int prepare(sqlite3_drv_t *drv, char *command, int command_size) {
   int result;
-  const char *rest = NULL;
+  const char *rest;
   sqlite3_stmt *statement;
   ErlDrvTermData spec[6];
 
