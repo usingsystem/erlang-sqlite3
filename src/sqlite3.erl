@@ -33,7 +33,6 @@
          read/2, read/3, read/4, read_timeout/4, read_timeout/5]).
 -export([delete/2, delete/3, delete_timeout/4]).
 -export([drop_table/1, drop_table/2, drop_table_timeout/3]).
--export([begin_transaction/1, commit_transaction/1, rollback_transaction/1]).
 -export([vacuum/0, vacuum/1, vacuum_timeout/2]).
 
 %% -export([create_function/3]).
@@ -766,39 +765,6 @@ vacuum_timeout(Db, Timeout) ->
 %% -spec create_function(atom(), atom(), function()) -> any().
 %% create_function(Db, FunctionName, Function) ->
 %%     gen_server:call(Db, {create_function, FunctionName, Function}).
-
-%%--------------------------------------------------------------------
-%% @spec begin_transaction(Db :: atom()) -> sql_non_query_result()
-%% @doc
-%%   Begins a transaction in Db.
-%% @end
-%%--------------------------------------------------------------------
--spec begin_transaction(atom()) -> sql_non_query_result().
-begin_transaction(Db) ->
-    SQL = "BEGIN;",
-    sql_exec(Db, SQL).
-
-%%--------------------------------------------------------------------
-%% @spec commit_transaction(Db :: atom()) -> sql_non_query_result()
-%% @doc
-%%   Commits the current transaction in Db.
-%% @end
-%%--------------------------------------------------------------------
--spec commit_transaction(atom()) -> sql_non_query_result().
-commit_transaction(Db) ->
-    SQL = "COMMIT;",
-    sql_exec(Db, SQL).
-
-%%--------------------------------------------------------------------
-%% @spec rollback_transaction(Db :: atom()) -> sql_non_query_result()
-%% @doc
-%%   Rolls back the current transaction in Db.
-%% @end
-%%--------------------------------------------------------------------
--spec rollback_transaction(atom()) -> sql_non_query_result().
-rollback_transaction(Db) ->
-    SQL = "ROLLBACK;",
-    sql_exec(Db, SQL).
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
