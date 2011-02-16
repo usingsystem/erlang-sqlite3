@@ -14,7 +14,7 @@ tests:
 	$(REBAR) eunit
 
 clean:
-	-rm -rf deps ebin priv doc\* .eunit c_src\*.o
+	del /Q deps ebin priv doc\* .eunit c_src\*.o
 
 docs:
 	$(REBAR_COMPILE) doc
