@@ -120,10 +120,10 @@ parametrized() ->
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [{1, 1}, {2, "john"}]),
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?3, ?5)", [{3, 2}, {5, "joe"}]),
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (:id, @name)", [{":id", 3}, {'@name', <<"jack">>}]),
-    sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [4294967295, "james"]),
+    sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [4, "james"]),
     ?assertEqual(
         [{columns, ["id", "name"]}, 
-         {rows, [{1, <<"john">>}, {2, <<"joe">>}, {3, <<"jack">>}, {4294967295, <<"james">>}]}], 
+         {rows, [{1, <<"john">>}, {2, <<"joe">>}, {3, <<"jack">>}, {4, <<"james">>}]}], 
         sqlite3:read_all(ct, user1)),
     sqlite3:drop_table(ct, user1),
     sqlite3:create_table(ct, user1, [{i, integer}, {d, double}, {b, blob}]),

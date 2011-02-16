@@ -358,7 +358,7 @@ sql_number(NumberStr) ->
 sql_string(StringWithEscapedQuotes) ->
     Res1 = re:replace(StringWithEscapedQuotes, "''", "'", 
                       [global, {return, binary}]),
-    binary_part(Res1, 0, byte_size(Res1) - 1).
+    erlang:binary_part(Res1, 0, byte_size(Res1) - 1).
 
 -spec sql_blob(string()) -> binary().
 sql_blob([$' | Tail]) -> hex_str_to_bin(Tail, <<>>).

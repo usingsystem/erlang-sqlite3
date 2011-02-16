@@ -318,7 +318,9 @@ static inline int decode_and_bind_param(
     result = sqlite3_bind_int64(statement, param_index, int64_val);
     break;
   case ERL_FLOAT_EXT:
+#ifdef NEW_FLOAT_EXT
   case NEW_FLOAT_EXT: // what's the difference?
+#endif
     ei_decode_double(buffer, p_index, &double_val);
     result = sqlite3_bind_double(statement, param_index, double_val);
     break;

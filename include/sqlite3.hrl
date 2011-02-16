@@ -1,12 +1,12 @@
 -ifdef(DEBUG).
 -include_lib("eunit/include/eunit.hrl"). %% for debugging macros
 -define(dbg(Message), ?debugMsg(Message)).
--define(dbg(Format, Data), ?debugFmt(Format, Data)).
+-define(dbgF(Format, Data), ?debugFmt(Format, Data)).
 -define(dbgVal(Expr), ?debugVal(Expr)).
 -define(dbgTime(Text, Expr), ?debugTime(Text, Expr)).
 -else.
 -define(dbg(_Message), ok).
--define(dbg(_Format, _Data), ok).
+-define(dbgF(_Format, _Data), ok).
 -define(dbgVal(Expr), Expr).
 -define(dbgTime(_Text, Expr), Expr).
 %% -ifdef(TEST).

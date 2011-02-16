@@ -1062,15 +1062,15 @@ do_handle_call_sql_exec(SQL, State) ->
     {reply, Reply, State}.
 
 do_sql_exec(SQL, #state{port = Port}) ->
-    ?dbg("SQL: ~s~n", [SQL]),
+    ?dbgF("SQL: ~s~n", [SQL]),
     exec(Port, {sql_exec, SQL}).
 
 do_sql_bind_and_exec(SQL, Params, #state{port = Port}) ->
-    ?dbg("SQL: ~s; Parameters: ~p~n", [SQL, Params]),
+    ?dbgF("SQL: ~s; Parameters: ~p~n", [SQL, Params]),
     exec(Port, {sql_bind_and_exec, SQL, Params}).
 
 do_sql_exec_script(SQL, #state{port = Port}) ->
-    ?dbg("SQL: ~s~n", [SQL]),
+    ?dbgF("SQL: ~s~n", [SQL]),
     exec(Port, {sql_exec_script, SQL}).
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
