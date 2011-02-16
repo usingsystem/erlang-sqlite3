@@ -34,6 +34,7 @@
 #define CMD_PREPARED_CLEAR_BINDINGS 9
 #define CMD_PREPARED_FINALIZE 10
 #define CMD_PREPARED_COLUMNS 11
+#define CMD_SQL_EXEC_SCRIPT 12
 
 // Number of bytes for each key
 // (160 bits for SHA1 hash)
@@ -84,6 +85,7 @@ static int control(ErlDrvData drv_data, unsigned int command, char *buf,
                    int len, char **rbuf, int rlen);
 static int sql_exec(sqlite3_drv_t *drv, char *buf, int len);
 static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buf, int len);
+static int sql_exec_script(sqlite3_drv_t *drv, char *buf, int len);
 static int prepare(sqlite3_drv_t *drv, char *buf, int len);
 static int prepared_bind(sqlite3_drv_t *drv, char *buf, int len);
 static int prepared_step(sqlite3_drv_t *drv, char *buf, int len);

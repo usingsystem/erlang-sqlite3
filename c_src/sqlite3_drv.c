@@ -162,6 +162,9 @@ static int control(
   case CMD_PREPARED_COLUMNS:
     prepared_columns(driver_data, buf, len);
     break;
+  case CMD_SQL_EXEC_SCRIPT:
+    sql_exec_script(driver_data, buf, len);
+    break;
   default:
     unknown(driver_data, buf, len);
   }
@@ -193,7 +196,7 @@ static inline int output_error(
   int term_count;
   return_error(drv, error_code, error, &dataset, &term_count);
   driver_output_term(drv->port, dataset, term_count);
-  return 0;
+  return 1;
 }
 
 static inline int output_db_error(sqlite3_drv_t *drv) {
@@ -205,6 +208,16 @@ static inline int output_ok(sqlite3_drv_t *drv) {
   ErlDrvTermData spec[] = {
       ERL_DRV_PORT, driver_mk_port(drv->port),
       ERL_DRV_ATOM, drv->atom_ok,
+      ERL_DRV_TUPLE, 2
+  };
+  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
+}
+
+static inline int output_done(sqlite3_drv_t *drv) {
+  // Return {Port, ok}
+  ErlDrvTermData spec[] = {
+      ERL_DRV_PORT, driver_mk_port(drv->port),
+      ERL_DRV_ATOM, drv->atom_done,
       ERL_DRV_TUPLE, 2
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
@@ -242,20 +255,48 @@ static inline int sql_exec_statement(
 
 static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
   int result;
-  char *rest = NULL;
+  const char *rest;
   sqlite3_stmt *statement;
 
 #ifdef DEBUG
   fprintf(drv->log, "Preexec: %.*s\n", command_size, command);
   fflush(drv->log);
 #endif
-  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
-                              (const char **) &rest);
+  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, &rest);
   if (result != SQLITE_OK) {
     return output_db_error(drv);
+  } else if (statement == NULL) {
+    return output_error(drv, SQLITE_MISUSE, "empty statement");
   }
 
   return sql_exec_statement(drv, statement);
+}
+
+static int sql_exec_script(sqlite3_drv_t *drv, char *command, int command_size) {
+  int result;
+  const char *rest = command;
+  const char *end = command + command_size;
+  sqlite3_stmt *statement;
+
+  while (rest < end) {
+    result = sqlite3_prepare_v2(drv->db, command, end - command, &statement, &rest);
+    command = (char *) rest; // won't actually mutate!
+    if (result != SQLITE_OK) {
+      output_db_error(drv);
+      break;
+    } else if (statement == NULL) {
+      output_error(drv, SQLITE_MISUSE, "empty statement");
+      break;
+    }
+
+    result = sql_exec_statement(drv, statement);
+    if (result) {
+      // there was an error, bail out
+      break;
+    }
+  }
+  output_done(drv);
+  return result;
 }
 
 static inline int decode_and_bind_param(
@@ -441,7 +482,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   int result;
   int index = 0;
   int type, size;
-  char *rest = NULL;
+  const char *rest;
   sqlite3_stmt *statement;
   long bin_size;
   char *command;
@@ -469,12 +510,13 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   command = driver_alloc(size * sizeof(char));
   ei_decode_binary(buffer, &index, command, &bin_size);
   // assert(bin_size == size)
-  result = sqlite3_prepare_v2(drv->db, command, size, &statement,
-                              (const char **) &rest);
+  result = sqlite3_prepare_v2(drv->db, command, size, &statement, &rest);
   driver_free(command);
 
   if (result != SQLITE_OK) {
     return output_db_error(drv);
+  } else if (statement == NULL) {
+    return output_error(drv, SQLITE_MISUSE, "empty statement");
   }
 
   result = bind_parameters(drv, buffer, buffer_size, &index, statement, &type, &size);
@@ -917,7 +959,7 @@ static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data) {
 
 static int prepare(sqlite3_drv_t *drv, char *command, int command_size) {
   int result;
-  char *rest = NULL;
+  const char *rest;
   sqlite3_stmt *statement;
   ErlDrvTermData spec[6];
 
@@ -925,10 +967,11 @@ static int prepare(sqlite3_drv_t *drv, char *command, int command_size) {
   fprintf(drv->log, "Preparing statement: %.*s\n", command_size, command);
   fflush(drv->log);
 #endif
-  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement,
-                              (const char **) &rest);
+  result = sqlite3_prepare_v2(drv->db, command, command_size, &statement, &rest);
   if (result != SQLITE_OK) {
     return output_db_error(drv);
+  } else if (statement == NULL) {
+    return output_error(drv, SQLITE_MISUSE, "empty statement");
   }
 
   if (drv->prepared_count >= drv->prepared_alloc) {

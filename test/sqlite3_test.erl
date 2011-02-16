@@ -17,6 +17,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(FuncTest(Name), {??Name, fun Name/0}).
+-define(WARN_ERROR_MESSAGE, io:format(user, "Error message should be shown...~n", [])).
 
 drop_all_tables(Db) ->
     Tables = sqlite3:list_tables(Db),
@@ -61,6 +62,10 @@ basic_functionality() ->
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
     TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
     drop_all_tables(ct),
+    ?WARN_ERROR_MESSAGE,
+    ?assertEqual(
+        {error, 21, "empty statement"},
+        sqlite3:sql_exec(ct, "-- Comment")),
     ?assertEqual(
         [], 
         sqlite3:list_tables(ct)),
@@ -77,7 +82,7 @@ basic_functionality() ->
     ?assertEqual(
         {rowid, 2}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
-    ?debugMsg("Error message \"sqlite3 driver error: constraint failed\" should be shown..."),
+    ?WARN_ERROR_MESSAGE,
     ?assertEqual(
         {error, 19, "constraint failed"}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
@@ -228,6 +233,41 @@ prepared_test() ->
     ?assertEqual(done, sqlite3:next(prepared, Ref2)),
     ?assertEqual(ok, sqlite3:finalize(prepared, Ref2)),
     sqlite3:close(prepared).
+
+script_test() ->
+    sqlite3:open(script, [in_memory]),
+    Script = string:join(
+                 ["CREATE TABLE person(",
+                  "id INTEGER",
+                  ");",
+                  "  ",
+                  "-- Comment",
+                  "INSERT INTO person (id) VALUES (1);",
+                  "INSERT INTO person (id) VALUES (2);",
+                  "   "
+                 ], "\n"),
+    ?WARN_ERROR_MESSAGE,
+    ?assertEqual(
+        [ok, ok, ok, {error, 21, "empty statement"}], 
+        sqlite3:sql_exec_script(script, Script)),
+    ?assertEqual(
+        [{columns,["id"]},{rows,[{1},{2}]}], 
+        sqlite3:read_all(script, person)),
+    BadScript = string:join(
+                 ["CREATE TABLE person2(",
+                  "id INTEGER",
+                  ");",
+                  "  ",
+                  "-- Comment",
+                  "SYNTAX ERROR;",
+                  "INSERT INTO person (id) VALUES (2);",
+                  "   "
+                 ], "\n"),
+    ?WARN_ERROR_MESSAGE,
+    ?assertEqual(
+        [ok, {error, 1, "near \"SYNTAX\": syntax error"}], 
+        sqlite3:sql_exec_script(script, BadScript)),
+    sqlite3:close(script).
 
 % create, read, update, delete
 %%====================================================================
