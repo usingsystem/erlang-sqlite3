@@ -74,7 +74,7 @@ value_to_sql_unsafe(X) ->
         _ when is_float(X)     -> float_to_list(X);
         ?NULL_ATOM -> "NULL";
         {blob, Blob} -> ["x'", bin_to_hex(Blob), $'];
-        _            -> [$', X, $'] %% assumes no $' inside strings!
+        _            -> [$', unicode:characters_to_binary(X), $'] %% assumes no $' inside strings!
     end.
 
 %%--------------------------------------------------------------------
@@ -94,7 +94,7 @@ value_to_sql(X) ->
         _ when is_float(X)     -> float_to_list(X);
         ?NULL_ATOM -> "NULL";
         {blob, Blob} -> ["x'", bin_to_hex(Blob), $'];
-        _            -> [$', escape(X), $']
+        _            -> [$', unicode:characters_to_binary(escape(X)), $']
     end.
 
 %%--------------------------------------------------------------------
@@ -147,7 +147,7 @@ write_col_sql(Cols) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec escape(iodata()) -> iodata().
-escape(IoData) -> re:replace(IoData, "'", "''", [global]).
+escape(IoData) -> re:replace(IoData, "'", "''", [global, unicode]).
 
 %%--------------------------------------------------------------------
 %% @spec bin_to_hex(Binary :: binary()) -> binary()
@@ -357,7 +357,7 @@ sql_number(NumberStr) ->
 -spec sql_string(string()) -> binary().
 sql_string(StringWithEscapedQuotes) ->
     Res1 = re:replace(StringWithEscapedQuotes, "''", "'", 
-                      [global, {return, binary}]),
+                      [global, {return, binary}, unicode]),
     erlang:binary_part(Res1, 0, byte_size(Res1) - 1).
 
 -spec sql_blob(string()) -> binary().

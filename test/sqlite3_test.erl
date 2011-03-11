@@ -46,7 +46,8 @@ all_test_() ->
       ?FuncTest(escaping),
       ?FuncTest(select_many_records),
       ?FuncTest(nonexistent_table_info),
-      ?FuncTest(large_number)]}.
+      ?FuncTest(large_number),
+      ?FuncTest(unicode)]}.
 
 open_db() ->
     sqlite3:open(ct, [in_memory]).
@@ -207,6 +208,13 @@ large_number() ->
     ?debugMsg("Error message \"sqlite3 driver error: bind or column index out of range\" should be shown..."),
     ?assertEqual([{N1, N2}], rows(sqlite3:sql_exec(ct, Query2, [N1, N2]))),
     ?assertNot([{N1 + 1, N2 - 1}] == rows(sqlite3:sql_exec(ct, Query2, [N1 + 1, N2 - 1]))).
+
+unicode() ->
+    UnicodeString = [1102,1085,1080,1082,1086,1076], %% "Unicode" in Russian, in UTF-8
+    drop_table_if_exists(ct, unicode),
+    sqlite3:create_table(ct, unicode, [{str, text}]),
+    sqlite3:write(ct, unicode, [{str, UnicodeString}]),
+    ?assertEqual([{unicode:characters_to_binary(UnicodeString)}], rows(sqlite3:read_all(ct, unicode))). 
 
 prepared_test() ->
     Columns = ["id", "name", "age", "wage"],
