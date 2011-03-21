@@ -72,6 +72,7 @@ value_to_sql_unsafe(X) ->
     case X of
         _ when is_integer(X)   -> integer_to_list(X);
         _ when is_float(X)     -> float_to_list(X);
+        undefined  -> "NULL"
         ?NULL_ATOM -> "NULL";
         {blob, Blob} -> ["x'", bin_to_hex(Blob), $'];
         _            -> [$', unicode:characters_to_binary(X), $'] %% assumes no $' inside strings!
@@ -92,6 +93,7 @@ value_to_sql(X) ->
     case X of
         _ when is_integer(X)   -> integer_to_list(X);
         _ when is_float(X)     -> float_to_list(X);
+        undefined  -> "NULL"
         ?NULL_ATOM -> "NULL";
         {blob, Blob} -> ["x'", bin_to_hex(Blob), $'];
         _            -> [$', unicode:characters_to_binary(escape(X)), $']
