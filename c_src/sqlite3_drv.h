@@ -66,9 +66,15 @@ typedef struct sqlite3_drv_t {
   ErlDrvTermData atom_unknown_cmd;
 } sqlite3_drv_t;
 
+typedef enum async_sqlite3_command_type {t_stmt, t_script} async_sqlite3_command_type;
+
 typedef struct async_sqlite3_command {
   sqlite3_drv_t *driver_data;
-  sqlite3_stmt *statement;
+  async_sqlite3_command_type type;
+  union {
+    sqlite3_stmt *statement;
+    char *script;
+  };
   ErlDrvTermData *dataset;
   int term_count;
   int term_allocated;
