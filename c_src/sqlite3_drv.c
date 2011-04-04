@@ -1097,7 +1097,7 @@ static int prepared_step(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
     drv->async_handle = driver_async(drv->port, &drv->key, sql_step_async,
                                      async_command, sql_free_async);
   } else {
-    sql_exec_async(async_command);
+    sql_step_async(async_command);
     ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
   }
   return 0;
