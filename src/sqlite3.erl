@@ -1086,7 +1086,7 @@ exec(Port, {sql_bind_and_exec, SQL, Params}) ->
     wait_result(Port);
 exec(Port, {sql_exec_script, SQL}) ->
     port_control(Port, ?SQL_EXEC_SCRIPT, SQL),
-    many_results_loop(Port);
+    wait_result(Port);
 exec(Port, {prepare, SQL}) ->
     port_control(Port, ?PREPARE, SQL),
     wait_result(Port);
@@ -1123,17 +1123,6 @@ wait_result(Port) ->
             {error, -1, Reason}
     end.
 
-many_results_loop(Port) ->
-    do_many_results_loop(Port, []).
-
-do_many_results_loop(Port, Acc) ->
-    case wait_result(Port) of
-        done ->
-            lists:reverse(Acc);
-        Reply ->
-            do_many_results_loop(Port, [Reply | Acc])
-    end.
-    
 parse_table_info(Info) ->
     [_, Tail] = string:tokens(Info, "()"),
     Cols = string:tokens(Tail, ","),

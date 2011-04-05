@@ -41,6 +41,7 @@ static inline void free_ptr_list(ptr_list *list, void(* free_head)(void *));
 static inline int max(int a, int b);
 #endif
 static inline int sql_is_insert(const char *sql);
+static void print_dataset(ErlDrvTermData* dataset, int term_count);
 
 // required because driver_free(_binary) are macros in Windows
 void driver_free_fun(void *ptr) { 
@@ -173,7 +174,10 @@ static int control(
 
 static inline int return_error(
     sqlite3_drv_t *drv, int error_code, const char *error,
-    ErlDrvTermData **spec, int *term_count) {
+    ErlDrvTermData **spec, int *term_count, int* error_code_p) {
+  if (error_code_p) {
+    *error_code_p = error_code;
+  }
   *spec = (ErlDrvTermData *) driver_alloc(11 * sizeof(ErlDrvTermData));
   (*spec)[0] = ERL_DRV_PORT;
   (*spec)[1] = driver_mk_port(drv->port);
@@ -194,7 +198,7 @@ static inline int output_error(
     sqlite3_drv_t *drv, int error_code, const char *error) {
   ErlDrvTermData *dataset;
   int term_count;
-  return_error(drv, error_code, error, &dataset, &term_count);
+  return_error(drv, error_code, error, &dataset, &term_count, NULL);
   driver_output_term(drv->port, dataset, term_count);
   return 1;
 }
@@ -236,14 +240,17 @@ static inline async_sqlite3_command *make_async_command_statement(
 }
 
 static inline async_sqlite3_command *make_async_command_script(
-    sqlite3_drv_t *drv, char *script) {
+    sqlite3_drv_t *drv, char *script, int script_length) {
   async_sqlite3_command *result =
       (async_sqlite3_command *) driver_alloc(sizeof(async_sqlite3_command));
   memset(result, 0, sizeof(async_sqlite3_command));
+  char *script_copy = driver_alloc(sizeof(char) * script_length);
+  memcpy(script_copy, script, sizeof(char) * script_length);
 
   result->driver_data = drv;
   result->type = t_script;
-  result->script = script;
+  result->script = script_copy;
+  result->end = script_copy + script_length;
   return result;
 }
 
@@ -286,30 +293,21 @@ static int sql_exec(sqlite3_drv_t *drv, char *command, int command_size) {
 }
 
 static int sql_exec_script(sqlite3_drv_t *drv, char *command, int command_size) {
-  int result;
-  const char *rest = command;
-  const char *end = command + command_size;
-  sqlite3_stmt *statement;
+  async_sqlite3_command *async_command = make_async_command_script(drv, command, command_size);
 
-  while (rest < end) {
-    result = sqlite3_prepare_v2(drv->db, command, end - command, &statement, &rest);
-    command = (char *) rest; // won't actually mutate!
-    if (result != SQLITE_OK) {
-      output_db_error(drv);
-      break;
-    } else if (statement == NULL) {
-      output_error(drv, SQLITE_MISUSE, "empty statement");
-      break;
-    }
+#ifdef DEBUG
+  fprintf(drv->log, "Driver async: %d %p\n", SQLITE_VERSION_NUMBER, async_command->statement);
+  fflush(drv->log);
+#endif
 
-    result = sql_exec_statement(drv, statement);
-    if (result) {
-      // there was an error, bail out
-      break;
-    }
+  if (sqlite3_threadsafe()) {
+    drv->async_handle = driver_async(drv->port, &drv->key, sql_exec_async,
+                                     async_command, sql_free_async);
+  } else {
+    sql_exec_async(async_command);
+    ready_async((ErlDrvData) drv, (ErlDrvThreadData) async_command);
   }
-  output_done(drv);
-  return result;
+  return 0;
 }
 
 static inline int decode_and_bind_param(
@@ -565,26 +563,16 @@ static void sql_free_async(void *_async_command) {
 }
 
 static void sql_exec_one_statement(
-    sqlite3_stmt *statement, async_sqlite3_command *async_command) {
+    sqlite3_stmt *statement, async_sqlite3_command *async_command,
+    int *term_count_p, int *term_allocated_p, ErlDrvTermData **dataset_p) {
   int column_count = sqlite3_column_count(statement);
   int row_count = 0, next_row;
   int base_term_count;
-  int *term_count_p = &(async_command->term_count);
-  int *term_allocated_p = &(async_command->term_allocated);
-  ErlDrvTermData **dataset_p = &(async_command->dataset);
   sqlite3_drv_t *drv = async_command->driver_data;
   ptr_list **ptrs_p = &(async_command->ptrs);
   ptr_list **binaries_p = &(async_command->binaries);
 
   int i;
-
-  *term_count_p += 2;
-  if (*term_count_p > *term_allocated_p) {
-    *term_allocated_p = max(*term_count_p, *term_allocated_p*2);
-    *dataset_p = driver_realloc(*dataset_p, sizeof(ErlDrvTermData) * *term_allocated_p);
-  }
-  (*dataset_p)[*term_count_p - 2] = ERL_DRV_PORT;
-  (*dataset_p)[*term_count_p - 1] = driver_mk_port(drv->port);
 
   if (column_count > 0) {
     *term_count_p += 2;
@@ -716,12 +704,14 @@ static void sql_exec_one_statement(
 
   if (next_row == SQLITE_BUSY) {
     return_error(drv, SQLITE_BUSY, "SQLite3 database is busy",
-                 &async_command->dataset, &async_command->term_count);
+                 &async_command->dataset, &async_command->term_count,
+                 &async_command->error_code);
     return;
   }
   if (next_row != SQLITE_DONE) {
     return_error(drv, next_row, sqlite3_errmsg(drv->db),
-                 &async_command->dataset, &async_command->term_count);
+                 &async_command->dataset, &async_command->term_count,
+                 &async_command->error_code);
     return;
   }
 
@@ -765,14 +755,7 @@ static void sql_exec_one_statement(
     (*dataset_p)[*term_count_p - 2] = ERL_DRV_ATOM;
     (*dataset_p)[*term_count_p - 1] = drv->atom_ok;
   }
-
-  *term_count_p += 2;
-  if (*term_count_p > *term_allocated_p) {
-    *term_allocated_p = max(*term_count_p, *term_allocated_p*2);
-    *dataset_p = driver_realloc(*dataset_p, sizeof(ErlDrvTermData) * *term_allocated_p);
-  }
-  (*dataset_p)[*term_count_p - 2] = ERL_DRV_TUPLE;
-  (*dataset_p)[*term_count_p - 1] = 2;
+  printf("\nEnd of sql_exec_one_statement. Term count: %d, terms alloc: %d\n", *term_count_p, *term_allocated_p);
 
 #ifdef DEBUG
   fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, *term_count_p, column_count, row_count);
@@ -785,13 +768,74 @@ static void sql_exec_async(void *_async_command) {
   async_sqlite3_command *async_command =
       (async_sqlite3_command *) _async_command;
 
-  sqlite3_stmt *statement;
+  sqlite3_stmt *statement = NULL;
+  int result;
+  const char *rest;
+  const char *end;
+  int num_statements = 0;
+  int term_count = 0, term_allocated = 0;
+  ErlDrvTermData *dataset = NULL;
+
+  sqlite3_drv_t *drv = async_command->driver_data;
+
+  term_count += 2;
+  if (term_count > term_allocated) {
+    term_allocated = max(term_count, term_allocated*2);
+    dataset = driver_realloc(dataset, sizeof(ErlDrvTermData) * term_allocated);
+  }
+  dataset[term_count - 2] = ERL_DRV_PORT;
+  dataset[term_count - 1] = driver_mk_port(drv->port);
 
   switch (async_command->type) {
   case t_stmt:
     statement = async_command->statement;
-    sql_exec_one_statement(statement, async_command);
+    sql_exec_one_statement(statement, async_command, &term_count,
+                           &term_allocated, &dataset);
+  case t_script:
+    rest = async_command->script;
+    end = async_command->end;
+
+    while ((rest < end) && !(async_command->error_code)) {
+      if (statement) {
+        sqlite3_finalize(statement);
+      }
+      result = sqlite3_prepare_v2(drv->db, rest, end - rest, &statement, &rest);
+      if (result != SQLITE_OK) {
+        // output_db_error(drv);
+        break;
+      } else if (statement == NULL) {
+        // output_error(drv, SQLITE_MISUSE, "empty statement");
+        break;
+      }
+
+      num_statements++;
+      sql_exec_one_statement(statement, async_command, &term_count,
+                             &term_allocated, &dataset);
+    }
+
+    term_count += 3;
+    if (term_count > term_allocated) {
+      term_allocated = max(term_count, term_allocated*2);
+      dataset = driver_realloc(dataset, sizeof(ErlDrvTermData) * term_allocated);
+    }
+    dataset[term_count - 3] = ERL_DRV_NIL;
+    dataset[term_count - 2] = ERL_DRV_LIST;
+    dataset[term_count - 1] = num_statements + 1;
   }
+
+  term_count += 2;
+  if (term_count > term_allocated) {
+    term_allocated = max(term_count, term_allocated*2);
+    dataset = driver_realloc(dataset, sizeof(ErlDrvTermData) * term_allocated);
+  }
+  dataset[term_count - 2] = ERL_DRV_TUPLE;
+  dataset[term_count - 1] = 2;
+
+  print_dataset(dataset, term_count);
+
+  async_command->term_count = term_count;
+  async_command->term_allocated = term_allocated;
+  async_command->dataset = dataset;
 }
 
 static void sql_step_async(void *_async_command) {
@@ -934,13 +978,15 @@ static void sql_step_async(void *_async_command) {
     break;
   case SQLITE_BUSY:
     return_error(drv, SQLITE_BUSY, "SQLite3 database is busy",
-                 &dataset, &term_count);
+                 &dataset, &term_count,
+                 &async_command->error_code);
     sqlite3_reset(statement);
     goto POPULATE_COMMAND;
     break;
   default:
     return_error(drv, result, sqlite3_errmsg(drv->db),
-                 &dataset, &term_count);
+                 &dataset, &term_count,
+                 &async_command->error_code);
     sqlite3_reset(statement);
     goto POPULATE_COMMAND;
   }
@@ -1257,4 +1303,111 @@ static inline int sql_is_insert(const char *sql) {
       return 0;
   }
   return 1;
+}
+
+static void print_dataset(ErlDrvTermData *dataset, int term_count) {
+  int i = 0, stack_size = 0;
+
+  printf("\nPrinting dataset\n");
+  while (i < term_count) {
+    switch (dataset[i]) {
+    case ERL_DRV_NIL:
+      if (dataset[i+1] == ERL_DRV_LIST) {
+        printf("%d-%d: proper list, length %lu\n", i, i+2, (ErlDrvUInt) dataset[i+2]-1);
+        i += 3;
+        stack_size -= (ErlDrvUInt) dataset[i+2]-1;
+      } else {
+        printf("%d: []\n", i);
+        i++;
+        stack_size++;
+      }
+      break;
+    case ERL_DRV_ATOM:
+      printf("%d-%d: an atom\n", i, i+1);
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_INT:
+      printf("%d-%d: int %ld\n", i, i+1, (ErlDrvSInt) dataset[i+1]);
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_PORT:
+      printf("%d-%d: a port\n", i, i+1);
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_BINARY:
+      printf("%d-%d: a binary (length %lu, offset %lu)\n",
+             i, i+3, (ErlDrvUInt) dataset[i+2], (ErlDrvUInt) dataset[i+3]);
+      i += 4;
+      stack_size++;
+      break;
+    case ERL_DRV_BUF2BINARY:
+      printf("%d-%d: a string used as binary (length %lu)\n", i, i+2, (ErlDrvUInt) dataset[i+2]);
+      i += 3;
+      stack_size++;
+      break;
+    case ERL_DRV_STRING:
+      printf("%d-%d: a string (length %lu)\n", i, i+2, (ErlDrvUInt) dataset[i+2]);
+      i += 3;
+      stack_size++;
+      break;
+    case ERL_DRV_TUPLE:
+      printf("%d-%d: a tuple (size %lu)\n", i, i+1, (ErlDrvUInt) dataset[i+1]);
+      i += 2;
+      stack_size -= (ErlDrvUInt) dataset[i+1];
+      break;
+    case ERL_DRV_LIST:
+      printf("%d-%d: an improper list (length %lu)\n", i, i+1, (ErlDrvUInt) dataset[i+1]);
+      i += 2;
+      stack_size -= (ErlDrvUInt) dataset[i+1];
+      break;
+    case ERL_DRV_PID:
+      printf("%d-%d: a pid\n", i, i+1);
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_STRING_CONS:
+      printf("%d-%d: a string inside surrounding list (length %lu)\n", i, i+2, (ErlDrvUInt) dataset[i+2]);
+      i += 3;
+      stack_size += (ErlDrvUInt) dataset[i+2];
+      break;
+    case ERL_DRV_FLOAT:
+      printf("%d-%d: float %f\n", i, i+1, (double) dataset[i+1]);
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_EXT2TERM:
+      printf("%d-%d: a term in external format of length %lu\n", i, i+1, (ErlDrvUInt) dataset[i+1]);
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_INT64:
+#if defined(_MSC_VER)
+      printf("%d-%d: int %I64d\n", i, i+1, (ErlDrvSInt64) dataset[i+1]);
+#else
+      printf("%d-%d: int %lld\n", i, i+1, (ErlDrvSInt64) dataset[i+1]);
+#endif
+      i += 2;
+      stack_size++;
+      break;
+    case ERL_DRV_UINT64:
+#if defined(_MSC_VER)
+      printf("%d-%d: int %I64lu\n", i, i+1, (ErlDrvUInt64) dataset[i+1]);
+#else
+      printf("%d-%d: int %llu\n", i, i+1, (ErlDrvUInt64) dataset[i+1]);
+#endif
+      i += 2;
+      stack_size++;
+      break;
+    default:
+      printf("%d: unexpected type\n", i);
+      i++;
+      break;
+    }
+    printf("After %d entries in dataset, %d terms are on stack\n", i, stack_size);
+  }
+
+  printf("After %d entries in dataset, %d terms are on stack\n", i, stack_size);
 }

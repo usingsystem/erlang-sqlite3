@@ -73,7 +73,10 @@ typedef struct async_sqlite3_command {
   async_sqlite3_command_type type;
   union {
     sqlite3_stmt *statement;
-    char *script;
+    struct {
+      char *script;
+      char *end;
+    };
   };
   ErlDrvTermData *dataset;
   int term_count;
@@ -82,6 +85,7 @@ typedef struct async_sqlite3_command {
   ptr_list *ptrs;
   ptr_list *binaries;
   int finalize_statement_on_free;
+  int error_code;
 } async_sqlite3_command;
 
 
