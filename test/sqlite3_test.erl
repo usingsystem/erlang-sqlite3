@@ -256,7 +256,7 @@ script_test() ->
                  ], "\n"),
     ?WARN_ERROR_MESSAGE,
     ?assertEqual(
-        [ok, ok, ok, {error, 21, "empty statement"}], 
+        [ok, ok, ok], 
         sqlite3:sql_exec_script(script, Script)),
     ?assertEqual(
         [{columns,["id"]},{rows,[{1},{2}]}], 

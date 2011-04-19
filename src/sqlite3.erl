@@ -1108,19 +1108,26 @@ exec(Port, {Cmd, Index}) when is_integer(Index) ->
 
 wait_result(Port) ->
     receive
-        {Port, error, Code, Reason} ->
-            error_logger:error_msg("sqlite3 driver error: ~s~n", 
-                                   [Reason]),
-            % ?dbg("Error: ~p~n", [Reason]),
-            {error, Code, Reason};
         {Port, Reply} ->
-            % ?dbg("Reply: ~p~n", [Reply]),
-            Reply;
+            case Reply of
+                {error, Code, Reason} ->
+                    error_logger:error_msg("sqlite3 driver error: ~s~n", 
+                                           [Reason]),
+                    % ?dbg("Error: ~p~n", [Reason]),
+                    {error, Code, Reason};
+                _ ->
+                    % ?dbg("Reply: ~p~n", [Reply]),
+                    Reply
+            end;
         {'EXIT', Port, Reason} ->
             error_logger:error_msg("sqlite3 driver port closed with reason ~p~n", 
                                    [Reason]),
             % ?dbg("Error: ~p~n", [Reason]),
-            {error, -1, Reason}
+            {error, -1, Reason};
+        Other when is_tuple(Other), element(1, Other) =/= '$gen_call', element(1, Other) =/= '$gen_cast' ->
+            error_logger:error_msg("sqlite3 unexpected reply ~p~n", 
+                                   [Other]),
+            Other
     end.
 
 parse_table_info(Info) ->
