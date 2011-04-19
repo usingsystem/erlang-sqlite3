@@ -1307,20 +1307,15 @@ static inline int sql_is_insert(const char *sql) {
 
 static void print_dataset(ErlDrvTermData *dataset, int term_count) {
   int i = 0, stack_size = 0;
+  ErlDrvUInt length;
 
   printf("\nPrinting dataset\n");
   while (i < term_count) {
     switch (dataset[i]) {
     case ERL_DRV_NIL:
-      if (dataset[i+1] == ERL_DRV_LIST) {
-        printf("%d-%d: proper list, length %lu\n", i, i+2, (ErlDrvUInt) dataset[i+2]-1);
-        i += 3;
-        stack_size -= (ErlDrvUInt) dataset[i+2]-1;
-      } else {
-        printf("%d: []\n", i);
-        i++;
-        stack_size++;
-      }
+      printf("%d: []\n", i);
+      i++;
+      stack_size++;
       break;
     case ERL_DRV_ATOM:
       printf("%d-%d: an atom\n", i, i+1);
@@ -1354,14 +1349,16 @@ static void print_dataset(ErlDrvTermData *dataset, int term_count) {
       stack_size++;
       break;
     case ERL_DRV_TUPLE:
-      printf("%d-%d: a tuple (size %lu)\n", i, i+1, (ErlDrvUInt) dataset[i+1]);
+      length = (ErlDrvUInt) dataset[i+1];
+      printf("%d-%d: a tuple (size %lu)\n", i, i+1, length);
       i += 2;
-      stack_size -= (ErlDrvUInt) dataset[i+1];
+      stack_size -= length - 1;
       break;
     case ERL_DRV_LIST:
-      printf("%d-%d: an improper list (length %lu)\n", i, i+1, (ErlDrvUInt) dataset[i+1]);
+      length = (ErlDrvUInt) dataset[i+1];
+      printf("%d-%d: a list (length %lu)\n", i, i+1, length);
       i += 2;
-      stack_size -= (ErlDrvUInt) dataset[i+1];
+      stack_size -= length - 1;
       break;
     case ERL_DRV_PID:
       printf("%d-%d: a pid\n", i, i+1);
@@ -1369,9 +1366,10 @@ static void print_dataset(ErlDrvTermData *dataset, int term_count) {
       stack_size++;
       break;
     case ERL_DRV_STRING_CONS:
-      printf("%d-%d: a string inside surrounding list (length %lu)\n", i, i+2, (ErlDrvUInt) dataset[i+2]);
+      length = (ErlDrvUInt) dataset[i+2];
+      printf("%d-%d: a string inside surrounding list (length %lu)\n", i, i+2, length);
       i += 3;
-      stack_size += (ErlDrvUInt) dataset[i+2];
+      stack_size += length;
       break;
     case ERL_DRV_FLOAT:
       printf("%d-%d: float %f\n", i, i+1, (double) dataset[i+1]);
