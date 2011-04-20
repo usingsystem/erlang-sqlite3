@@ -42,7 +42,7 @@ static inline int max(int a, int b);
 #endif
 static inline int sql_is_insert(const char *sql);
 #ifdef DEBUG
-static void print_dataset(ErlDrvTermData* dataset, int term_count);
+static void fprint_dataset(FILE* log, ErlDrvTermData* dataset, int term_count);
 #endif
 
 // required because driver_free(_binary) are macros in Windows
@@ -252,8 +252,8 @@ static inline async_sqlite3_command *make_async_command_script(
     sqlite3_drv_t *drv, char *script, int script_length) {
   async_sqlite3_command *result =
       (async_sqlite3_command *) driver_alloc(sizeof(async_sqlite3_command));
-  memset(result, 0, sizeof(async_sqlite3_command));
   char *script_copy = driver_alloc(sizeof(char) * script_length);
+  memset(result, 0, sizeof(async_sqlite3_command));
   memcpy(script_copy, script, sizeof(char) * script_length);
 
   result->driver_data = drv;
@@ -859,7 +859,7 @@ static void sql_step_async(void *_async_command) {
   ErlDrvTermData *dataset = NULL;
   sqlite3_drv_t *drv = async_command->driver_data;
 
-  int column_count;
+  int column_count = 0;
   sqlite3_stmt *statement = async_command->statement;
 
   ptr_list *ptrs = NULL;
@@ -1019,7 +1019,7 @@ POPULATE_COMMAND:
   async_command->binaries = binaries;
   async_command->row_count = 1;
 #ifdef DEBUG
-  fprintf(drv->log, "Total term count: %p %d, rows count: %dx%d\n", statement, term_count, column_count, row_count);
+  fprintf(drv->log, "Total term count: %p %d, columns count: %dx%d\n", statement, term_count, column_count);
   fflush(drv->log);
 #endif
 }
@@ -1121,19 +1121,23 @@ static int prepared_columns(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
   sqlite3_stmt *statement;
   ErlDrvTermData *dataset = NULL;
 
-#ifdef DEBUG
-  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", buffer_size, buffer);
-  fflush(drv->log);
-#endif
-
   ei_decode_version(buffer, &index, NULL);
   ei_decode_long(buffer, &index, &long_prepared_index);
   prepared_index = (unsigned int) long_prepared_index;
 
   if (prepared_index >= drv->prepared_count) {
+#ifdef DEBUG
+    fprintf(drv->log, "Tried to get columns for prepared statement #%d, but maximum possible is #%d\n", prepared_index, drv->prepared_count - 1);
+    fflush(drv->log);
+#endif      
     return output_error(drv, SQLITE_MISUSE,
                         "Trying to reset non-existent prepared statement");
   }
+
+#ifdef DEBUG
+  fprintf(drv->log, "Getting the columns for prepared statement #%d\n", prepared_index);
+  fflush(drv->log);
+#endif
 
   statement = drv->prepared_stmts[prepared_index];
 
@@ -1162,19 +1166,23 @@ static int prepared_step(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
   sqlite3_stmt *statement;
   async_sqlite3_command *async_command;
 
-#ifdef DEBUG
-  fprintf(drv->log, "Evaluating prepared statement: %.*s\n", command_size, command);
-  fflush(drv->log);
-#endif
-
   ei_decode_version(buffer, &index, NULL);
   ei_decode_long(buffer, &index, &long_prepared_index);
   prepared_index = (unsigned int) long_prepared_index;
 
   if (prepared_index >= drv->prepared_count) {
+#ifdef DEBUG
+    fprintf(drv->log, "Tried to make a step in prepared statement #%d, but maximum possible is #%d\n", prepared_index, drv->prepared_count - 1);
+    fflush(drv->log);
+#endif      
     return output_error(drv, SQLITE_MISUSE,
                         "Trying to evaluate non-existent prepared statement");
   }
+
+#ifdef DEBUG
+  fprintf(drv->log, "Making a step in prepared statement #%d\n", prepared_index);
+  fflush(drv->log);
+#endif
 
   statement = drv->prepared_stmts[prepared_index];
   async_command = make_async_command_statement(drv, statement);
@@ -1195,20 +1203,23 @@ static int prepared_reset(sqlite3_drv_t *drv, char *buffer, int buffer_size) {
   int index = 0;
   sqlite3_stmt *statement;
 
-#ifdef DEBUG
-  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", command_size, command);
-  fflush(drv->log);
-#endif
-
   ei_decode_version(buffer, &index, NULL);
   ei_decode_long(buffer, &index, &long_prepared_index);
   prepared_index = (unsigned int) long_prepared_index;
 
   if (prepared_index >= drv->prepared_count) {
+#ifdef DEBUG
+    fprintf(drv->log, "Tried to reset prepared statement #%d, but maximum possible is #%d\n", prepared_index, drv->prepared_count - 1);
+    fflush(drv->log);
+#endif      
     return output_error(drv, SQLITE_MISUSE,
                         "Trying to reset non-existent prepared statement");
   }
 
+#ifdef DEBUG
+  fprintf(drv->log, "Resetting prepared statement #%d\n", prepared_index);
+  fflush(drv->log);
+#endif
   // don't bother about error code, any errors should already be shown by step
   statement = drv->prepared_stmts[prepared_index];
   sqlite3_reset(statement);
@@ -1221,20 +1232,23 @@ static int prepared_clear_bindings(sqlite3_drv_t *drv, char *buffer, int buffer_
   int index = 0;
   sqlite3_stmt *statement;
 
-#ifdef DEBUG
-  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", command_size, command);
-  fflush(drv->log);
-#endif
-
   ei_decode_version(buffer, &index, NULL);
   ei_decode_long(buffer, &index, &long_prepared_index);
   prepared_index = (unsigned int) long_prepared_index;
 
   if (prepared_index >= drv->prepared_count) {
+#ifdef DEBUG
+    fprintf(drv->log, "Tried to clear bindings of prepared statement #%d, but maximum possible is #%d\n", prepared_index, drv->prepared_count - 1);
+    fflush(drv->log);
+#endif      
     return output_error(drv, SQLITE_MISUSE,
                         "Trying to clear bindings of non-existent prepared statement");
   }
 
+#ifdef DEBUG
+  fprintf(drv->log, "Clearing bindings of prepared statement #%d\n", prepared_index);
+  fflush(drv->log);
+#endif
   statement = drv->prepared_stmts[prepared_index];
   sqlite3_clear_bindings(statement);
   return output_ok(drv);
@@ -1245,20 +1259,23 @@ static int prepared_finalize(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
   long long_prepared_index;
   int index = 0;
 
-#ifdef DEBUG
-  fprintf(drv->log, "Finalizing prepared statement: %.*s\n", command_size, command);
-  fflush(drv->log);
-#endif
-
   ei_decode_version(buffer, &index, NULL);
   ei_decode_long(buffer, &index, &long_prepared_index);
   prepared_index = (unsigned int) long_prepared_index;
 
   if (prepared_index >= drv->prepared_count) {
+#ifdef DEBUG
+    fprintf(drv->log, "Tried to finalize prepared statement #%d, but maximum possible is #%d\n", prepared_index, drv->prepared_count - 1);
+    fflush(drv->log);
+#endif      
     return output_error(drv, SQLITE_MISUSE,
                         "Trying to finalize non-existent prepared statement");
   }
 
+#ifdef DEBUG
+  fprintf(drv->log, "Finalizing prepared statement #%d\n", prepared_index);
+  fflush(drv->log);
+#endif
   // finalize the statement and make sure it isn't accidentally executed again
   sqlite3_finalize(drv->prepared_stmts[prepared_index]);
   drv->prepared_stmts[prepared_index] = NULL;
@@ -1324,7 +1341,7 @@ static inline int sql_is_insert(const char *sql) {
 }
 
 #ifdef DEBUG
-static void print_dataset(FILE* log, ErlDrvTermData *dataset, int term_count) {
+static void fprint_dataset(FILE* log, ErlDrvTermData *dataset, int term_count) {
   int i = 0, stack_size = 0;
   ErlDrvUInt length;
 
