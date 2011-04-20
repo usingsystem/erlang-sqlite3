@@ -10,6 +10,9 @@ all: compile
 compile: 
 	$(REBAR_COMPILE)
 
+debug:
+	$(REBAR_COMPILE) -C rebar.debug.config
+
 tests:
 	$(REBAR) eunit
 
