@@ -1019,7 +1019,7 @@ POPULATE_COMMAND:
   async_command->binaries = binaries;
   async_command->row_count = 1;
 #ifdef DEBUG
-  fprintf(drv->log, "Total term count: %p %d, columns count: %dx%d\n", statement, term_count, column_count);
+  fprintf(drv->log, "Total term count: %p %d, columns count: %d\n", statement, term_count, column_count);
   fflush(drv->log);
 #endif
 }
