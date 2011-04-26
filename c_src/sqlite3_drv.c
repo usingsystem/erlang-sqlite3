@@ -403,10 +403,23 @@ static int bind_parameters(
   int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0, result = 0;
   long param_index_long;
   char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
+  char *acc_string;
   result = ei_decode_list_header(buffer, p_index, &cur_list_size);
   if (result) {
-    return output_error(drv, SQLITE_ERROR,
-                        "error while binding parameters");
+    // probably all parameters are integers between 0 and 255
+    // and the list was encoded as string (see ei documentation)
+    ei_get_type(buffer, p_index, p_type, p_size);
+    if (*p_type != ERL_STRING_EXT) {
+      return output_error(drv, SQLITE_ERROR,
+                          "error while binding parameters");
+    }
+    acc_string = driver_alloc(sizeof(char*) * (*p_size + 1));
+    ei_decode_string(buffer, p_index, acc_string);
+    for (param_index = 1; param_index <= *p_size; param_index++) {
+      sqlite3_bind_int(statement, param_index, (int) acc_string[param_index - 1]);
+    }
+    driver_free(acc_string);
+    return 0;
   }
   for (i = 0; i < cur_list_size; i++) {
     if (*p_index >= buffer_size) {
