@@ -376,11 +376,19 @@ column_sql_for_create_table({Name, Type, Constraints}) ->
     [atom_to_list(Name), " ", col_type_to_string(Type), 
      " " | map_intersperse(fun constraint_sql/1, Constraints, " ")].
 
+-spec pk_constraint_sql(any ()) -> iolist().
+pk_constraint_sql (Constraint) ->
+  case Constraint of
+    desc -> "DESK";
+    autoincrement -> "AUTOINCREMENT";
+    L -> lists:map (fun pk_constraint_sql/1, L)
+  end.
+
 -spec constraint_sql(any()) -> iolist().
 constraint_sql(Constraint) ->
     case Constraint of
         primary_key -> "PRIMARY KEY";
-        {primary_key, desc} -> "PRIMARY KEY DESC";
+        {primary_key, C} -> ["PRIMARY KEY ", pk_constraint_sql (C)]; 
         unique -> "UNIQUE";
         not_null -> "NOT NULL";
         {default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)]

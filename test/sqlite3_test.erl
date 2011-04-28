@@ -61,7 +61,7 @@ basic_functionality() ->
     Columns = ["id", "name", "age", "wage"],
     AllRows = [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 2000}],
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
-    TableInfo = [{id, integer, [primary_key]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
+    TableInfo = [{id, integer, [{primary_key, [autoincrement]}]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
     drop_all_tables(ct),
     ?WARN_ERROR_MESSAGE,
     ?assertEqual(
@@ -72,7 +72,7 @@ basic_functionality() ->
         sqlite3:list_tables(ct)),
     ok = sqlite3:create_table(ct, user, TableInfo),
     ?assertEqual(
-        [user], 
+        [user, sqlite_sequence], 
         sqlite3:list_tables(ct)),
     ?assertEqual(
         TableInfo, 
