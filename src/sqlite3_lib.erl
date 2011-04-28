@@ -378,12 +378,12 @@ column_sql_for_create_table({Name, Type, Constraints}) ->
 
 -spec pk_constraint_sql(any()) -> iolist().
 pk_constraint_sql(Constraint) ->
-  case Constraint of
-    desc -> "DESC";
-    asc -> "ASC";
-    autoincrement -> "AUTOINCREMENT";
-    L -> lists:map(fun pk_constraint_sql/1, L)
-  end.
+    case Constraint of
+        desc -> "DESC";
+        asc -> "ASC";
+        autoincrement -> "AUTOINCREMENT";
+        L -> lists:map(fun pk_constraint_sql/1, L)
+    end.
 
 -spec constraint_sql(any()) -> iolist().
 constraint_sql(Constraint) ->
