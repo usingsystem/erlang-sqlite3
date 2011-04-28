@@ -436,6 +436,12 @@ create_table_sql_test() ->
         "CREATE TABLE user (id INTEGER PRIMARY KEY, name TEXT);",
         create_table_sql(user, [{id, integer, [primary_key]}, {name, text}])),
     ?assertFlat(
+        "CREATE TABLE user (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);",
+        create_table_sql(user, [{id, integer, [{primary_key, autoincrement}]}, {name, text}])),
+    ?assertFlat(
+        "CREATE TABLE user (id INTEGER PRIMARY KEY DESC, name TEXT);",
+        create_table_sql(user, [{id, integer, [{primary_key, desc}]}, {name, text}])),
+    ?assertFlat(
         "CREATE TABLE user (id INTEGER, name TEXT, PRIMARY KEY(id));",
         create_table_sql(user, 
                          [{id, integer}, {name, text}], 
