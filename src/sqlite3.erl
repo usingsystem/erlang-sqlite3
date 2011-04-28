@@ -8,6 +8,8 @@
 %%%-------------------------------------------------------------------
 -module(sqlite3).
 -include("sqlite3.hrl").
+-export_types([sql_value/0, sql_type/0, table_info/0, sqlite_error/0, 
+               sql_params/0, sql_non_query_result/0, sql_result/0]).
 
 -behaviour(gen_server).
 
