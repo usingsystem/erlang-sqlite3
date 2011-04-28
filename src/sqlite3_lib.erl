@@ -373,8 +373,7 @@ hex_str_to_bin([X, Y | Tail], Acc) ->
 column_sql_for_create_table({Name, Type}) ->
     [atom_to_list(Name), " ", col_type_to_string(Type)];
 column_sql_for_create_table({Name, Type, Constraints}) ->
-    [atom_to_list(Name), " ", col_type_to_string(Type), 
-     " " | map_intersperse(fun constraint_sql/1, Constraints, " ")].
+    [atom_to_list(Name), " ", col_type_to_string(Type), " ", constraint_sql(Constraints)].
 
 -spec pk_constraint_sql(any()) -> iolist().
 pk_constraint_sql(Constraint) ->
@@ -392,7 +391,8 @@ constraint_sql(Constraint) ->
         {primary_key, C} -> ["PRIMARY KEY ", pk_constraint_sql(C)]; 
         unique -> "UNIQUE";
         not_null -> "NOT NULL";
-        {default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)]
+        {default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)];
+        List -> map_intersperse(fun constraint_sql/1, List, " ")
     end.
 
 -spec table_constraint_sql(any()) -> iolist().
