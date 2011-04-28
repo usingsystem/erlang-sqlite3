@@ -365,20 +365,24 @@ static inline int decode_and_bind_param(
   case ERL_BINARY_EXT:
     char_buf_val = driver_alloc(*p_size * sizeof(char));
     ei_decode_binary(buffer, p_index, char_buf_val, &bin_size);
-    // assert(bin_size == *p_size)
     result = sqlite3_bind_text(statement, param_index, char_buf_val, *p_size, &driver_free_fun);
     break;
   case ERL_SMALL_TUPLE_EXT:
     // assume this is {blob, Blob}
     ei_get_type(buffer, p_index, p_type, p_size);
     ei_decode_tuple_header(buffer, p_index, p_size);
-    assert (*p_size == 2);
+    if (*p_size != 2) {
+      output_error(drv, SQLITE_MISUSE, "bad parameter type");
+      return 1;
+    }
     ei_skip_term(buffer, p_index); // skipped the atom 'blob'
     ei_get_type(buffer, p_index, p_type, p_size);
-    assert (*p_type == ERL_BINARY_EXT);
+    if (*p_type != ERL_BINARY_EXT) {
+      output_error(drv, SQLITE_MISUSE, "bad parameter type");
+      return 1;
+    }
     char_buf_val = driver_alloc(*p_size * sizeof(char));
     ei_decode_binary(buffer, p_index, char_buf_val, &bin_size);
-    // assert(bin_size == *p_size)
     result = sqlite3_bind_blob(statement, param_index, char_buf_val, *p_size, &driver_free_fun);
     break;
   default:
@@ -399,76 +403,95 @@ static int bind_parameters(
   int i, cur_list_size = -1, param_index = 1, param_indices_are_explicit = 0, result = 0;
   long param_index_long;
   char param_name[MAXATOMLEN + 1]; // parameter names shouldn't be longer than 256!
-  while (*p_index < buffer_size) {
-    ei_decode_list_header(buffer, p_index, &cur_list_size);
-    for (i = 0; i < cur_list_size; i++) {
+  char *acc_string;
+  result = ei_decode_list_header(buffer, p_index, &cur_list_size);
+  if (result) {
+    // probably all parameters are integers between 0 and 255
+    // and the list was encoded as string (see ei documentation)
+    ei_get_type(buffer, p_index, p_type, p_size);
+    if (*p_type != ERL_STRING_EXT) {
+      return output_error(drv, SQLITE_ERROR,
+                          "error while binding parameters");
+    }
+    acc_string = driver_alloc(sizeof(char*) * (*p_size + 1));
+    ei_decode_string(buffer, p_index, acc_string);
+    for (param_index = 1; param_index <= *p_size; param_index++) {
+      sqlite3_bind_int(statement, param_index, (int) acc_string[param_index - 1]);
+    }
+    driver_free(acc_string);
+    return 0;
+  }
+  for (i = 0; i < cur_list_size; i++) {
+    if (*p_index >= buffer_size) {
+      return output_error(drv, SQLITE_ERROR,
+                          "error while binding parameters");
+    }
+    ei_get_type(buffer, p_index, p_type, p_size);
+    if (*p_type == ERL_SMALL_TUPLE_EXT) {
+      int old_index = *p_index;
+      // param with name or explicit index
+      param_indices_are_explicit = 1;
+      if (*p_size != 2) {
+        return output_error(drv, SQLITE_MISUSE,
+                            "tuple should contain index or name, and value");
+      }
+      ei_decode_tuple_header(buffer, p_index, p_size);
       ei_get_type(buffer, p_index, p_type, p_size);
-      if (*p_type == ERL_SMALL_TUPLE_EXT) {
-        int old_index = *p_index;
-        // param with name or explicit index
-        param_indices_are_explicit = 1;
-        if (*p_size != 2) {
-          return output_error(drv, SQLITE_MISUSE,
-                              "tuple should contain index or name, and value");
+      // first element of tuple is int (index), atom, or string (name)
+      switch (*p_type) {
+      case ERL_SMALL_INTEGER_EXT:
+      case ERL_INTEGER_EXT:
+        ei_decode_long(buffer, p_index, &param_index_long);
+        param_index = param_index_long;
+        break;
+      case ERL_ATOM_EXT:
+        ei_decode_atom(buffer, p_index, param_name);
+        // insert zero terminator
+        param_name[*p_size] = '\0';
+        if (strncmp(param_name, "blob", 5) == 0) {
+          // this isn't really a parameter name!
+          *p_index = old_index;
+          param_indices_are_explicit = 0;
+          goto IMPLICIT_INDEX; // yuck
         }
-        ei_decode_tuple_header(buffer, p_index, p_size);
-        ei_get_type(buffer, p_index, p_type, p_size);
-        // first element of tuple is int (index), atom, or string (name)
-        switch (*p_type) {
-        case ERL_SMALL_INTEGER_EXT:
-        case ERL_INTEGER_EXT:
-          ei_decode_long(buffer, p_index, &param_index_long);
-          param_index = param_index_long;
-          break;
-        case ERL_ATOM_EXT:
-          ei_decode_atom(buffer, p_index, param_name);
-          // insert zero terminator
-          param_name[*p_size] = '\0';
-          if (strncmp(param_name, "blob", 5) == 0) {
-            // this isn't really a parameter name!
-            *p_index = old_index;
-            param_indices_are_explicit = 0;
-            goto IMPLICIT_INDEX; // yuck
-          }
-          else {
-            param_index = sqlite3_bind_parameter_index(statement, param_name);
-          }
-          break;
-        case ERL_STRING_EXT:
-          if (*p_size >= MAXATOMLEN) {
-            return output_error(drv, SQLITE_TOOBIG, "parameter name too long");
-          }
-          ei_decode_string(buffer, p_index, param_name);
-          // insert zero terminator
-          param_name[*p_size] = '\0';
+        else {
           param_index = sqlite3_bind_parameter_index(statement, param_name);
-          break;
-        default:
-          return output_error(
-              drv, SQLITE_MISMATCH,
-              "parameter index must be given as integer, atom, or string");
         }
-        result = decode_and_bind_param(
-            drv, buffer, p_index, statement, param_index, p_type, p_size);
-        if (result != SQLITE_OK) {
-          return result; // error has already been output
+        break;
+      case ERL_STRING_EXT:
+        if (*p_size >= MAXATOMLEN) {
+          return output_error(drv, SQLITE_TOOBIG, "parameter name too long");
         }
+        ei_decode_string(buffer, p_index, param_name);
+        // insert zero terminator
+        param_name[*p_size] = '\0';
+        param_index = sqlite3_bind_parameter_index(statement, param_name);
+        break;
+      default:
+        return output_error(
+            drv, SQLITE_MISMATCH,
+            "parameter index must be given as integer, atom, or string");
       }
-      else {
-        IMPLICIT_INDEX:
-        if (param_indices_are_explicit) {
-          return output_error(
-              drv, SQLITE_MISUSE,
-              "parameters without indices shouldn't follow indexed or named parameters");
-        }
+      result = decode_and_bind_param(
+          drv, buffer, p_index, statement, param_index, p_type, p_size);
+      if (result != SQLITE_OK) {
+        return result; // error has already been output
+      }
+    }
+    else {
+      IMPLICIT_INDEX:
+      if (param_indices_are_explicit) {
+        return output_error(
+            drv, SQLITE_MISUSE,
+            "parameters without indices shouldn't follow indexed or named parameters");
+      }
 
-        result = decode_and_bind_param(
-            drv, buffer, p_index, statement, param_index, p_type, p_size);
-        if (result != SQLITE_OK) {
-          return result; // error has already been output
-        }
-        ++param_index;
+      result = decode_and_bind_param(
+          drv, buffer, p_index, statement, param_index, p_type, p_size);
+      if (result != SQLITE_OK) {
+        return result; // error has already been output
       }
+      ++param_index;
     }
   }
   return result;
@@ -516,7 +539,7 @@ static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buffer, int buffer_size) 
 
   ei_decode_version(buffer, &index, NULL);
   result = ei_decode_tuple_header(buffer, &index, &size);
-  if (size != 2) {
+  if (result || (size != 2)) {
     return output_error(drv, SQLITE_MISUSE,
                         "Expected a tuple of SQL command and params");
   }
@@ -1019,7 +1042,7 @@ POPULATE_COMMAND:
   async_command->binaries = binaries;
   async_command->row_count = 1;
 #ifdef DEBUG
-  fprintf(drv->log, "Total term count: %p %d, columns count: %dx%d\n", statement, term_count, column_count);
+  fprintf(drv->log, "Total term count: %p %d, columns count: %d\n", statement, term_count, column_count);
   fflush(drv->log);
 #endif
 }

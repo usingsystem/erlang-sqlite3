@@ -47,7 +47,8 @@ all_test_() ->
       ?FuncTest(select_many_records),
       ?FuncTest(nonexistent_table_info),
       ?FuncTest(large_number),
-      ?FuncTest(unicode)]}.
+      ?FuncTest(unicode),
+      ?FuncTest(acc_string_encoding)]}.
 
 open_db() ->
     sqlite3:open(ct, [in_memory]).
@@ -215,6 +216,9 @@ unicode() ->
     sqlite3:create_table(ct, unicode, [{str, text}]),
     sqlite3:write(ct, unicode, [{str, UnicodeString}]),
     ?assertEqual([{unicode:characters_to_binary(UnicodeString)}], rows(sqlite3:read_all(ct, unicode))). 
+
+acc_string_encoding() ->
+    ?assertEqual([{62}], rows(sqlite3:sql_exec(ct, "SELECT ? + ?", [30,32]))).
 
 prepared_test() ->
     Columns = ["id", "name", "age", "wage"],
