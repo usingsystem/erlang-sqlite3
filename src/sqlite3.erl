@@ -297,7 +297,7 @@ columns_timeout(Db, Ref, Timeout) ->
     gen_server:call(Db, {columns, Ref}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Tbl :: atom(), TblInfo :: [{atom(), atom()}]) -> sql_non_query_result()
+%% @spec create_table(Tbl :: atom(), TblInfo :: table_info()) -> sql_non_query_result()
 %% @doc
 %%   Creates the Tbl table using TblInfo as the table structure. The
 %%   table structure is a list of {column name, column type} pairs.
@@ -306,13 +306,13 @@ columns_timeout(Db, Ref, Timeout) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), [{atom(), atom()}]) -> sql_non_query_result().
+-spec create_table(atom(), table_info()) -> sql_non_query_result().
 create_table(Tbl, Columns) ->
     create_table(?MODULE, Tbl, Columns).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Db :: atom(), Tbl :: atom(), Columns) -> sql_non_query_result()
-%%     Columns = [{atom(), atom()}]
+%%     Columns = table_info()
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
@@ -321,13 +321,13 @@ create_table(Tbl, Columns) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), atom(), [{atom(), atom()}]) -> sql_non_query_result().
+-spec create_table(atom(), atom(), table_info()) -> sql_non_query_result().
 create_table(Db, Tbl, Columns) ->
     gen_server:call(Db, {create_table, Tbl, Columns}).
 
 %%--------------------------------------------------------------------
 %% @spec create_table_timeout(Db :: atom(), Tbl :: atom(), Columns, Timeout :: timeout()) -> sql_non_query_result()
-%%     Columns = [{atom(), atom()}]
+%%     Columns = table_info()
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
@@ -336,13 +336,13 @@ create_table(Db, Tbl, Columns) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_timeout(atom(), atom(), [{atom(), atom()}], timeout()) -> sql_non_query_result().
+-spec create_table_timeout(atom(), atom(), table_info(), timeout()) -> sql_non_query_result().
 create_table_timeout(Db, Tbl, Columns, Timeout) ->
     gen_server:call(Db, {create_table, Tbl, Columns}, Timeout).
 
 %%--------------------------------------------------------------------
 %% @spec create_table(Db :: atom(), Tbl :: atom(), TblInfo, Constraints) -> sql_non_query_result()
-%%     Columns = [{atom(), atom()}]
+%%     Columns = table_info()
 %%     Constraints = [term()]
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure and
@@ -353,13 +353,14 @@ create_table_timeout(Db, Tbl, Columns, Timeout) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), atom(), [{atom(), atom()}], [any()]) -> sql_non_query_result().
+-spec create_table(atom(), atom(), table_info(), table_constraints()) -> 
+          sql_non_query_result().
 create_table(Db, Tbl, Columns, Constraints) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}).
 
 %%--------------------------------------------------------------------
 %% @spec create_table_timeout(Db :: atom(), Tbl :: atom(), TblInfo, Constraints, Timeout) -> sql_non_query_result()
-%%     Columns = [{atom(), atom()}]
+%%     Columns = table_info()
 %%     Constraints = [term()]
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure and
@@ -370,7 +371,8 @@ create_table(Db, Tbl, Columns, Constraints) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_timeout(atom(), atom(), [{atom(), atom()}], [any()], timeout()) -> sql_non_query_result().
+-spec create_table_timeout(atom(), atom(), table_info(), table_constraints(), timeout()) -> 
+          sql_non_query_result().
 create_table_timeout(Db, Tbl, Columns, Constraints, Timeout) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}, Timeout).
 
@@ -405,32 +407,32 @@ list_tables_timeout(Db, Timeout) ->
     gen_server:call(Db, list_tables, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec table_info(Tbl :: atom()) -> [any()]
+%% @spec table_info(Tbl :: atom()) -> table_info()
 %% @doc
 %%    Returns table schema for Tbl.
 %% @end
 %%--------------------------------------------------------------------
--spec table_info(atom()) -> [any()].
+-spec table_info(atom()) -> table_info().
 table_info(Tbl) ->
     table_info(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
-%% @spec table_info(Db :: atom(), Tbl :: atom()) -> [any()]
+%% @spec table_info(Db :: atom(), Tbl :: atom()) -> table_info()
 %% @doc
 %%   Returns table schema for Tbl in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec table_info(atom(), atom()) -> [any()].
+-spec table_info(atom(), atom()) -> table_info().
 table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec table_info_timeout(Db :: atom(), Tbl :: atom()) -> [any()]
+%% @spec table_info_timeout(Db :: atom(), Tbl :: atom()) -> table_info()
 %% @doc
 %%   Returns table schema for Tbl in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec table_info_timeout(atom(), atom(), timeout()) -> [any()].
+-spec table_info_timeout(atom(), atom(), timeout()) -> table_info().
 table_info_timeout(Db, Tbl, Timeout) ->
     gen_server:call(Db, {table_info, Tbl}, Timeout).
 

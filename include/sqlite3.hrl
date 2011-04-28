@@ -20,9 +20,19 @@
 -endif.
 
 -define(NULL_ATOM, null).
--type(sql_value() :: number() | ?NULL_ATOM | iodata() | {blob, binary()}).
+-type sql_value() :: number() | ?NULL_ATOM | iodata() | {blob, binary()}.
+-type sql_type() :: integer | text | double | real | blob | string().
 
--type(sqlite_error() :: {error, integer(), string()}).
--type(sql_params() :: [sql_value() | {atom() | string() | integer(), sql_value()}]).
--type(sql_non_query_result() :: ok | sqlite_error() | {rowid, integer()}).
--type(sql_result() :: sql_non_query_result() | [{columns, [string()]} | {rows, [tuple()]}]).
+-type pk_constraint() :: autoincrement | desc | asc.
+-type pk_constraints() :: pk_constraint() | [pk_constraint()].
+-type column_constraint() :: non_null | primary_key | {primary_key, pk_constraints()}
+                             | unique | {default, sql_value()}.
+-type column_constraints() :: column_constraint() | [column_constraint()].
+-type table_constraint() :: {primary_key, [atom()]} | {unique, [atom()]}.
+-type table_constraints() :: table_constraint() | [table_constraint()].
+-type table_info() :: [{atom(), sql_type()} | {atom(), sql_type(), column_constraints()}].
+
+-type sqlite_error() :: {error, integer(), string()}.
+-type sql_params() :: [sql_value() | {atom() | string() | integer(), sql_value()}].
+-type sql_non_query_result() :: ok | sqlite_error() | {rowid, integer()}.
+-type sql_result() :: sql_non_query_result() | [{columns, [string()]} | {rows, [tuple()]}].

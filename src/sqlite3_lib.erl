@@ -25,7 +25,7 @@
 %% @doc Maps sqlite3 column type.
 %% @end
 %%--------------------------------------------------------------------
--spec col_type_to_string(atom() | string()) -> string().
+-spec col_type_to_string(sql_type()) -> string().
 col_type_to_string(integer) ->
     "INTEGER";
 col_type_to_string(text) ->
@@ -36,6 +36,8 @@ col_type_to_string(real) ->
     "REAL";
 col_type_to_string(blob) ->
     "BLOB";
+col_type_to_string(Atom) when is_atom(Atom) ->
+    string:to_upper(atom_to_list(Atom));
 col_type_to_string(String) when is_list(String) ->
     String.
 
@@ -196,7 +198,7 @@ read_cols_sql(Columns) ->
 %% @doc Generates a table create stmt in SQL.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_sql(atom(), [{atom(), atom()} | {atom(), atom(), [any()]}]) -> iolist().
+-spec create_table_sql(atom(), table_info()) -> iolist().
 create_table_sql(Tbl, Columns) ->
     ["CREATE TABLE ", atom_to_list(Tbl), " (",
      map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ");"].
@@ -212,11 +214,11 @@ create_table_sql(Tbl, Columns) ->
 %% @doc Generates a table create stmt in SQL.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_sql(atom(), [{atom(), atom()} | {atom(), atom(), [any()]}], [any()]) -> iolist().
+-spec create_table_sql(atom(), table_info(), table_constraints()) -> iolist().
 create_table_sql(Tbl, Columns, TblConstraints) ->
     ["CREATE TABLE ", atom_to_list(Tbl), " (",
      map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ", ",
-     map_intersperse(fun table_constraint_sql/1, TblConstraints, ", "), 
+     table_constraint_sql(TblConstraints), 
      ");"].
 
 %%--------------------------------------------------------------------
@@ -334,7 +336,7 @@ drop_table_sql(Tbl) ->
 
 %% @doc Works like string:join for iolists
 
--spec map_intersperse(fun((X) -> iolist()), [X], [iolist() | integer()]) -> iolist().
+-spec map_intersperse(fun((X) -> iolist()), [X], iolist()) -> iolist().
 map_intersperse(_Fun, [], _Sep) -> [];
 map_intersperse(Fun, [Elem], _Sep) -> [Fun(Elem)];
 map_intersperse(Fun, [Head | Tail], Sep) -> [Fun(Head), Sep | map_intersperse(Fun, Tail, Sep)].
@@ -375,16 +377,16 @@ column_sql_for_create_table({Name, Type}) ->
 column_sql_for_create_table({Name, Type, Constraints}) ->
     [atom_to_list(Name), " ", col_type_to_string(Type), " ", constraint_sql(Constraints)].
 
--spec pk_constraint_sql(any()) -> iolist().
+-spec pk_constraint_sql(pk_constraints()) -> iolist().
 pk_constraint_sql(Constraint) ->
     case Constraint of
         desc -> "DESC";
         asc -> "ASC";
         autoincrement -> "AUTOINCREMENT";
-        List -> map_intersperse(fun pk_constraint_sql/1, List, " ")
+        _ when is_list(Constraint) -> map_intersperse(fun pk_constraint_sql/1, Constraint, " ")
     end.
 
--spec constraint_sql(any()) -> iolist().
+-spec constraint_sql(column_constraints()) -> iolist().
 constraint_sql(Constraint) ->
     case Constraint of
         primary_key -> "PRIMARY KEY";
@@ -392,10 +394,10 @@ constraint_sql(Constraint) ->
         unique -> "UNIQUE";
         not_null -> "NOT NULL";
         {default, DefaultValue} -> ["DEFAULT ", value_to_sql(DefaultValue)];
-        List -> map_intersperse(fun constraint_sql/1, List, " ")
+        _ when is_list(Constraint) -> map_intersperse(fun constraint_sql/1, Constraint, " ")
     end.
 
--spec table_constraint_sql(any()) -> iolist().
+-spec table_constraint_sql(table_constraints()) -> iolist().
 table_constraint_sql(TableConstraint) ->
     case TableConstraint of
         {primary_key, Columns} -> 
@@ -403,8 +405,10 @@ table_constraint_sql(TableConstraint) ->
              map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
         {unique, Columns} -> 
             ["UNIQUE(", 
-             map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"]
+             map_intersperse(fun indexed_column_sql/1, Columns, ", "), ")"];
         %% TODO: foreign key
+        _ when is_list(TableConstraint) ->
+            map_intersperse(fun table_constraint_sql/1, TableConstraint, ", ")
     end.
 
 indexed_column_sql({ColumnName, asc}) -> [atom_to_list(ColumnName), " ASC"];
