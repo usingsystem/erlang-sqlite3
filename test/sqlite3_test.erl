@@ -62,7 +62,7 @@ basic_functionality() ->
     Columns = ["id", "name", "age", "wage"],
     AllRows = [{1, <<"abby">>, 20, 2000}, {2, <<"marge">>, 30, 2000}],
     AbbyOnly = [{1, <<"abby">>, 20, 2000}],
-    TableInfo = [{id, integer, [{primary_key, [autoincrement]}]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
+    TableInfo = [{id, integer, [{primary_key, [asc, autoincrement]}]}, {name, text, [not_null, unique]}, {age, integer}, {wage, integer}],
     drop_all_tables(ct),
     ?WARN_ERROR_MESSAGE,
     ?assertEqual(

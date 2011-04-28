@@ -382,7 +382,7 @@ pk_constraint_sql(Constraint) ->
         desc -> "DESC";
         asc -> "ASC";
         autoincrement -> "AUTOINCREMENT";
-        L -> lists:map(fun pk_constraint_sql/1, L)
+        List -> map_intersperse(fun pk_constraint_sql/1, List, " ")
     end.
 
 -spec constraint_sql(any()) -> iolist().
