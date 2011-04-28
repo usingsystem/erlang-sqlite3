@@ -54,7 +54,10 @@ col_type_to_atom("TEXT") ->
 col_type_to_atom("REAL") ->
     double;
 col_type_to_atom("BLOB") ->
-    blob.
+    blob;
+col_type_to_atom(String) ->
+    list_to_atom(string:to_lower(String)).
+
 
 %%--------------------------------------------------------------------
 %% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
