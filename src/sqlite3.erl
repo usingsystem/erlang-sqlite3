@@ -218,10 +218,11 @@ sql_exec_timeout(Db, SQL, Params, Timeout) ->
 %% @spec sql_exec_script(Db :: atom(), Sql :: iodata()) -> [sql_result()]
 %% @doc
 %%   Executes the Sql script (consisting of semicolon-separated statements) 
-%%   directly on the Db database. Returns the list of their results (same as
-%%   if sql_exec/2 was called for all of them in order, but more efficient). 
-%%   Note that any whitespace or comments after the last semicolon will be 
-%%   considered an empty statement and produce the corresponding error.
+%%   directly on the Db database. 
+%%
+%%   If an error happens while executing a statement, no further statements are executed.
+%%
+%%   The return value is the list of results of all executed statements.
 %% @end
 %%--------------------------------------------------------------------
 -spec sql_exec_script(atom(), iodata()) -> [sql_result()].
@@ -232,10 +233,11 @@ sql_exec_script(Db, SQL) ->
 %% @spec sql_exec_script_timeout(Db :: atom(), Sql :: iodata(), Timeout :: timeout()) -> [sql_result()]
 %% @doc
 %%   Executes the Sql script (consisting of semicolon-separated statements) 
-%%   directly on the Db database. Returns the list of their results (same as
-%%   if sql_exec/3 was called for all of them in order, but more efficient). 
-%%   Note that any whitespace or comments after the last semicolon will be 
-%%   considered an empty statement and produce the corresponding error.
+%%   directly on the Db database.
+%%
+%%   If an error happens while executing a statement, no further statements are executed.
+%%
+%%   The return value is the list of results of all executed statements.
 %% @end
 %%--------------------------------------------------------------------
 -spec sql_exec_script_timeout(atom(), iodata(), timeout()) -> [sql_result()].
@@ -1077,7 +1079,20 @@ do_sql_bind_and_exec(SQL, Params, #state{port = Port}) ->
 
 do_sql_exec_script(SQL, #state{port = Port}) ->
     ?dbgF("SQL: ~s~n", [SQL]),
-    exec(Port, {sql_exec_script, SQL}).
+    Results = exec(Port, {sql_exec_script, SQL}),
+    %% last element of Results may be an error
+    case Results of
+        [_|_] ->
+            case lists:last(Results) of
+                {error, _Code, Reason} ->
+                    error_logger:error_msg("sqlite3 driver error: ~s~n", 
+                                           [Reason]);
+                _ -> ok
+            end;
+        _ ->
+            ok
+    end,
+    Results.
 
 exec(_Port, {create_function, _FunctionName, _Function}) ->
     error_logger:error_report([{application, sqlite3}, "NOT IMPL YET"]);

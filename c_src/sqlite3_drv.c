@@ -594,7 +594,7 @@ static void sql_free_async(void *_async_command) {
   driver_free(async_command);
 }
 
-static void sql_exec_one_statement(
+static int sql_exec_one_statement(
     sqlite3_stmt *statement, async_sqlite3_command *async_command,
     int *term_count_p, int *term_allocated_p, ErlDrvTermData **dataset_p) {
   int column_count = sqlite3_column_count(statement);
@@ -740,14 +740,14 @@ static void sql_exec_one_statement(
                  dataset_p, term_count_p,
                  term_allocated_p, &async_command->error_code);
     async_command->finalize_statement_on_free = 1;
-    return;
+    return next_row;
   }
   if (next_row != SQLITE_DONE) {
     return_error(drv, next_row, sqlite3_errmsg(drv->db),
                  dataset_p, term_count_p,
                  term_allocated_p, &async_command->error_code);
     async_command->finalize_statement_on_free = 1;
-    return;
+    return next_row;
   }
 
   if (column_count > 0) {
@@ -796,6 +796,8 @@ static void sql_exec_one_statement(
   fflush(drv->log);
 #endif
   async_command->finalize_statement_on_free = 1;
+
+  return 0;
 }
 
 static void sql_exec_async(void *_async_command) {
@@ -836,16 +838,19 @@ static void sql_exec_async(void *_async_command) {
       }
       result = sqlite3_prepare_v2(drv->db, rest, end - rest, &statement, &rest);
       if (result != SQLITE_OK) {
+        num_statements++;
         return_error(drv, result, sqlite3_errmsg(drv->db), &dataset,
                      &term_count, &term_allocated, &async_command->error_code);
-        num_statements++;
         break;
       } else if (statement == NULL) {
         break;
       } else {
         num_statements++;
-        sql_exec_one_statement(statement, async_command, &term_count,
-                               &term_allocated, &dataset);
+        result = sql_exec_one_statement(statement, async_command, &term_count,
+                                        &term_allocated, &dataset);
+        if (result) {
+          break;
+        }
       }
     }
 
