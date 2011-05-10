@@ -921,9 +921,11 @@ handle_call({write, Tbl, Data}, _From, State) ->
             {reply, {error, Exception}, State}
     end;
 handle_call({write_many, Tbl, DataList}, _From, State) ->
-    do_sql_exec("BEGIN;", State),
-    [do_sql_exec(sqlite3_lib:write_sql(Tbl, Data), State) || Data <- DataList],
-    do_handle_call_sql_exec("COMMIT;", State);
+    SQLScript = ["BEGIN;", 
+                 [sqlite3_lib:write_sql(Tbl, Data) || Data <- DataList], 
+                 "COMMIT;"],
+    Reply = do_sql_exec_script(SQLScript, State),
+    {reply, Reply, State};
 handle_call({read, Tbl}, _From, State) ->
     % select * from  Tbl where Key = Value;
     try sqlite3_lib:read_sql(Tbl) of
