@@ -866,9 +866,8 @@ handle_call(list_tables, _From, State) ->
     TableList = proplists:get_value(rows, Data),
     TableNames = [erlang:list_to_atom(erlang:binary_to_list(Name)) || {Name} <- TableList],
     {reply, TableNames, State};
-handle_call({table_info, Tbl}, _From, State) ->
+handle_call({table_info, Tbl}, _From, State) when is_atom(Tbl) ->
     % make sure we only get table info.
-    % SQL Injection warning
     SQL = io_lib:format("select sql from sqlite_master where tbl_name = '~p' and type='table';", [Tbl]),
     Data = do_sql_exec(SQL, State),
     TableSql = proplists:get_value(rows, Data),
@@ -879,6 +878,8 @@ handle_call({table_info, Tbl}, _From, State) ->
         [] ->
             {reply, table_does_not_exist, State}
     end;
+handle_call({table_info, _NotAnAtom}, _From, State) ->
+    {reply, {error, badarg}, State};
 handle_call({create_function, FunctionName, Function}, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
@@ -891,43 +892,83 @@ handle_call({sql_exec_script, SQL}, _From, State) ->
     Reply = do_sql_exec_script(SQL, State),
     {reply, Reply, State};
 handle_call({create_table, Tbl, Columns}, _From, State) ->
-    SQL = sqlite3_lib:create_table_sql(Tbl, Columns),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:create_table_sql(Tbl, Columns) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({create_table, Tbl, Columns, Constraints}, _From, State) ->
-    SQL = sqlite3_lib:create_table_sql(Tbl, Columns, Constraints),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:create_table_sql(Tbl, Columns, Constraints) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({update, Tbl, Key, Value, Data}, _From, State) ->
-    SQL = sqlite3_lib:update_sql(Tbl, Key, Value, Data),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:update_sql(Tbl, Key, Value, Data) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({write, Tbl, Data}, _From, State) ->
     % insert into t1 (data,num) values ('This is sample data',3);
-    SQL = sqlite3_lib:write_sql(Tbl, Data),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:write_sql(Tbl, Data) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({write_many, Tbl, DataList}, _From, State) ->
     do_sql_exec("BEGIN;", State),
     [do_sql_exec(sqlite3_lib:write_sql(Tbl, Data), State) || Data <- DataList],
     do_handle_call_sql_exec("COMMIT;", State);
 handle_call({read, Tbl}, _From, State) ->
     % select * from  Tbl where Key = Value;
-    SQL = sqlite3_lib:read_sql(Tbl),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:read_sql(Tbl) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({read, Tbl, Columns}, _From, State) ->
-    SQL = sqlite3_lib:read_sql(Tbl, Columns),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:read_sql(Tbl, Columns) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({read, Tbl, Key, Value}, _From, State) ->
     % select * from  Tbl where Key = Value;
-    SQL = sqlite3_lib:read_sql(Tbl, Key, Value),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:read_sql(Tbl, Key, Value) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({read, Tbl, Key, Value, Columns}, _From, State) ->
-    SQL = sqlite3_lib:read_sql(Tbl, Key, Value, Columns),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:read_sql(Tbl, Key, Value, Columns) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({delete, Tbl, {Key, Value}}, _From, State) ->
     % delete from Tbl where Key = Value;
-    SQL = sqlite3_lib:delete_sql(Tbl, Key, Value),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:delete_sql(Tbl, Key, Value) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({drop_table, Tbl}, _From, State) ->
-    SQL = sqlite3_lib:drop_table_sql(Tbl),
-    do_handle_call_sql_exec(SQL, State);
+    try sqlite3_lib:drop_table_sql(Tbl) of
+        SQL -> do_handle_call_sql_exec(SQL, State)
+    catch
+        _:Exception ->
+            {reply, {error, Exception}, State}
+    end;
 handle_call({prepare, SQL}, _From, State = #state{port = Port, refs = Refs}) ->
     case exec(Port, {prepare, SQL}) of
         Index when is_integer(Index) ->
@@ -940,17 +981,26 @@ handle_call({prepare, SQL}, _From, State = #state{port = Port, refs = Refs}) ->
     end,
     {reply, Reply, NewState};
 handle_call({bind, Ref, Params}, _From, State = #state{port = Port, refs = Refs}) ->
-    Index = dict:fetch(Ref, Refs),
-    Reply = exec(Port, {bind, Index, Params}),
+    Reply = case dict:find(Ref, Refs) of
+                {ok, Index} ->
+                    exec(Port, {bind, Index, Params});
+                error ->
+                    {error, badarg}
+            end,
     {reply, Reply, State};
 handle_call({finalize, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
-    Index = dict:fetch(Ref, Refs),
-    case exec(Port, {finalize, Index}) of
-        ok ->
-            Reply = ok,
-            NewState = State#state{refs = dict:erase(Ref, Refs)};
-        Error ->
-            Reply = Error,
+    case dict:find(Ref, Refs) of
+        {ok, Index} ->
+            case exec(Port, {finalize, Index}) of
+                ok ->
+                    Reply = ok,
+                    NewState = State#state{refs = dict:erase(Ref, Refs)};
+                Error ->
+                    Reply = Error,
+                    NewState = State
+            end;
+        error ->
+            Reply = {error, badarg},
             NewState = State
     end,
     {reply, Reply, NewState};
@@ -959,8 +1009,7 @@ handle_call({Cmd, Ref}, _From, State = #state{port = Port, refs = Refs}) ->
                 {ok, Index} ->
                     exec(Port, {Cmd, Index});
                 error ->
-                    {error, -1, 
-                     "Bad reference to prepared statement; it is already finalized or doesn't exist"}
+                    {error, badarg}
             end,
     {reply, Reply, State};
 handle_call(vacuum, _From, State) ->
@@ -1144,7 +1193,7 @@ wait_result(Port) ->
             error_logger:error_msg("sqlite3 driver port closed with reason ~p~n", 
                                    [Reason]),
             % ?dbg("Error: ~p~n", [Reason]),
-            {error, -1, Reason};
+            {error, Reason};
         Other when is_tuple(Other), element(1, Other) =/= '$gen_call', element(1, Other) =/= '$gen_cast' ->
             error_logger:error_msg("sqlite3 unexpected reply ~p~n", 
                                    [Other]),
@@ -1232,11 +1281,15 @@ build_primary_key_constraint(Tail, Acc) ->
 %% 
 %% Currently supported constraints for {@link table_info()} and {@link sqlite3:create_table/4}.
 %% @end
-%% @type sqlite_error() = {'error', integer(), string()}.
+%% @type sqlite_error() = {'error', integer(), string()} | {'error', any()}.
 %% 
-%% Errors are reported by their SQLite result code 
-%% ([http://www.sqlite.org/c3ref/c_busy_recovery.html]) and a string containing 
-%% English-language text that describes the error.
+%% Errors occuring on the C side are represented by 3-element tuples containing 
+%% atom 'error', SQLite result code ([http://www.sqlite.org/c3ref/c_abort.html], 
+%% [http://www.sqlite.org/c3ref/c_busy_recovery.html]) and an English-language error
+%% message.
+%%
+%% Errors occuring on the Erlang side are represented by 2-element tuples with
+%% first element 'error'.
 %% @end
 %% @type sql_non_query_result() = ok | sqlite_error() | {rowid, integer()}.
 %% The result returned by functions which call the database but don't return

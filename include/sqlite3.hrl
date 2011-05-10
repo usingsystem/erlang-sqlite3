@@ -32,7 +32,7 @@
 -type table_constraints() :: table_constraint() | [table_constraint()].
 -type table_info() :: [{atom(), sql_type()} | {atom(), sql_type(), column_constraints()}].
 
--type sqlite_error() :: {error, integer(), string()}.
+-type sqlite_error() :: {error, integer(), string()} | {error, term()}.
 -type sql_params() :: [sql_value() | {atom() | string() | integer(), sql_value()}].
 -type sql_non_query_result() :: ok | sqlite_error() | {rowid, integer()}.
 -type sql_result() :: sql_non_query_result() | [{columns, [string()]} | {rows, [tuple()]}].

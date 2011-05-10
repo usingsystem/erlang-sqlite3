@@ -42,6 +42,7 @@ all_test_() ->
      fun close_db/1,
      [?FuncTest(basic_functionality),
       ?FuncTest(parametrized),
+      ?FuncTest(negative),
       ?FuncTest(blob),
       ?FuncTest(escaping),
       ?FuncTest(select_many_records),
@@ -127,6 +128,10 @@ parametrized() ->
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?3, ?5)", [{3, 2}, {5, "joe"}]),
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (:id, @name)", [{":id", 3}, {'@name', <<"jack">>}]),
     sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [4, "james"]),
+    ?WARN_ERROR_MESSAGE,
+    ?assertMatch(
+        {error, _, _},
+        sqlite3:sql_exec(ct, "INSERT INTO user1 (id, name) VALUES (?, ?)", [4, bad_sql_value])),
     ?assertEqual(
         [{columns, ["id", "name"]}, 
          {rows, [{1, <<"john">>}, {2, <<"joe">>}, {3, <<"jack">>}, {4, <<"james">>}]}], 
@@ -139,6 +144,12 @@ parametrized() ->
         [{columns, ["i", "d", "b"]}, 
          {rows, [{null, 1.0, {blob, <<1,0,0>>}}]}],
         sqlite3:read_all(ct, user1)).
+
+negative() ->
+    drop_table_if_exists(ct, negative),
+    sqlite3:create_table(ct, negative, [{id, int}]),
+    ?assertEqual({error, badarg}, 
+                 sqlite3:write(ct, negative, [{id, bad_sql_value}])).
 
 blob() ->
     drop_table_if_exists(ct, blobs),
@@ -234,6 +245,7 @@ prepared_test() ->
     sqlite3:write(prepared, user, [{name, "marge"}, {age, 30}, {wage, 2000}]),
     {ok, Ref1} = sqlite3:prepare(prepared, "SELECT * FROM user"),
     {ok, Ref2} = sqlite3:prepare(prepared, "SELECT * FROM user WHERE name = ?"),
+    ?assertMatch({error, _}, sqlite3:next(prepared, make_ref())),
     ?assertEqual(Columns, sqlite3:columns(prepared, Ref1)),
     ?assertEqual(Abby, sqlite3:next(prepared, Ref1)),
     ?assertEqual(ok, sqlite3:reset(prepared, Ref1)),
@@ -241,7 +253,7 @@ prepared_test() ->
     ?assertEqual(Marge, sqlite3:next(prepared, Ref1)),
     ?assertEqual(done, sqlite3:next(prepared, Ref1)),
     ?assertEqual(ok, sqlite3:finalize(prepared, Ref1)),
-    ?assertMatch({error, _, _}, sqlite3:next(prepared, Ref1)),
+    ?assertMatch({error, _}, sqlite3:next(prepared, Ref1)),
     ?assertEqual(ok, sqlite3:reset(prepared, Ref2)),
     ?assertEqual(ok, sqlite3:bind(prepared, Ref2, ["marge"])),
     ?assertEqual(Marge, sqlite3:next(prepared, Ref2)),
