@@ -477,38 +477,38 @@ write_timeout(Db, Tbl, Data, Timeout) ->
     gen_server:call(Db, {write, Tbl, Data}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec write_many(Tbl :: atom(), Data) -> sql_non_query_result()
+%% @spec write_many(Tbl :: atom(), Data) -> [sql_result()]
 %%         Data = [[{Column :: atom(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl. Value must be of the 
 %%   same type as determined from table_info/2.
 %% @end
 %%--------------------------------------------------------------------
--spec write_many(atom(), [[{atom(), sql_value()}]]) -> sql_non_query_result().
+-spec write_many(atom(), [[{atom(), sql_value()}]]) -> [sql_result()].
 write_many(Tbl, Data) ->
     write_many(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
-%% @spec write_many(Db :: atom(), Tbl :: atom(), Data) -> sql_non_query_result()
+%% @spec write_many(Db :: atom(), Tbl :: atom(), Data) -> [sql_result()]
 %%         Data = [[{Column :: atom(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl in database Db. Value 
 %%   must be of the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write_many(atom(), atom(), [[{atom(), sql_value()}]]) -> sql_non_query_result().
+-spec write_many(atom(), atom(), [[{atom(), sql_value()}]]) -> [sql_result()].
 write_many(Db, Tbl, Data) ->
     gen_server:call(Db, {write_many, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec write_many_timeout(Db :: atom(), Tbl :: atom(), Data, Timeout :: timeout()) -> sql_non_query_result()
+%% @spec write_many_timeout(Db :: atom(), Tbl :: atom(), Data, Timeout :: timeout()) -> [sql_result()]
 %%         Data = [[{Column :: atom(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl in database Db. Value 
 %%   must be of the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write_many_timeout(atom(), atom(), [[{atom(), sql_value()}]], timeout()) -> sql_non_query_result().
+-spec write_many_timeout(atom(), atom(), [[{atom(), sql_value()}]], timeout()) -> [sql_result()].
 write_many_timeout(Db, Tbl, Data, Timeout) ->
     gen_server:call(Db, {write_many, Tbl, Data}, Timeout).
 
