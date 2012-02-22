@@ -46,11 +46,11 @@ static void fprint_dataset(FILE* log, ErlDrvTermData* dataset, int term_count);
 #endif
 
 // required because driver_free(_binary) are macros in Windows
-void driver_free_fun(void *ptr) { 
+static void driver_free_fun(void *ptr) {
     driver_free(ptr); 
 }
 
-void driver_free_binary_fun(void *ptr) { 
+static void driver_free_binary_fun(void *ptr) {
     driver_free_binary((ErlDrvBinary *) ptr); 
 }
 
@@ -221,16 +221,6 @@ static inline int output_ok(sqlite3_drv_t *drv) {
   ErlDrvTermData spec[] = {
       ERL_DRV_PORT, driver_mk_port(drv->port),
       ERL_DRV_ATOM, drv->atom_ok,
-      ERL_DRV_TUPLE, 2
-  };
-  return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-}
-
-static inline int output_done(sqlite3_drv_t *drv) {
-  // Return {Port, ok}
-  ErlDrvTermData spec[] = {
-      ERL_DRV_PORT, driver_mk_port(drv->port),
-      ERL_DRV_ATOM, drv->atom_done,
       ERL_DRV_TUPLE, 2
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
