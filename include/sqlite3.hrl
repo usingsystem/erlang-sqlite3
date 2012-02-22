@@ -20,6 +20,7 @@
 -endif.
 
 -define(NULL_ATOM, null).
+-type table() :: atom() | binary() | string().
 -type sql_value() :: number() | ?NULL_ATOM | iodata() | {blob, binary()}.
 -type sql_type() :: integer | text | double | real | blob | string().
 
