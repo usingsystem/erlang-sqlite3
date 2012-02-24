@@ -205,7 +205,7 @@ read_cols_sql(Columns) ->
 %%--------------------------------------------------------------------
 -spec create_table_sql(table_id(), table_info()) -> iolist().
 create_table_sql(Tbl, Columns) ->
-    {Type, TName} = encode_tbl(Tbl),
+    {Type, TName} = encode_table_id(Tbl),
     ["CREATE TABLE ", TName, " (",
      map_intersperse(fun column_sql_for_create_table/1, Columns, ", "),
      ", CHECK ('", Type, "'='", Type, "'));"].
@@ -223,7 +223,7 @@ create_table_sql(Tbl, Columns) ->
 %%--------------------------------------------------------------------
 -spec create_table_sql(table_id(), table_info(), table_constraints()) -> iolist().
 create_table_sql(Tbl, Columns, TblConstraints) ->
-    {Type, TName} = encode_tbl(Tbl),
+    {Type, TName} = encode_table_id(Tbl),
     ["CREATE TABLE ", TName, " (",
      map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ", ",
      table_constraint_sql(TblConstraints), 
@@ -243,7 +243,7 @@ create_table_sql(Tbl, Columns, TblConstraints) ->
 %%--------------------------------------------------------------------
 -spec update_sql(table_id(), column_id(), sql_value(), [{column_id(), sql_value()}]) -> iolist().
 update_sql(Tbl, Key, Value, Data) ->
-    {_, TName} = encode_tbl(Tbl),
+    {_, TName} = encode_table_id(Tbl),
     ["UPDATE ", TName, " SET ", update_set_sql(Data), 
      " WHERE ", to_iolist(Key), " = ", value_to_sql(Value), ";"].
 
@@ -425,11 +425,11 @@ indexed_column_sql({ColumnName, desc}) -> [atom_to_list(ColumnName), " DESC"];
 indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
 
 
-encode_tbl(A) when is_atom(A) ->
+encode_table_id(A) when is_atom(A) ->
     {"am", atom_to_list(A)};
-encode_tbl(B) when is_binary(B) ->
+encode_table_id(B) when is_binary(B) ->
     {"bin", B};
-encode_tbl(L) when is_list(L) ->
+encode_table_id(L) when is_list(L) ->
     {"lst", L}.
 
 to_iolist(A) when is_atom(A) ->
