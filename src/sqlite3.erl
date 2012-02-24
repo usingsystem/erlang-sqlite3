@@ -54,7 +54,6 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% @spec start_link(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc 
 %%   Opens the sqlite3 database in file Db.db in the working directory 
 %%   (creating this file if necessary). This is the same as open/1.
@@ -68,7 +67,6 @@ start_link(Db) ->
     open(Db, []).
 
 %%--------------------------------------------------------------------
-%% @spec start_link(Db :: atom(), Options) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc 
 %%   Opens a sqlite3 database creating one if necessary. By default the 
 %%   database will be called Db.db in the current path. This can be changed 
@@ -83,7 +81,6 @@ start_link(Db, Options) ->
     open(Db, Options).
 
 %%--------------------------------------------------------------------
-%% @spec open(Db :: atom()) -> {ok, Pid :: pid()} | ignore | {error, Error}
 %% @doc
 %%   Opens the sqlite3 database in file Db.db in the working directory 
 %%   (creating this file if necessary). This is the same as open/1.
@@ -129,7 +126,6 @@ open(Db, Options) ->
     gen_server:start_link({local, Db}, ?MODULE, Opts, []).
 
 %%--------------------------------------------------------------------
-%% @spec close(Db :: atom()) -> ok
 %% @doc
 %%   Closes the Db sqlite3 database.
 %% @end
@@ -139,7 +135,6 @@ close(Db) ->
     gen_server:call(Db, close).
 
 %%--------------------------------------------------------------------
-%% @spec close_timeout(Db :: atom(), Timeout :: timeout()) -> ok
 %% @doc
 %%   Closes the Db sqlite3 database.
 %% @end
@@ -149,7 +144,6 @@ close_timeout(Db, Timeout) ->
     gen_server:call(Db, close, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec stop() -> ok
 %% @doc
 %%   Closes the sqlite3 database.
 %% @end
@@ -159,7 +153,6 @@ stop() ->
     close(?MODULE).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Sql :: iodata()) -> sql_result()
 %% @doc
 %%   Executes the Sql statement directly.
 %% @end
@@ -169,7 +162,6 @@ sql_exec(SQL) ->
     sql_exec(?MODULE, SQL).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Db :: atom(), Sql :: iodata()) -> sql_result()
 %% @doc
 %%   Executes the Sql statement directly on the Db database. Returns the
 %%   result of the Sql call.
@@ -180,8 +172,6 @@ sql_exec(Db, SQL) ->
     gen_server:call(Db, {sql_exec, SQL}).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec(Db :: atom(), Sql :: iodata(), Params) -> sql_result()
-%%   Params = [sql_value() | {atom() | string() | integer(), sql_value()}]
 %% @doc
 %%   Executes the Sql statement with parameters Params directly on the Db 
 %%   database. Returns the result of the Sql call.
@@ -193,7 +183,6 @@ sql_exec(Db, SQL, Params) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec_timeout(Db :: atom(), Sql :: iodata(), Timeout :: timeout()) -> sql_result()
 %% @doc
 %%   Executes the Sql statement directly on the Db database. Returns the
 %%   result of the Sql call.
@@ -204,8 +193,6 @@ sql_exec_timeout(Db, SQL, Timeout) ->
     gen_server:call(Db, {sql_exec, SQL}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec_timeout(Db :: atom(), Sql :: iodata(), Params, Timeout :: timeout()) -> sql_result()
-%%   Params = [sql_value() | {atom() | string() | integer(), sql_value()}]
 %% @doc
 %%   Executes the Sql statement with parameters Params directly on the Db 
 %%   database. Returns the result of the Sql call.
@@ -217,7 +204,6 @@ sql_exec_timeout(Db, SQL, Params, Timeout) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec_script(Db :: atom(), Sql :: iodata()) -> [sql_result()]
 %% @doc
 %%   Executes the Sql script (consisting of semicolon-separated statements) 
 %%   directly on the Db database. 
@@ -232,7 +218,6 @@ sql_exec_script(Db, SQL) ->
     gen_server:call(Db, {sql_exec_script, SQL}).
 
 %%--------------------------------------------------------------------
-%% @spec sql_exec_script_timeout(Db :: atom(), Sql :: iodata(), Timeout :: timeout()) -> [sql_result()]
 %% @doc
 %%   Executes the Sql script (consisting of semicolon-separated statements) 
 %%   directly on the Db database.
@@ -303,7 +288,6 @@ columns_timeout(Db, Ref, Timeout) ->
     gen_server:call(Db, {columns, Ref}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Tbl :: table_id(), TblInfo :: table_info()) -> sql_non_query_result()
 %% @doc
 %%   Creates the Tbl table using TblInfo as the table structure. The
 %%   table structure is a list of {column name, column type} pairs.
@@ -317,8 +301,6 @@ create_table(Tbl, Columns) ->
     create_table(?MODULE, Tbl, Columns).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db :: atom(), Tbl :: table_id(), Columns) -> sql_non_query_result()
-%%     Columns = table_info()
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
@@ -332,8 +314,6 @@ create_table(Db, Tbl, Columns) ->
     gen_server:call(Db, {create_table, Tbl, Columns}).
 
 %%--------------------------------------------------------------------
-%% @spec create_table_timeout(Db :: atom(), Tbl :: table_id(), Columns, Timeout :: timeout()) -> sql_non_query_result()
-%%     Columns = table_info()
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure. 
 %%   The table structure is a list of {column name, column type} pairs. 
@@ -347,9 +327,6 @@ create_table_timeout(Db, Tbl, Columns, Timeout) ->
     gen_server:call(Db, {create_table, Tbl, Columns}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec create_table(Db :: atom(), Tbl :: table_id(), TblInfo, Constraints) -> sql_non_query_result()
-%%     Columns = table_info()
-%%     Constraints = [term()]
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure and
 %%   Constraints as table constraints. 
@@ -365,9 +342,6 @@ create_table(Db, Tbl, Columns, Constraints) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}).
 
 %%--------------------------------------------------------------------
-%% @spec create_table_timeout(Db :: atom(), Tbl :: table_id(), TblInfo, Constraints, Timeout) -> sql_non_query_result()
-%%     Columns = table_info()
-%%     Constraints = [term()]
 %% @doc
 %%   Creates the Tbl table in Db using Columns as the table structure and
 %%   Constraints as table constraints. 
@@ -383,7 +357,6 @@ create_table_timeout(Db, Tbl, Columns, Constraints, Timeout) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec list_tables() -> [table_id()]
 %% @doc
 %%   Returns a list of tables.
 %% @end
@@ -393,7 +366,6 @@ list_tables() ->
     list_tables(?MODULE).
 
 %%--------------------------------------------------------------------
-%% @spec list_tables(Db :: atom()) -> [table_id()]
 %% @doc
 %%   Returns a list of tables for Db.
 %% @end
@@ -403,7 +375,6 @@ list_tables(Db) ->
     gen_server:call(Db, list_tables).
 
 %%--------------------------------------------------------------------
-%% @spec list_tables_timeout(Db :: atom(), Timeout :: timeout()) -> [table_id()]
 %% @doc
 %%   Returns a list of tables for Db.
 %% @end
@@ -413,7 +384,6 @@ list_tables_timeout(Db, Timeout) ->
     gen_server:call(Db, list_tables, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec table_info(Tbl :: table_id()) -> table_info()
 %% @doc
 %%    Returns table schema for Tbl.
 %% @end
@@ -423,7 +393,6 @@ table_info(Tbl) ->
     table_info(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
-%% @spec table_info(Db :: atom(), Tbl :: table_id()) -> table_info()
 %% @doc
 %%   Returns table schema for Tbl in Db.
 %% @end
@@ -433,7 +402,6 @@ table_info(Db, Tbl) ->
     gen_server:call(Db, {table_info, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec table_info_timeout(Db :: atom(), Tbl :: table_id(), Timeout :: timeout()) -> table_info()
 %% @doc
 %%   Returns table schema for Tbl in Db.
 %% @end
@@ -443,8 +411,6 @@ table_info_timeout(Db, Tbl, Timeout) ->
     gen_server:call(Db, {table_info, Tbl}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec write(Tbl :: table_id(), Data) -> sql_non_query_result()
-%%         Data = [{Column :: column_id(), Value :: sql_value()}]
 %% @doc
 %%   Write Data into Tbl table. Value must be of the same type as 
 %%   determined from table_info/2.
@@ -455,8 +421,6 @@ write(Tbl, Data) ->
     write(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
-%% @spec write(Db :: atom(), Tbl :: table_id(), Data) -> sql_non_query_result()
-%%         Data = [{Column :: column_id(), Value :: sql_value()}]
 %% @doc
 %%   Write Data into Tbl table in Db database. Value must be of the 
 %%   same type as determined from table_info/3.
@@ -467,9 +431,6 @@ write(Db, Tbl, Data) ->
     gen_server:call(Db, {write, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec write_timeout(Db :: atom(), Tbl :: table_id(), Data, Timeout :: timeout()) -> 
-%%         sql_non_query_result()
-%%         Data = [{Column :: column_id(), Value :: sql_value()}]
 %% @doc
 %%   Write Data into Tbl table in Db database. Value must be of the 
 %%   same type as determined from table_info/3.
@@ -481,8 +442,6 @@ write_timeout(Db, Tbl, Data, Timeout) ->
     gen_server:call(Db, {write, Tbl, Data}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec write_many(Tbl :: table_id(), Data) -> [sql_result()]
-%%         Data = [[{Column :: column_id(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl. Value must be of the 
 %%   same type as determined from table_info/2.
@@ -493,8 +452,6 @@ write_many(Tbl, Data) ->
     write_many(?MODULE, Tbl, Data).
 
 %%--------------------------------------------------------------------
-%% @spec write_many(Db :: atom(), Tbl :: table_id(), Data) -> [sql_result()]
-%%         Data = [[{Column :: column_id(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl in database Db. Value 
 %%   must be of the same type as determined from table_info/3.
@@ -505,9 +462,6 @@ write_many(Db, Tbl, Data) ->
     gen_server:call(Db, {write_many, Tbl, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec write_many_timeout(Db :: atom(), Tbl :: table_id(), Data, Timeout :: timeout()) -> 
-%%         [sql_result()]
-%%         Data = [[{Column :: column_id(), Value :: sql_value()}]]
 %% @doc
 %%   Write all records in Data into table Tbl in database Db. Value 
 %%   must be of the same type as determined from table_info/3.
@@ -519,9 +473,6 @@ write_many_timeout(Db, Tbl, Data, Timeout) ->
     gen_server:call(Db, {write_many, Tbl, Data}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec update(Tbl :: table_id(), {Key :: atom(), Value}, Data) -> sql_non_query_result()
-%%        Value = any()
-%%        Data = [{Column :: column_id(), Value :: sql_value()}]
 %% @doc
 %%    Updates rows into Tbl table such that the Value matches the
 %%    value in Key with Data.
@@ -533,9 +484,6 @@ update(Tbl, {Key, Value}, Data) ->
     update(?MODULE, Tbl, {Key, Value}, Data).
 
 %%--------------------------------------------------------------------
-%% @spec update(Db :: atom(), Tbl :: table_id(), {Key :: column_id(), Value}, Data) -> sql_non_query_result()
-%%        Value = sql_value()
-%%        Data = [{Column :: column_id(), Value :: sql_value()}]
 %% @doc
 %%    Updates rows into Tbl table in Db database such that the Value
 %%    matches the value in Key with Data.
@@ -547,9 +495,6 @@ update(Db, Tbl, {Key, Value}, Data) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}).
 
 %%--------------------------------------------------------------------
-%% @spec update_timeout(Db :: atom(), Tbl :: table_id(), {Key :: atom(), Value}, Data, Timeout :: timeout()) -> sql_non_query_result()
-%%        Value = sql_value()
-%%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc
 %%    Updates rows into Tbl table in Db database such that the Value
 %%    matches the value in Key with Data.
@@ -561,7 +506,6 @@ update_timeout(Db, Tbl, {Key, Value}, Data, Timeout) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec read_all(Db :: atom(), Table :: table_id()) -> sql_result()
 %% @doc
 %%   Reads all rows from Table in Db.
 %% @end
@@ -571,7 +515,6 @@ read_all(Db, Tbl) ->
     gen_server:call(Db, {read, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec read_all_timeout(Db :: atom(), Table :: table_id(), Timeout :: timeout()) -> sql_result()
 %% @doc
 %%   Reads all rows from Table in Db.
 %% @end
@@ -581,7 +524,6 @@ read_all_timeout(Db, Tbl, Timeout) ->
     gen_server:call(Db, {read, Tbl}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec read_all(Db :: atom(), Table :: table_id(), Columns :: [column_id()]) -> sql_result()
 %% @doc
 %%   Reads Columns in all rows from Table in Db.
 %% @end
@@ -591,7 +533,6 @@ read_all(Db, Tbl, Columns) ->
     gen_server:call(Db, {read, Tbl, Columns}).
 
 %%--------------------------------------------------------------------
-%% @spec read_all_timeout(Db :: atom(), Table :: table_id(), Columns :: [column_id()], Timeout :: timeout()) -> sql_result()
 %% @doc
 %%   Reads Columns in all rows from Table in Db.
 %% @end
@@ -601,8 +542,6 @@ read_all_timeout(Db, Tbl, Columns, Timeout) ->
     gen_server:call(Db, {read, Tbl, Columns}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec read(Tbl :: table_id(), Key) -> sql_result()
-%%         Key = {Column :: column_id(), Value :: sql_value()}
 %% @doc
 %%   Reads a row from Tbl table such that the Value matches the 
 %%   value in Column. Value must have the same type as determined 
@@ -614,8 +553,6 @@ read(Tbl, Key) ->
     read(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
-%% @spec read(Db :: atom(), Tbl :: table_id(), Key) -> sql_result()
-%%         Key = {Column :: column_id(), Value :: sql_value()}
 %% @doc
 %%   Reads a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. ColValue must have the same type 
@@ -627,11 +564,6 @@ read(Db, Tbl, {Column, Value}) ->
     gen_server:call(Db, {read, Tbl, Column, Value}).
 
 %%--------------------------------------------------------------------
-%% @spec read(Db, Tbl, Key, Columns) -> [any()]
-%%        Db = atom()
-%%        Tbl = table_id()
-%%        Key = {Column :: column_id(), Value :: sql_value()}
-%%        Columns = [column_id()]
 %% @doc
 %%    Reads a row from Tbl table in Db database such that the Value
 %%    matches the value in Column. Value must have the same type as 
@@ -643,8 +575,6 @@ read(Db, Tbl, {Key, Value}, Columns) ->
     gen_server:call(Db, {read, Tbl, Key, Value, Columns}).
 
 %%--------------------------------------------------------------------
-%% @spec read_timeout(Db :: atom(), Tbl :: table_id(), Key, Timeout :: timeout()) -> sql_result()
-%%         Key = {Column :: column_id(), Value :: sql_value()}
 %% @doc
 %%   Reads a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. ColValue must have the same type 
@@ -656,11 +586,6 @@ read_timeout(Db, Tbl, {Column, Value}, Timeout) ->
     gen_server:call(Db, {read, Tbl, Column, Value}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec read_timeout(Db, Tbl, Key, Columns, Timeout :: timeout()) -> [any()]
-%%        Db = atom()
-%%        Tbl = table_id()
-%%        Key = {Column :: column_id(), Value :: sql_value()}
-%%        Columns = [column_id()]
 %% @doc
 %%    Reads a row from Tbl table in Db database such that the Value
 %%    matches the value in Column. Value must have the same type as 
@@ -672,8 +597,6 @@ read_timeout(Db, Tbl, {Key, Value}, Columns, Timeout) ->
     gen_server:call(Db, {read, Tbl, Key, Value, Columns}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec delete(Tbl :: table_id(), Key) -> any()
-%%        Key = {Column :: column_id(), Value :: sql_value()}
 %% @doc
 %%   Delete a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. 
@@ -685,8 +608,6 @@ delete(Tbl, Key) ->
     delete(?MODULE, Tbl, Key).
 
 %%--------------------------------------------------------------------
-%% @spec delete_timeout(Db :: atom(), Tbl :: table_id(), Key, Timeout :: timeout()) -> sql_non_query_result()
-%%        Key = {Column :: atom(), Value :: sql_value()}
 %% @doc
 %%   Delete a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. 
@@ -698,8 +619,6 @@ delete_timeout(Db, Tbl, Key, Timeout) ->
     gen_server:call(Db, {delete, Tbl, Key}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec delete(Db :: atom(), Tbl :: table_id(), Key) -> sql_non_query_result()
-%%        Key = {Column :: column_id(), Value :: sql_value()}
 %% @doc
 %%   Delete a row from Tbl table in Db database such that the Value 
 %%   matches the value in Column. 
@@ -711,7 +630,6 @@ delete(Db, Tbl, Key) ->
     gen_server:call(Db, {delete, Tbl, Key}).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Tbl :: table_id()) -> sql_non_query_result()
 %% @doc
 %%   Drop the table Tbl.
 %% @end
@@ -721,7 +639,6 @@ drop_table(Tbl) ->
     drop_table(?MODULE, Tbl).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table(Db :: atom(), Tbl :: table_id()) -> sql_non_query_result()
 %% @doc
 %%   Drop the table Tbl from Db database.
 %% @end
@@ -731,7 +648,6 @@ drop_table(Db, Tbl) ->
     gen_server:call(Db, {drop_table, Tbl}).
 
 %%--------------------------------------------------------------------
-%% @spec drop_table_timeout(Db :: atom(), Tbl :: table_id(), Timeout :: timeout()) -> sql_non_query_result()
 %% @doc
 %%   Drop the table Tbl from Db database.
 %% @end
@@ -741,7 +657,6 @@ drop_table_timeout(Db, Tbl, Timeout) ->
     gen_server:call(Db, {drop_table, Tbl}, Timeout).
 
 %%--------------------------------------------------------------------
-%% @spec vacuum() -> sql_non_query_result()
 %% @doc
 %%   Vacuum the default database.
 %% @end
@@ -751,7 +666,6 @@ vacuum() ->
     gen_server:call(?MODULE, vacuum).
 
 %%--------------------------------------------------------------------
-%% @spec vacuum(Db :: atom()) -> sql_non_query_result()
 %% @doc
 %%   Vacuum the Db database.
 %% @end
@@ -761,7 +675,6 @@ vacuum(Db) ->
     gen_server:call(Db, vacuum).
 
 %%--------------------------------------------------------------------
-%% @spec vacuum_timeout(Db :: atom(), Timeout :: timeout()) -> sql_non_query_result()
 %% @doc
 %%   Vacuum the Db database.
 %% @end
@@ -771,7 +684,6 @@ vacuum_timeout(Db, Timeout) ->
     gen_server:call(Db, vacuum, Timeout).
 
 %% %%--------------------------------------------------------------------
-%% %% @spec create_function(Db :: atom(), FunctionName :: atom(), Function :: function()) -> term()
 %% %% @doc
 %% %%   Creates function under name FunctionName.
 %% %%
@@ -782,7 +694,6 @@ vacuum_timeout(Db, Timeout) ->
 %%     gen_server:call(Db, {create_function, FunctionName, Function}).
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
 %% @doc
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata
@@ -800,7 +711,6 @@ vacuum_timeout(Db, Timeout) ->
 value_to_sql_unsafe(X) -> sqlite3_lib:value_to_sql_unsafe(X).
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql(Value :: sql_value()) -> iolist()
 %% @doc
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata
@@ -819,10 +729,6 @@ value_to_sql(X) -> sqlite3_lib:value_to_sql(X).
 %%====================================================================
 
 %%--------------------------------------------------------------------
-%% @spec init(Args) -> {ok, State} |
-%%                         {ok, State, Timeout} |
-%%                         ignore               |
-%%                         {stop, Reason}
 %% @doc Initiates the server
 %% @end
 %% @hidden
@@ -848,12 +754,6 @@ init(Options) ->
     end.
 
 %%--------------------------------------------------------------------
-%% @spec handle_call(Request, From, State) -> {reply, Reply, State} |
-%%                                      {reply, Reply, State, Timeout} |
-%%                                      {noreply, State} |
-%%                                      {noreply, State, Timeout} |
-%%                                      {stop, Reason, Reply, State} |
-%%                                      {stop, Reason, State}
 %% @doc Handling call messages
 %% @end
 %% @hidden
@@ -1029,9 +929,6 @@ handle_call(_Request, _From, State) ->
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
-%% @spec handle_cast(Msg, State) -> {noreply, State} |
-%%                                      {noreply, State, Timeout} |
-%%                                      {stop, Reason, State}
 %% @doc Handling cast messages
 %% @end
 %% @hidden
@@ -1045,9 +942,6 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
-%% @spec handle_info(Info, State) -> {noreply, State} |
-%%                                       {noreply, State, Timeout} |
-%%                                       {stop, Reason, State}
 %% @doc Handling all non call/cast messages
 %% @end
 %% @hidden
@@ -1057,7 +951,6 @@ handle_info(_Info, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
-%% @spec terminate(Reason, State) -> term()
 %% @doc This function is called by a gen_server when it is about to
 %% terminate. It should be the opposite of Module:init/1 and do any necessary
 %% cleaning up. When it returns, the gen_server terminates with Reason.
@@ -1086,7 +979,6 @@ terminate(_Reason, #state{port = Port}) ->
     ok.
 
 %%--------------------------------------------------------------------
-%% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @doc Convert process state when code is changed
 %% @end
 %% @hidden

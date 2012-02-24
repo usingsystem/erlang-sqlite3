@@ -23,7 +23,6 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% @spec col_type_to_string(Type :: atom() | string()) -> string()
 %% @doc Maps sqlite3 column type.
 %% @end
 %%--------------------------------------------------------------------
@@ -44,7 +43,6 @@ col_type_to_string(String) when is_list(String) ->
     String.
 
 %%--------------------------------------------------------------------
-%% @spec col_type_to_atom(Type :: string()) -> atom()
 %% @doc Maps sqlite3 column type.
 %% @end
 %%--------------------------------------------------------------------
@@ -62,7 +60,6 @@ col_type_to_atom(String) ->
 
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql_unsafe(Value :: sql_value()) -> iolist()
 %% @doc 
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata 
@@ -86,7 +83,6 @@ value_to_sql_unsafe(X) ->
     end.
 
 %%--------------------------------------------------------------------
-%% @spec value_to_sql(Value :: sql_value()) -> iolist()
 %% @doc 
 %%    Converts an Erlang term to an SQL string.
 %%    Currently supports integers, floats, 'null' atom, and iodata 
@@ -107,7 +103,6 @@ value_to_sql(X) ->
     end.
 
 %%--------------------------------------------------------------------
-%% @spec sql_to_value(String :: string()) -> sql_value()
 %% @doc 
 %%    Converts an SQL value to an Erlang term.
 %% @end
@@ -130,7 +125,6 @@ sql_to_value(String) ->
     end.
 
 %%--------------------------------------------------------------------
-%% @spec write_value_sql(Value :: [sql_value()]) -> iolist()
 %% @doc 
 %%    Creates the values portion of the sql stmt.
 %% @end
@@ -141,7 +135,6 @@ write_value_sql(Values) ->
 
     
 %%--------------------------------------------------------------------
-%% @spec write_col_sql([atom()]) -> iolist()
 %% @doc Creates the column/data stmt for SQL.
 %% @end
 %%--------------------------------------------------------------------
@@ -150,8 +143,6 @@ write_col_sql(Cols) ->
     map_intersperse(fun to_iolist/1, Cols, ", ").
 
 %%--------------------------------------------------------------------
-%% @spec escape(IoData :: iodata()) -> iodata()
-%% 
 %% @doc Returns copy of IoData with all ' replaced by ''
 %% @end
 %%--------------------------------------------------------------------
@@ -159,8 +150,6 @@ write_col_sql(Cols) ->
 escape(IoData) -> re:replace(IoData, "'", "''", [global, unicode]).
 
 %%--------------------------------------------------------------------
-%% @spec bin_to_hex(Binary :: binary()) -> binary()
-%% 
 %% @doc Converts a plain binary to its hexadecimal encoding, to be
 %%      passed as a blob literal.
 %% @end
@@ -169,7 +158,6 @@ escape(IoData) -> re:replace(IoData, "'", "''", [global, unicode]).
 bin_to_hex(Binary) -> << <<(half_byte_to_hex(X)):8>> || <<X:4>> <= Binary>>.
 
 %%--------------------------------------------------------------------
-%% @spec update_set_sql([{Column :: atom(), Value :: sql_value()}]) -> iolist()
 %% @doc 
 %%    Creates update set stmt.
 %%    Currently supports integer, double/float and strings.
@@ -184,7 +172,6 @@ update_set_sql(Data) ->
     map_intersperse(ColValueToSqlFun, Data, ", ").
 
 %%--------------------------------------------------------------------
-%% @spec read_cols_sql(Columns::[column_id()]) -> iolist()
 %% @doc
 %%    Creates list of columns for select stmt.
 %% @end
@@ -194,12 +181,6 @@ read_cols_sql(Columns) ->
     map_intersperse(fun to_iolist/1, Columns, ", ").
 
 %%--------------------------------------------------------------------
-%% @spec create_table_sql(Tbl :: table_id(), ColumnData) -> iolist()
-%%       Tbl = table_id()
-%%       ColumnData = {Column, Type} | {Column, Type, Constraints} 
-%%       Column = column_id()
-%%       Type = atom()
-%%       Constraints = [any()]
 %% @doc Generates a table create stmt in SQL.
 %% @end
 %%--------------------------------------------------------------------
@@ -211,13 +192,6 @@ create_table_sql(Tbl, Columns) ->
      ", CHECK ('", Type, "'='", Type, "'));"].
 
 %%--------------------------------------------------------------------
-%% @spec create_table_sql(Tbl :: table_id(), ColumnData, TableConstraints) -> iolist()
-%%       Tbl = table_id()
-%%       ColumnData = {Column, Type} | {Column, Type, Constraints} 
-%%       Column = column_id()
-%%       Type = atom()
-%%       Constraints = [any()]
-%%       TableConstraints = [any()]
 %% @doc Generates a table create stmt in SQL.
 %% @end
 %%--------------------------------------------------------------------
@@ -230,11 +204,6 @@ create_table_sql(Tbl, Columns, TblConstraints) ->
      ", CHECK ('", Type, "'='", Type, "'));"].
 
 %%--------------------------------------------------------------------
-%% @spec update_sql(Tbl, Key, Value, Data) -> iolist()
-%%        Tbl = table_id()
-%%        Key = atom()
-%%        Value = sql_value()
-%%        Data = [{Column :: atom(), Value :: sql_value()}]
 %% @doc 
 %%    Using Key as the column name and Data as list of column names 
 %%    and values pairs it creates the proper update SQL stmt for the 
@@ -248,9 +217,6 @@ update_sql(Tbl, Key, Value, Data) ->
      " WHERE ", to_iolist(Key), " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec write_sql(Tbl, Data) -> iolist()
-%%       Tbl = table_id()
-%%       Data = [{ColName :: column_id(), Value :: sql_value()}]
 %% @doc Taking Data as list of column names and values pairs it creates the
 %%      proper insertion SQL stmt.
 %% @end
@@ -262,8 +228,6 @@ write_sql(Tbl, Data) ->
      ") values (", write_value_sql(Values), ");"].
 
 %%--------------------------------------------------------------------
-%% @spec read_sql(Tbl) -> iolist()
-%%       Tbl = table_id()
 %% @doc Returns all records from table Tbl.
 %% @end
 %%--------------------------------------------------------------------
@@ -272,9 +236,6 @@ read_sql(Tbl) ->
     ["SELECT * FROM ", to_iolist(Tbl), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec read_sql(Tbl, Columns) -> iolist()
-%%        Tbl = table_id()
-%%        Columns = [atom()]
 %% @doc
 %%    Returns only specified Columns of all records from table Tbl.
 %% @end
@@ -285,10 +246,6 @@ read_sql(Tbl, Columns) ->
      to_iolist(Tbl), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec read_sql(Tbl, Key, Value) -> iolist()
-%%       Tbl = table_id()
-%%       Key = column_id()
-%%       Value = sql_value()
 %% @doc Using Key as the column name searches for the record with
 %%      matching Value.
 %% @end
@@ -299,11 +256,6 @@ read_sql(Tbl, Key, Value) ->
      " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec read_sql(Tbl, Key, Value, Columns) -> iolist()
-%%        Tbl = table_id()
-%%        Key = atom()
-%%        Value = sql_value()
-%%        Columns = [atom()]
 %% @doc
 %%    Using Key as the column name searches for the record with
 %%    matching Value and returns only specified Columns.
@@ -316,10 +268,6 @@ read_sql(Tbl, Key, Value, Columns) ->
      value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec delete_sql(Tbl, Key, Value) -> iolist()
-%%       Tbl = table_id()
-%%       Key = atom()
-%%       Value = sql_value()
 %% @doc Using Key as the column name searches for the record with
 %%      matching Value then deletes that record.
 %% @end
@@ -330,8 +278,6 @@ delete_sql(Tbl, Key, Value) ->
      " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
-%% @spec drop_table_sql(Tbl) -> iolist()
-%%       Tbl = table_id()
 %% @doc Drop the table Tbl from the database
 %% @end
 %%--------------------------------------------------------------------
