@@ -205,8 +205,10 @@ read_cols_sql(Columns) ->
 %%--------------------------------------------------------------------
 -spec create_table_sql(table(), table_info()) -> iolist().
 create_table_sql(Tbl, Columns) ->
-    ["CREATE TABLE ", to_iolist(Tbl), " (",
-     map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ");"].
+    {Type, TName} = encode_tbl(Tbl),
+    ["CREATE TABLE ", TName, " (",
+     map_intersperse(fun column_sql_for_create_table/1, Columns, ", "),
+     " CHECK('", Type, "'='", Type, "'));"].
 
 %%--------------------------------------------------------------------
 %% @spec create_table_sql(Tbl :: table(), ColumnData, TableConstraints) -> iolist()
@@ -221,10 +223,11 @@ create_table_sql(Tbl, Columns) ->
 %%--------------------------------------------------------------------
 -spec create_table_sql(table(), table_info(), table_constraints()) -> iolist().
 create_table_sql(Tbl, Columns, TblConstraints) ->
-    ["CREATE TABLE ", to_iolist(Tbl), " (",
+    {Type, TName} = encode_tbl(Tbl),
+    ["CREATE TABLE ", TName, " (",
      map_intersperse(fun column_sql_for_create_table/1, Columns, ", "), ", ",
      table_constraint_sql(TblConstraints), 
-     ");"].
+     " CHECK('", Type, "'='", Type, "'));"].
 
 %%--------------------------------------------------------------------
 %% @spec update_sql(Tbl, Key, Value, Data) -> iolist()
@@ -240,7 +243,8 @@ create_table_sql(Tbl, Columns, TblConstraints) ->
 %%--------------------------------------------------------------------
 -spec update_sql(table(), atom(), sql_value(), [{atom(), sql_value()}]) -> iolist().
 update_sql(Tbl, Key, Value, Data) ->
-    ["UPDATE ", to_iolist(Tbl), " SET ", update_set_sql(Data), 
+    {_, TName} = encode_tbl(Tbl),
+    ["UPDATE ", TName, " SET ", update_set_sql(Data), 
      " WHERE ", atom_to_list(Key), " = ", value_to_sql(Value), ";"].
 
 %%--------------------------------------------------------------------
@@ -419,6 +423,14 @@ table_constraint_sql(TableConstraint) ->
 indexed_column_sql({ColumnName, asc}) -> [atom_to_list(ColumnName), " ASC"];
 indexed_column_sql({ColumnName, desc}) -> [atom_to_list(ColumnName), " DESC"];
 indexed_column_sql(ColumnName) -> atom_to_list(ColumnName).
+
+
+encode_tbl(A) when is_atom(A) ->
+    {"am", atom_to_list(A)};
+encode_tbl(B) when is_binary(B) ->
+    {"bin", B};
+encode_tbl(L) when is_list(L) ->
+    {"lst", list_to_binary(L)}.
 
 to_iolist(A) when is_atom(A) ->
     atom_to_list(A);

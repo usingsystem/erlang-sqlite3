@@ -863,10 +863,10 @@ handle_call(close, _From, State) ->
     Reply = ok,
     {stop, normal, Reply, State};
 handle_call(list_tables, _From, State) ->
-    SQL = "select name from sqlite_master where type='table';",
+    SQL = "select name, sql from sqlite_master where type='table';",
     Data = do_sql_exec(SQL, State),
     TableList = proplists:get_value(rows, Data),
-    TableNames = [erlang:list_to_atom(erlang:binary_to_list(Name)) || {Name} <- TableList],
+    TableNames = [cast_table_name(Name, SQLx) || {Name,SQLx} <- TableList],
     {reply, TableNames, State};
 handle_call({table_info, Tbl}, _From, State) when is_atom(Tbl) ->
     % make sure we only get table info.
@@ -1241,6 +1241,20 @@ build_primary_key_constraint(Tail, []) ->
     {primary_key, Tail};
 build_primary_key_constraint(Tail, Acc) ->
     {{primary_key, lists:reverse(Acc)}, Tail}.
+
+cast_table_name(Bin, SQL) ->
+    case re:run(SQL,<<"CHECK\\((.*)=(.*)\\)\\)">>,[{capture,all_but_first,binary}]) of
+	{match, [<<"'bin'">>, <<"'bin'">>]} ->
+	    Bin;
+	{match, [<<"'lst'">>, <<"'lst'">>]} ->
+	    binary_to_atom(Bin, latin1);
+	{match, [<<"'am'">>, <<"'am'">>]} ->
+	    binary_to_atom(Bin, latin1);
+	_ ->
+	    %% backwards compatible
+	    binary_to_atom(Bin, latin1)
+    end.
+
 
 %% conflict_clause(["ON", "CONFLICT", ResolutionString | Tail]) ->
 %%     Resolution = case ResolutionString of
