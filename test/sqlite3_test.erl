@@ -85,7 +85,7 @@ basic_functionality() ->
         sqlite3:table_info(ct, user)),
     ?assertEqual(
         {rowid, 1}, 
-        sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {wage, 2000}])),
+        sqlite3:write(ct, user, [{name, "abby"}, {age, 20}, {<<"wage">>, 2000}])),
     ?assertEqual(
         {rowid, 2}, 
         sqlite3:write(ct, user, [{name, "marge"}, {age, 30}, {wage, 2000}])),
