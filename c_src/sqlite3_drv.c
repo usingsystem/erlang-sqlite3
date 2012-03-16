@@ -63,7 +63,9 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
 
   retval->log = fopen(LOG_PATH, "a+");
   if (!retval->log) {
-    fprintf(stderr, "Can't create log file\n");
+    fprintf(stderr, "Error creating log file: %s\n", LOG_PATH);
+    // if we can't open the log file we shouldn't hide the data or the problem
+    retval->log = stderr; // noisy
   }
 
   fprintf(retval->log,
