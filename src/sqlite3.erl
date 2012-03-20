@@ -18,26 +18,24 @@
 %% API
 -export([open/1, open/2]).
 -export([start_link/1, start_link/2]).
--export([stop/0, close/1, close_timeout/2]).
--export([sql_exec/1, sql_exec/2, sql_exec_timeout/3, 
-         sql_exec_script/2, sql_exec_script_timeout/3, 
-         sql_exec/3, sql_exec_timeout/4]).
+-export([stop/0, close/1, close/2]).
+-export([sql_exec/1, sql_exec/2, sql_exec/3, sql_exec/4,
+         sql_exec_script/2, sql_exec_script/3]).
 -export([prepare/2, bind/3, next/2, reset/2, clear_bindings/2, finalize/2,
-         columns/2, prepare_timeout/3, bind_timeout/4, next_timeout/3,
-         reset_timeout/3, clear_bindings_timeout/3, finalize_timeout/3,
-         columns_timeout/3]).
--export([create_table/2, create_table/3, create_table/4, create_table_timeout/4,
-         create_table_timeout/5]).
--export([list_tables/0, list_tables/1, list_tables_timeout/2, 
-         table_info/1, table_info/2, table_info_timeout/3]).
--export([write/2, write/3, write_timeout/4, write_many/2, write_many/3,
-         write_many_timeout/4]).
--export([update/3, update/4, update_timeout/5]).
--export([read_all/2, read_all/3, read_all_timeout/3, read_all_timeout/4, 
-         read/2, read/3, read/4, read_timeout/4, read_timeout/5]).
--export([delete/2, delete/3, delete_timeout/4]).
--export([drop_table/1, drop_table/2, drop_table_timeout/3]).
--export([vacuum/0, vacuum/1, vacuum_timeout/2]).
+         columns/2, prepare/3, bind/4, next/3,
+         reset/3, clear_bindings/3, finalize/3,
+         columns/3]).
+-export([create_table/2, create_table/3, create_table/4, create_table/5]).
+-export([list_tables/0, list_tables/1, list_tables/2, 
+         table_info/1, table_info/2, table_info/3]).
+-export([write/2, write/3, write/4, 
+		 write_many/2, write_many/3, write_many/4]).
+-export([update/3, update/4, update/5]).
+-export([read_all/2, read_all/3, read_all/4, 
+         read/2, read/3, read/4, read/5]).
+-export([delete/2, delete/3, delete/4]).
+-export([drop_table/1, drop_table/2, drop_table/3]).
+-export([vacuum/0, vacuum/1, vacuum/2]).
 
 %% -export([create_function/3]).
 
@@ -139,8 +137,8 @@ close(Db) ->
 %%   Closes the Db sqlite3 database.
 %% @end
 %%--------------------------------------------------------------------
--spec close_timeout(atom(), timeout()) -> 'ok'.
-close_timeout(Db, Timeout) ->
+-spec close(atom(), timeout()) -> 'ok'.
+close(Db, Timeout) ->
     gen_server:call(Db, close, Timeout).
 
 %%--------------------------------------------------------------------
@@ -179,8 +177,8 @@ sql_exec(Db, SQL) ->
 %%--------------------------------------------------------------------
 -spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}]) -> 
        sql_result().
-sql_exec(Db, SQL, Params) ->
-    gen_server:call(Db, {sql_bind_and_exec, SQL, Params}).
+sql_exec(Db, SQL, Params) when is_list(Params) ->
+    gen_server:call(Db, {sql_bind_and_exec, SQL, Params});
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -188,8 +186,7 @@ sql_exec(Db, SQL, Params) ->
 %%   result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec_timeout(atom(), iodata(), timeout()) -> sql_result().
-sql_exec_timeout(Db, SQL, Timeout) ->
+sql_exec(Db, SQL, Timeout) when is_integer(Timeout) ->
     gen_server:call(Db, {sql_exec, SQL}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -198,9 +195,9 @@ sql_exec_timeout(Db, SQL, Timeout) ->
 %%   database. Returns the result of the Sql call.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec_timeout(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}], timeout()) -> 
+-spec sql_exec(atom(), iodata(), [sql_value() | {atom() | string() | integer(), sql_value()}], timeout()) -> 
        sql_result().
-sql_exec_timeout(Db, SQL, Params, Timeout) ->
+sql_exec(Db, SQL, Params, Timeout) ->
     gen_server:call(Db, {sql_bind_and_exec, SQL, Params}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -227,8 +224,8 @@ sql_exec_script(Db, SQL) ->
 %%   The return value is the list of results of all executed statements.
 %% @end
 %%--------------------------------------------------------------------
--spec sql_exec_script_timeout(atom(), iodata(), timeout()) -> [sql_result()].
-sql_exec_script_timeout(Db, SQL, Timeout) ->
+-spec sql_exec_script(atom(), iodata(), timeout()) -> [sql_result()].
+sql_exec_script(Db, SQL, Timeout) ->
     gen_server:call(Db, {sql_exec_script, SQL}, Timeout).
 
 -spec prepare(atom(), iodata()) -> {ok, reference()} | sqlite_error().
@@ -259,32 +256,32 @@ finalize(Db, Ref) ->
 columns(Db, Ref) ->
     gen_server:call(Db, {columns, Ref}).
 
--spec prepare_timeout(atom(), iodata(), timeout()) -> {ok, reference()} | sqlite_error().
-prepare_timeout(Db, SQL, Timeout) ->
+-spec prepare(atom(), iodata(), timeout()) -> {ok, reference()} | sqlite_error().
+prepare(Db, SQL, Timeout) ->
     gen_server:call(Db, {prepare, SQL}, Timeout).
 
--spec bind_timeout(atom(), reference(), sql_params(), timeout()) -> sql_non_query_result().
-bind_timeout(Db, Ref, Params, Timeout) ->
+-spec bind(atom(), reference(), sql_params(), timeout()) -> sql_non_query_result().
+bind(Db, Ref, Params, Timeout) ->
     gen_server:call(Db, {bind, Ref, Params}, Timeout).
 
--spec next_timeout(atom(), reference(), timeout()) -> tuple() | done | sqlite_error().
-next_timeout(Db, Ref, Timeout) ->
+-spec next(atom(), reference(), timeout()) -> tuple() | done | sqlite_error().
+next(Db, Ref, Timeout) ->
     gen_server:call(Db, {next, Ref}, Timeout).
 
--spec reset_timeout(atom(), reference(), timeout()) -> sql_non_query_result().
-reset_timeout(Db, Ref, Timeout) ->
+-spec reset(atom(), reference(), timeout()) -> sql_non_query_result().
+reset(Db, Ref, Timeout) ->
     gen_server:call(Db, {reset, Ref}, Timeout).
 
--spec clear_bindings_timeout(atom(), reference(), timeout()) -> sql_non_query_result().
-clear_bindings_timeout(Db, Ref, Timeout) ->
+-spec clear_bindings(atom(), reference(), timeout()) -> sql_non_query_result().
+clear_bindings(Db, Ref, Timeout) ->
     gen_server:call(Db, {clear_bindings, Ref}, Timeout).
 
--spec finalize_timeout(atom(), reference(), timeout()) -> sql_non_query_result().
-finalize_timeout(Db, Ref, Timeout) ->
+-spec finalize(atom(), reference(), timeout()) -> sql_non_query_result().
+finalize(Db, Ref, Timeout) ->
     gen_server:call(Db, {finalize, Ref}, Timeout).
 
--spec columns_timeout(atom(), reference(), timeout()) -> sql_non_query_result().
-columns_timeout(Db, Ref, Timeout) ->
+-spec columns(atom(), reference(), timeout()) -> sql_non_query_result().
+columns(Db, Ref, Timeout) ->
     gen_server:call(Db, {columns, Ref}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -322,9 +319,9 @@ create_table(Db, Tbl, Columns) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_timeout(atom(), table_id(), table_info(), timeout()) -> sql_non_query_result().
-create_table_timeout(Db, Tbl, Columns, Timeout) ->
-    gen_server:call(Db, {create_table, Tbl, Columns}, Timeout).
+-spec create_table(atom(), table_id(), table_info(), timeout()) -> sql_non_query_result().
+create_table(Db, Tbl, Columns, Timeout) when is_integer(Timeout) ->
+    gen_server:call(Db, {create_table, Tbl, Columns}, Timeout);
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -336,8 +333,8 @@ create_table_timeout(Db, Tbl, Columns, Timeout) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table(atom(), table_id(), table_info(), table_constraints()) -> 
-          sql_non_query_result().
+%-spec create_table(atom(), table_id(), table_info(), table_constraints()) -> 
+%          sql_non_query_result().
 create_table(Db, Tbl, Columns, Constraints) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}).
 
@@ -351,9 +348,9 @@ create_table(Db, Tbl, Columns, Constraints) ->
 %%   Returns the result of the create table call.
 %% @end
 %%--------------------------------------------------------------------
--spec create_table_timeout(atom(), table_id(), table_info(), table_constraints(), timeout()) -> 
+-spec create_table(atom(), table_id(), table_info(), table_constraints(), timeout()) -> 
           sql_non_query_result().
-create_table_timeout(Db, Tbl, Columns, Constraints, Timeout) ->
+create_table(Db, Tbl, Columns, Constraints, Timeout) ->
     gen_server:call(Db, {create_table, Tbl, Columns, Constraints}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -379,8 +376,8 @@ list_tables(Db) ->
 %%   Returns a list of tables for Db.
 %% @end
 %%--------------------------------------------------------------------
--spec list_tables_timeout(atom(), timeout()) -> [table_id()].
-list_tables_timeout(Db, Timeout) ->
+-spec list_tables(atom(), timeout()) -> [table_id()].
+list_tables(Db, Timeout) ->
     gen_server:call(Db, list_tables, Timeout).
 
 %%--------------------------------------------------------------------
@@ -406,8 +403,8 @@ table_info(Db, Tbl) ->
 %%   Returns table schema for Tbl in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec table_info_timeout(atom(), table_id(), timeout()) -> table_info().
-table_info_timeout(Db, Tbl, Timeout) ->
+-spec table_info(atom(), table_id(), timeout()) -> table_info().
+table_info(Db, Tbl, Timeout) ->
     gen_server:call(Db, {table_info, Tbl}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -436,9 +433,9 @@ write(Db, Tbl, Data) ->
 %%   same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write_timeout(atom(), table_id(), [{column_id(), sql_value()}], timeout()) -> 
+-spec write(atom(), table_id(), [{column_id(), sql_value()}], timeout()) -> 
 		  sql_non_query_result().
-write_timeout(Db, Tbl, Data, Timeout) ->
+write(Db, Tbl, Data, Timeout) ->
     gen_server:call(Db, {write, Tbl, Data}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -467,9 +464,9 @@ write_many(Db, Tbl, Data) ->
 %%   must be of the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec write_many_timeout(atom(), table_id(), [[{column_id(), sql_value()}]], timeout()) -> 
+-spec write_many(atom(), table_id(), [[{column_id(), sql_value()}]], timeout()) -> 
 		  [sql_result()].
-write_many_timeout(Db, Tbl, Data, Timeout) ->
+write_many(Db, Tbl, Data, Timeout) ->
     gen_server:call(Db, {write_many, Tbl, Data}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -500,9 +497,9 @@ update(Db, Tbl, {Key, Value}, Data) ->
 %%    matches the value in Key with Data.
 %% @end
 %%--------------------------------------------------------------------
--spec update_timeout(atom(), table_id(), {column_id(), sql_value()}, [{column_id(), sql_value()}], timeout()) -> 
+-spec update(atom(), table_id(), {column_id(), sql_value()}, [{column_id(), sql_value()}], timeout()) -> 
           sql_non_query_result().
-update_timeout(Db, Tbl, {Key, Value}, Data, Timeout) ->
+update(Db, Tbl, {Key, Value}, Data, Timeout) ->
   gen_server:call(Db, {update, Tbl, Key, Value, Data}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -519,17 +516,17 @@ read_all(Db, Tbl) ->
 %%   Reads all rows from Table in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec read_all_timeout(atom(), table_id(), timeout()) -> sql_result().
-read_all_timeout(Db, Tbl, Timeout) ->
-    gen_server:call(Db, {read, Tbl}, Timeout).
+-spec read_all(atom(), table_id(), timeout()) -> sql_result().
+read_all(Db, Tbl, Timeout) when is_integer(Timeout) ->
+    gen_server:call(Db, {read, Tbl}, Timeout);
 
 %%--------------------------------------------------------------------
 %% @doc
 %%   Reads Columns in all rows from Table in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec read_all(atom(), table_id(), [column_id()]) -> sql_result().
-read_all(Db, Tbl, Columns) ->
+%-spec read_all(atom(), table_id(), [column_id()]) -> sql_result().
+read_all(Db, Tbl, Columns) when is_list(Columns) ->
     gen_server:call(Db, {read, Tbl, Columns}).
 
 %%--------------------------------------------------------------------
@@ -537,8 +534,8 @@ read_all(Db, Tbl, Columns) ->
 %%   Reads Columns in all rows from Table in Db.
 %% @end
 %%--------------------------------------------------------------------
--spec read_all_timeout(atom(), table_id(), [column_id()], timeout()) -> sql_result().
-read_all_timeout(Db, Tbl, Columns, Timeout) ->
+-spec read_all(atom(), table_id(), [column_id()], timeout()) -> sql_result().
+read_all(Db, Tbl, Columns, Timeout) ->
     gen_server:call(Db, {read, Tbl, Columns}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -571,8 +568,8 @@ read(Db, Tbl, {Column, Value}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(atom(), table_id(), {column_id(), sql_value()}, [column_id()]) -> sql_result().
-read(Db, Tbl, {Key, Value}, Columns) ->
-    gen_server:call(Db, {read, Tbl, Key, Value, Columns}).
+read(Db, Tbl, {Key, Value}, Columns) when is_list(Columns) ->
+    gen_server:call(Db, {read, Tbl, Key, Value, Columns});
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -581,8 +578,8 @@ read(Db, Tbl, {Key, Value}, Columns) ->
 %%   as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec read_timeout(atom(), table_id(), {column_id(), sql_value()}, timeout()) -> sql_result().
-read_timeout(Db, Tbl, {Column, Value}, Timeout) ->
+%-spec read(atom(), table_id(), {column_id(), sql_value()}, timeout()) -> sql_result().
+read(Db, Tbl, {Column, Value}, Timeout) when is_integer(Timeout) ->
     gen_server:call(Db, {read, Tbl, Column, Value}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -592,8 +589,8 @@ read_timeout(Db, Tbl, {Column, Value}, Timeout) ->
 %%    determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec read_timeout(atom(), table_id(), {column_id(), sql_value()}, [column_id()], timeout()) -> sql_result().
-read_timeout(Db, Tbl, {Key, Value}, Columns, Timeout) ->
+-spec read(atom(), table_id(), {column_id(), sql_value()}, [column_id()], timeout()) -> sql_result().
+read(Db, Tbl, {Key, Value}, Columns, Timeout) ->
     gen_server:call(Db, {read, Tbl, Key, Value, Columns}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -614,8 +611,8 @@ delete(Tbl, Key) ->
 %%   Value must have the same type as determined from table_info/3.
 %% @end
 %%--------------------------------------------------------------------
--spec delete_timeout(atom(), table_id(), {column_id(), sql_value()}, timeout()) -> sql_non_query_result().
-delete_timeout(Db, Tbl, Key, Timeout) ->
+-spec delete(atom(), table_id(), {column_id(), sql_value()}, timeout()) -> sql_non_query_result().
+delete(Db, Tbl, Key, Timeout) ->
     gen_server:call(Db, {delete, Tbl, Key}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -652,8 +649,8 @@ drop_table(Db, Tbl) ->
 %%   Drop the table Tbl from Db database.
 %% @end
 %%--------------------------------------------------------------------
--spec drop_table_timeout(atom(), table_id(), timeout()) -> sql_non_query_result().
-drop_table_timeout(Db, Tbl, Timeout) ->
+-spec drop_table(atom(), table_id(), timeout()) -> sql_non_query_result().
+drop_table(Db, Tbl, Timeout) ->
     gen_server:call(Db, {drop_table, Tbl}, Timeout).
 
 %%--------------------------------------------------------------------
@@ -679,8 +676,8 @@ vacuum(Db) ->
 %%   Vacuum the Db database.
 %% @end
 %%--------------------------------------------------------------------
--spec vacuum_timeout(atom(), timeout()) -> sql_non_query_result().
-vacuum_timeout(Db, Timeout) ->
+-spec vacuum(atom(), timeout()) -> sql_non_query_result().
+vacuum(Db, Timeout) ->
     gen_server:call(Db, vacuum, Timeout).
 
 %% %%--------------------------------------------------------------------
