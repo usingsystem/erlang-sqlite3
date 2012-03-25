@@ -16,6 +16,7 @@
 -behaviour(gen_server).
 
 %% API
+-export([dbfile/1]).
 -export([open/1, open/2]).
 -export([start_link/1, start_link/2]).
 -export([stop/0, close/1, close/2]).
@@ -46,7 +47,7 @@
          terminate/2, code_change/3]).
 
 -define('DRIVER_NAME', 'sqlite3_drv').
--record(state, {port, ops = [], refs = dict:new()}).
+-record(state, {port, dbfile, ops = [], refs = dict:new()}).
 
 %%====================================================================
 %% API
@@ -77,7 +78,7 @@ start_link(Db) ->
 -spec start_link(atom(), [option()]) -> result().
 start_link(Db, Options) ->
     open(Db, Options).
-
+	
 %%--------------------------------------------------------------------
 %% @doc
 %%   Opens the sqlite3 database in file Db.db in the working directory 
@@ -149,6 +150,9 @@ close(Db, Timeout) ->
 -spec stop() -> 'ok'.
 stop() ->
     close(?MODULE).
+
+dbfile(Db) ->
+	gen_server:call(Db, dbfile).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -740,10 +744,10 @@ init(Options) ->
     case erl_ddll:load(PrivDir, atom_to_list(?DRIVER_NAME)) of
         ok ->
             Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
-            {ok, #state{port = Port, ops = Options}};
+            {ok, #state{port = Port, dbfile = DbFile, ops = Options}};
         {error, permanent} -> %% already loaded!
             Port = open_port({spawn, create_port_cmd(DbFile)}, [binary]),
-            {ok, #state{port = Port, ops = Options}};            
+            {ok, #state{port = Port, dbfile = DbFile, ops = Options}};      
         {error, Error} ->
             Msg = io_lib:format("Error loading ~p: ~s", 
                                 [?DRIVER_NAME, erl_ddll:format_error(Error)]),
@@ -782,8 +786,13 @@ handle_call({table_info, Tbl}, _From, State) when is_atom(Tbl) ->
         [] ->
             {reply, table_does_not_exist, State}
     end;
+
+handle_call(dbfile, _From, #state{dbfile = DbFile} = State) ->
+	{reply, DbFile, State};
+
 handle_call({table_info, _NotAnAtom}, _From, State) ->
     {reply, {error, badarg}, State};
+
 handle_call({create_function, FunctionName, Function}, _From, #state{port = Port} = State) ->
     Reply = exec(Port, {create_function, FunctionName, Function}),
     {reply, Reply, State};
