@@ -973,15 +973,15 @@ terminate(_Reason, #state{port = Port}) ->
             port_command(Port, term_to_binary({close, nop})),
             port_close(Port)
     end,
-    case erl_ddll:unload(?DRIVER_NAME) of
-        ok -> 
-            ok;
-        {error, permanent} ->
-            ok; %% FIXME is this the correct behavior?
-        {error, ErrorDesc} ->
-            error_logger:error_msg("Error unloading sqlite3 driver: ~s~n", 
-                                   [erl_ddll:format_error(ErrorDesc)])
-    end,
+    %case erl_ddll:unload(?DRIVER_NAME) of
+    %    ok -> 
+    %        ok;
+    %    {error, permanent} ->
+    %        ok; %% FIXME is this the correct behavior?
+    %    {error, ErrorDesc} ->
+    %        error_logger:error_msg("Error unloading sqlite3 driver: ~s~n", 
+    %                               [erl_ddll:format_error(ErrorDesc)])
+    %end,
     ok.
 
 %%--------------------------------------------------------------------
