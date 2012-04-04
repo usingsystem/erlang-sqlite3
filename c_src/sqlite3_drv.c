@@ -60,6 +60,7 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
   struct sqlite3 *db = NULL;
   int status = 0;
   char *db_name;
+  int tsafe = 0;
 
   retval->log = fopen(LOG_PATH, "a+");
   if (!retval->log) {
@@ -70,6 +71,10 @@ static ErlDrvData start(ErlDrvPort port, char* cmd) {
 
   fprintf(retval->log,
           "--- Start erlang-sqlite3 driver\nCommand line: [%s]\n", cmd);
+
+  tsafe = sqlite3_threadsafe();
+
+  fprintf(retval->log, "sqlite3 is thread safe?: %d\n", tsafe);
 
   db_name = strstr(cmd, " ");
   if (!db_name) {
