@@ -22,6 +22,8 @@
 #pragma warning(disable: 4201)
 #endif
 
+#define DEBUG 1
+
 // Path to file where data will be stored. 
 // It will be created if it doesn't exist
 #define DB_PATH "./store.db"
