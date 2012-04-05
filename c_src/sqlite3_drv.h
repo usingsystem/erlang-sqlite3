@@ -1,8 +1,4 @@
 // cl.exe defines macro _WIN32, but erl_interface.h checks for __WIN32__
-#ifdef _WIN32
-#define __WIN32__
-#endif
-
 #define _CRT_SECURE_NO_WARNINGS // secure functions aren't cross-platform
 
 #include <erl_driver.h>
@@ -46,13 +42,8 @@
 // (160 bits for SHA1 hash)
 #define KEY_SIZE 20
 
-typedef struct ptr_list {
-  void *head;
-  struct ptr_list *tail;
-} ptr_list;
-
 // Define struct to hold state across calls
-typedef struct sqlite3_drv_t {
+typedef struct _Sqlite3Drv {
   ErlDrvPort port;
   unsigned int key;
   struct sqlite3 *db;
@@ -70,12 +61,12 @@ typedef struct sqlite3_drv_t {
   ErlDrvTermData atom_ok;
   ErlDrvTermData atom_done;
   ErlDrvTermData atom_unknown_cmd;
-} sqlite3_drv_t;
+} Sqlite3Drv;
 
 typedef enum async_sqlite3_command_type {t_stmt, t_script} async_sqlite3_command_type;
 
 typedef struct async_sqlite3_command {
-  sqlite3_drv_t *driver_data;
+  Sqlite3Drv *driver_data;
   async_sqlite3_command_type type;
   union {
     sqlite3_stmt *statement;
@@ -99,20 +90,20 @@ static ErlDrvData start(ErlDrvPort port, char* cmd);
 static void stop(ErlDrvData handle);
 static int control(ErlDrvData drv_data, unsigned int command, char *buf, 
                    int len, char **rbuf, int rlen);
-static int sql_exec(sqlite3_drv_t *drv, char *buf, int len);
-static int sql_bind_and_exec(sqlite3_drv_t *drv, char *buf, int len);
-static int sql_exec_script(sqlite3_drv_t *drv, char *buf, int len);
-static int prepare(sqlite3_drv_t *drv, char *buf, int len);
-static int prepared_bind(sqlite3_drv_t *drv, char *buf, int len);
-static int prepared_step(sqlite3_drv_t *drv, char *buf, int len);
-static int prepared_reset(sqlite3_drv_t *drv, char *buf, int len);
-static int prepared_clear_bindings(sqlite3_drv_t *drv, char *buf, int len);
-static int prepared_finalize(sqlite3_drv_t *drv, char *buf, int len);
-static int prepared_columns(sqlite3_drv_t *drv, char *buf, int len);
+static int sql_exec(Sqlite3Drv *drv, char *buf, int len);
+static int sql_bind_and_exec(Sqlite3Drv *drv, char *buf, int len);
+static int sql_exec_script(Sqlite3Drv *drv, char *buf, int len);
+static int prepare(Sqlite3Drv *drv, char *buf, int len);
+static int prepared_bind(Sqlite3Drv *drv, char *buf, int len);
+static int prepared_step(Sqlite3Drv *drv, char *buf, int len);
+static int prepared_reset(Sqlite3Drv *drv, char *buf, int len);
+static int prepared_clear_bindings(Sqlite3Drv *drv, char *buf, int len);
+static int prepared_finalize(Sqlite3Drv *drv, char *buf, int len);
+static int prepared_columns(Sqlite3Drv *drv, char *buf, int len);
 static void sql_exec_async(void *async_command);
 static void sql_free_async(void *async_command);
 static void ready_async(ErlDrvData drv_data, ErlDrvThreadData thread_data);
-static int unknown(sqlite3_drv_t *bdb_drv, char *buf, int len);
+static int unknown(Sqlite3Drv *bdb_drv, char *buf, int len);
 
 
 #if defined(_MSC_VER)
