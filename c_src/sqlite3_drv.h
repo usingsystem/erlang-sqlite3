@@ -42,6 +42,11 @@
 // (160 bits for SHA1 hash)
 #define KEY_SIZE 20
 
+typedef struct _List {
+  void *val;
+  struct _List *next;
+} List;
+
 // Define struct to hold state across calls
 typedef struct _Sqlite3Drv {
   ErlDrvPort port;
@@ -79,8 +84,8 @@ typedef struct async_sqlite3_command {
   int term_count;
   int term_allocated;
   int row_count;
-  ptr_list *ptrs;
-  ptr_list *binaries;
+  List *ptrs;
+  List *binaries;
   int finalize_statement_on_free;
   int error_code;
 } async_sqlite3_command;
