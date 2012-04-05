@@ -10,6 +10,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "list.h"
+
 #if SQLITE_VERSION_NUMBER < 3006001
 #error "SQLite3 of version 3.6.1 minumum required"
 #endif
@@ -42,13 +44,8 @@
 // (160 bits for SHA1 hash)
 #define KEY_SIZE 20
 
-typedef struct _List {
-  void *val;
-  struct _List *next;
-} List;
-
 // Define struct to hold state across calls
-typedef struct _Sqlite3Drv {
+typedef struct Sqlite3Drv {
   ErlDrvPort port;
   unsigned int key;
   struct sqlite3 *db;
@@ -84,8 +81,8 @@ typedef struct async_sqlite3_command {
   int term_count;
   int term_allocated;
   int row_count;
-  List *ptrs;
-  List *binaries;
+  list *ptrs;
+  list *binaries;
   int finalize_statement_on_free;
   int error_code;
 } async_sqlite3_command;

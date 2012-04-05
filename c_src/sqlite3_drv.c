@@ -1,9 +1,5 @@
 #include "sqlite3_drv.h"
 
-static inline List *list_add(List *list, void *val);
-
-static inline void list_free(List *list, void(* free_value)(void *));
-
 #ifndef max // macro in Windows
 static inline int max(int a, int b);
 #endif
@@ -246,6 +242,10 @@ static inline async_sqlite3_command *make_async_command_statement(
   async_cmd->driver_data = drv;
   async_cmd->type = t_stmt;
   async_cmd->statement = statement;
+  async_cmd->ptrs = listCreate();
+  listSetFreeMethod(async_cmd->ptrs, driver_free_fun);
+  async_cmd->binaries = listCreate();
+  listSetFreeMethod(async_cmd->binaries, driver_free_binary_fun);
   return async_cmd;
 }
 
@@ -261,6 +261,10 @@ static inline async_sqlite3_command *make_async_command_script(
   async_cmd->type = t_script;
   async_cmd->script = script_copy;
   async_cmd->end = script_copy + script_length;
+  async_cmd->ptrs = listCreate();
+  listSetFreeMethod(async_cmd->ptrs, driver_free_fun);
+  async_cmd->binaries = listCreate();
+  listSetFreeMethod(async_cmd->binaries, driver_free_binary_fun);
   return async_cmd;
 }
 
@@ -577,9 +581,9 @@ static void sql_free_async(void *_async_command) {
 
   async_command->driver_data->async_handle = 0;
 
-  list_free(async_command->ptrs, driver_free_fun);
+  listRelease(async_command->ptrs);
 
-  list_free(async_command->binaries, driver_free_binary_fun);
+  listRelease(async_command->binaries);
 
   if ((async_command->type == t_stmt) &&
       async_command->finalize_statement_on_free &&
@@ -599,8 +603,8 @@ static int sql_exec_one_statement(
   int row_count = 0, next_row;
   int base_term_count;
   Sqlite3Drv *drv = async_command->driver_data;
-  List **ptrs_p = &(async_command->ptrs);
-  List **binaries_p = &(async_command->binaries);
+  list *ptrs_p = async_command->ptrs;
+  list *binaries_p = async_command->binaries;
   // printf("\nsql_exec_one_statement. SQL:\n%s\n Term count: %d, terms alloc: %d\n", sqlite3_sql(statement), *p_term_count, *p_term_allocated);
 
   int i;
@@ -637,7 +641,7 @@ static int sql_exec_one_statement(
       case SQLITE_INTEGER: {
         ErlDrvSInt64 *int64_ptr = driver_alloc(sizeof(ErlDrvSInt64));
         *int64_ptr = (ErlDrvSInt64) sqlite3_column_int64(statement, i);
-        *ptrs_p = list_add(*ptrs_p, int64_ptr);
+        listAddNodeTail(ptrs_p, int64_ptr);
 
 		dataset_realloc(p_dataset, p_term_count, p_term_allocated, 2);
 
@@ -648,7 +652,7 @@ static int sql_exec_one_statement(
       case SQLITE_FLOAT: {
         double *float_ptr = driver_alloc(sizeof(double));
         *float_ptr = sqlite3_column_double(statement, i);
-        *ptrs_p = list_add(*ptrs_p, float_ptr);
+        listAddNodeTail(ptrs_p, float_ptr);
 
 		dataset_realloc(p_dataset, p_term_count, p_term_allocated, 2);
 
@@ -662,7 +666,7 @@ static int sql_exec_one_statement(
         binary->orig_size = bytes;
         memcpy(binary->orig_bytes,
                sqlite3_column_blob(statement, i), bytes);
-        *binaries_p = list_add(*binaries_p, binary);
+        listAddNodeTail(binaries_p, binary);
 
 		dataset_realloc(p_dataset, p_term_count, p_term_allocated, 8);
 
@@ -682,7 +686,7 @@ static int sql_exec_one_statement(
         binary->orig_size = bytes;
         memcpy(binary->orig_bytes,
                sqlite3_column_blob(statement, i), bytes);
-        *binaries_p = list_add(*binaries_p, binary);
+        listAddNodeTail(binaries_p, binary);
 
 		dataset_realloc(p_dataset, p_term_count, p_term_allocated, 4);
 
@@ -740,7 +744,7 @@ static int sql_exec_one_statement(
   } else if (sql_is_insert(sqlite3_sql(statement))) {
     ErlDrvSInt64 *rowid_ptr = driver_alloc(sizeof(ErlDrvSInt64));
     *rowid_ptr = (ErlDrvSInt64) sqlite3_last_insert_rowid(drv->db);
-    *ptrs_p = list_add(*ptrs_p, rowid_ptr);
+    listAddNodeTail(ptrs_p, rowid_ptr);
 
 	dataset_realloc(p_dataset, p_term_count, p_term_allocated, 6);
 
@@ -847,8 +851,8 @@ static void sql_step_async(void *_async_command) {
   int column_count = 0;
   sqlite3_stmt *statement = async_command->statement;
 
-  List *ptrs = NULL;
-  List *binaries = NULL;
+  list *ptrs = async_command->ptrs;
+  list *binaries = async_command->binaries;
   int i;
   int result;
 
@@ -868,7 +872,7 @@ static void sql_step_async(void *_async_command) {
       case SQLITE_INTEGER: {
         ErlDrvSInt64 *int64_ptr = driver_alloc(sizeof(ErlDrvSInt64));
         *int64_ptr = (ErlDrvSInt64) sqlite3_column_int64(statement, i);
-        ptrs = list_add(ptrs, int64_ptr);
+        listAddNodeTail(ptrs, int64_ptr);
 
 		dataset_realloc(&dataset, &term_count, &term_allocated, 2);
         dataset[term_count - 2] = ERL_DRV_INT64;
@@ -878,7 +882,7 @@ static void sql_step_async(void *_async_command) {
       case SQLITE_FLOAT: {
         double *float_ptr = driver_alloc(sizeof(double));
         *float_ptr = sqlite3_column_double(statement, i);
-        ptrs = list_add(ptrs, float_ptr);
+        listAddNodeTail(ptrs, float_ptr);
 
 		dataset_realloc(&dataset, &term_count, &term_allocated, 2);
         dataset[term_count - 2] = ERL_DRV_FLOAT;
@@ -891,7 +895,7 @@ static void sql_step_async(void *_async_command) {
         binary->orig_size = bytes;
         memcpy(binary->orig_bytes,
                sqlite3_column_blob(statement, i), bytes);
-        binaries = list_add(binaries, binary);
+        listAddNodeTail(binaries, binary);
 
 		dataset_realloc(&dataset, &term_count, &term_allocated, 8);
 
@@ -911,7 +915,7 @@ static void sql_step_async(void *_async_command) {
         binary->orig_size = bytes;
         memcpy(binary->orig_bytes,
                sqlite3_column_blob(statement, i), bytes);
-        binaries = list_add(binaries, binary);
+        listAddNodeTail(binaries, binary);
 
 		dataset_realloc(&dataset, &term_count, &term_allocated, 4);
         dataset[term_count - 4] = ERL_DRV_BINARY;
@@ -1246,28 +1250,6 @@ static int unknown(Sqlite3Drv *drv, char *command, int command_size) {
       ERL_DRV_TUPLE, 4
   };
   return driver_output_term(drv->port, spec, sizeof(spec) / sizeof(spec[0]));
-}
-
-static inline List *list_add(List *list, void *value) {
-  List* node = driver_alloc(sizeof(List));
-  node->val = value;
-  node->next = NULL;
-  if (list) {
-    list->next = node;
-    return list;
-  } else {
-    return node;
-  }
-}
-
-static inline void list_free(List *list, void(* free_value)(void *)) {
-  List  *next;
-  while (list) {
-    next = list->next;
-    free_value(list->val);
-    driver_free(list);
-    list = next;
-  }
 }
 
 #ifndef max // macro in Windows
