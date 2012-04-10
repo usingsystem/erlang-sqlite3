@@ -8,7 +8,7 @@ erl_crash.dump
 *.o
 .eunit
 *.orig
-ebin/*.beam
+ebin
 priv
 TEST*.xml
 *.exp
